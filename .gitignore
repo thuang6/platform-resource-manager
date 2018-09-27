@@ -1,6 +1,15 @@
+# Generic
+.DS_Store
+*.egg-info
+*.pyc
+__pycache__
+
+# VirtualEnv
+/env
+
+# platform-resource-manager specific
 pgos/pgos
 eris/pgos
-eris/__pycache__/
 eris/lcmax.txt
 eris/metrics.csv
 eris/util.csv
