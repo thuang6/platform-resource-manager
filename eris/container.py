@@ -91,7 +91,16 @@ class Container:
         return self.get_history_delta_by_Type('NF')
 
     def get_latest_mbt(self):
-        return self.metrics['MBL'] + self.metrics['MBR']
+        if 'MBL' not in self.metrics:
+            mbl = 0
+        else:
+            mbl = self.metrics['MBL']
+        if 'MBR' not in self.metrics:
+            mbr = 0
+        else:
+            mbr = self.metrics['MBR']
+
+        return mbl + mbr
 
     def get_metrics(self):
         """ retrieve container platform metrics """
