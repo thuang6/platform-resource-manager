@@ -19,20 +19,28 @@
 
 
 import os
+import sys
+
 import argparse
 import subprocess
-from datetime import datetime
 import threading
 import time
-import sys
 import traceback
-import pandas as pd
+
 import docker
 import numpy as np
-from container import Contention, Container
-from mresource import Resource
+import pandas as pd
+
+from datetime import datetime
+try:
+    from os import cpu_count
+except ImportError:
+    from multiprocessing import cpu_count
+
+from container import Container, Contention
 from cpuquota import CpuQuota
 from llcoccup import LlcOccup
+from mresource import Resource
 from naivectrl import NaiveController
 from prometheus import PrometheusClient
 
@@ -327,7 +335,7 @@ def mon_metric_cycle(ctx):
         period = str(ctx.args.metric_interval - 2)
         result = subprocess.run(['./pgos', '-cgroup', ','.join(cgps),
                                  '-period', period, '-frequency', period,
-                                 '-cycle', '1', '-core', str(os.cpu_count())],
+                                 '-cycle', '1', '-core', str(cpu_count())],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
         data = result.stdout.decode('utf-8').splitlines()
@@ -464,14 +472,11 @@ def init_sysmax(ctx):
     Initialize historical system maximal utilization from model file
         ctx - agent context
     """
-    result = subprocess.run(['cat', ctx.sysmax_file],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
-    res = result.stdout.decode('utf-8').strip()
     try:
-        ctx.sysmax_util = int(res)
-    except ValueError:
-        ctx.sysmax_util = os.cpu_count() * 100
+        with open(ctx.sysmax_file, 'r') as f:
+            ctx.sysmax_util = int(f.read().strip())
+    except (IOError, ValueError):
+        ctx.sysmax_util = cpu_count() * 100
     if ctx.args.verbose:
         print(ctx.sysmax_util)
 
