@@ -333,14 +333,19 @@ def mon_metric_cycle(ctx):
 
     if cgps:
         period = str(ctx.args.metric_interval - 2)
-        result = subprocess.run(['./pgos', '-cgroup', ','.join(cgps),
-                                 '-period', period, '-frequency', period,
-                                 '-cycle', '1', '-core', str(cpu_count())],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
-        data = result.stdout.decode('utf-8').splitlines()
+        args = [
+            './pgos',
+            '-cgroup', ','.join(cgps),
+            '-period', period,
+            '-frequency', period,
+            '-cycle', '1',
+            '-core', str(cpu_count()),
+        ]
+
+        output = subprocess.check_output(args, stderr=subprocess.STDOUT)
+        data = output.decode('utf-8').splitlines()
         if ctx.args.verbose:
-            print(result.stdout.decode('utf-8'))
+            print(output.decode('utf-8'))
         set_metrics(ctx, data)
 
 
