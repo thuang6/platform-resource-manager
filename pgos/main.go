@@ -76,7 +76,7 @@ func (this *Cgroup) GetPgosHandler() {
 	defer f.Close()
 	pids := []C.pid_t{}
 	for {
-		var pid uint16
+		var pid uint32
 		n, err := fmt.Fscanf(f, "%d\n", &pid)
 		if n == 0 || err != nil {
 			break
