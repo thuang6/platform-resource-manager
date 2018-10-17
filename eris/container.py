@@ -20,10 +20,12 @@ This module implements resource contention detection on one workload
 """
 
 import subprocess
-from datetime import datetime
 import time
-from enum import Enum
+
 from collections import deque
+from datetime import datetime
+from enum import Enum
+from os.path import join as path_join
 
 
 class Contention(Enum):
@@ -116,19 +118,16 @@ class Container:
     def update_cpu_usage(self):
         """ calculate cpu usage of container """
         cur = time.time() * 1e9
-        result = subprocess.run(['cat', '/sys/fs/cgroup/cpu/docker/' +
-                                 self.cid + '/cpuacct.usage'],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
-        res = result.stdout.decode('utf-8').strip()
         try:
-            usg = int(res)
-            if self.cpu_usage != 0:
-                self.utils = (usg - self.cpu_usage) * 100 /\
-                    (cur - self.timestamp)
-            self.cpu_usage = usg
-            self.timestamp = cur
-        except ValueError:
+            filename = path_join('/sys/fs/cgroup/cpu/docker', self.cid, 'cpuacct.usage')
+            with open(filename, 'r') as f:
+                usage = int(f.read().strip())
+                if self.cpu_usage != 0:
+                    self.utils = (usage - self.cpu_usage) * 100 /\
+                        (cur - self.timestamp)
+                self.cpu_usage = usage
+                self.timestamp = cur
+        except (ValueError, IOError):
             pass
 
     def __detect_in_bin(self, thresh):
