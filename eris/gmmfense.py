@@ -17,6 +17,8 @@
 
 """ This module implements build fense based on GMM model """
 
+from __future__ import print_function
+
 import math
 import numpy as np
 from sklearn import mixture

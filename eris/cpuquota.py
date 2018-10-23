@@ -17,6 +17,9 @@
 
 """ This module implements CPU cycle control based on CFS quota """
 
+from __future__ import print_function
+from __future__ import division
+
 import subprocess
 from datetime import datetime
 from mresource import Resource
@@ -33,7 +36,7 @@ class CpuQuota(Resource):
     CPU_SHARE_LC = 200000
 
     def __init__(self, sysMaxUtil, minMarginRatio, verbose):
-        super().__init__()
+        super(CpuQuota,self).__init__()
         self.min_margin_ratio = minMarginRatio
         self.update_max_sys_util(sysMaxUtil)
         self.update()

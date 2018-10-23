@@ -16,6 +16,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """ This module implements platform metrics data analysis. """
+
+from __future__ import print_function
+from __future__ import division
+
 import argparse
 import numpy as np
 import pandas as pd

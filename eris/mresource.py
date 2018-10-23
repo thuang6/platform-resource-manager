@@ -18,7 +18,7 @@
 """ This module defines general resource control methods """
 
 
-class Resource:
+class Resource(object):
     """ Resource Class is abstraction of resource """
     BUGET_LEV_FULL = -1
     BUGET_LEV_MIN = 0

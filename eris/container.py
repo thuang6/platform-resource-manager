@@ -19,6 +19,9 @@
 This module implements resource contention detection on one workload
 """
 
+from __future__ import print_function
+from __future__ import division
+
 import subprocess
 import time
 

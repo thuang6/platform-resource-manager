@@ -8,3 +8,5 @@ prometheus-client
 
 # Python 3.x Enum backport
 enum
+
+future

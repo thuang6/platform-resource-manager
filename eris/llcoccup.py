@@ -17,6 +17,8 @@
 
 """ This module implements last level cache control based on pqos tool """
 
+from __future__ import print_function
+
 import subprocess
 from datetime import datetime
 from mresource import Resource
