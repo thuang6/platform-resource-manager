@@ -40,16 +40,17 @@ class Contention(Enum):
     TDP = 5
 
 
-class Container:
+class Container(object):
     """
     This class is the abstraction of one task, container metrics and
     contention detection method are encapsulated in this module
     """
 
-    def __init__(self, cgroup_driver, cid, cn, pids, verbose,
-                 thresh=[], tdp_thresh=[], history_depth=5):
+    def __init__(
+            self, cgroup_driver, cid, name, pids, verbose,
+            thresh=[], tdp_thresh=[], history_depth=5):
         self.cid = cid
-        self.name = cn
+        self.name = name
         self.pids = pids
         self.cpu_usage = 0
         self.utils = 0
@@ -68,48 +69,47 @@ class Container:
             self.con_path = cid
             self.parent_path = 'docker/'
 
-    '''
-    add metric data to metrics history
-    metrics history only contains the most recent metrics data, defined by
-    self.historyDepth if histroy metrics data length exceeds the
-    self.historyDepth, the oldest data will be erased
-    '''
-    def update_metrics_history(self):
-        self.metrics_history.append(self.metrics.copy())
+    def __str__(self):
+        metrics = self.metrics
+        cols = [
+            metrics['TIME'].isoformat(),
+            self.cid,
+            self.name,
+            metrics['INST'],
+            metrics['CYC'],
+            metrics['CPI'],
+            metrics['L3MPKI'],
+            metrics['L3MISS'],
+            metrics['NF'],
+            self.utils,
+            metrics['L3OCC'],
+            metrics['MBL'],
+            metrics['MBR'],
+        ]
+        return ','.join(str(col) for col in cols) + '\n'
 
-    def get_history_delta_by_Type(self, columnname):
+    def get_history_delta_by_type(self, column_name):
         length = len(self.metrics_history)
         if length == 0:
             return 0
-
         if length == 1:
-            return self.metrics_history[length - 1][columnname]
+            return self.metrics_history[0][column_name]
 
-        data_sum = 0
-
-        for x in range(length - 1):
-            data_sum = data_sum + self.metrics_history[x][columnname]
-
-        data_delta = self.metrics_history[length - 1][columnname] -\
-            data_sum / (length - 1)
+        data_sum = sum(m[column_name] for m in self.metrics_history[:-1])
+        data_avg = float(data_sum) / (length - 1)
+        data_delta = self.metrics_history[-1][column_name] - data_avg
 
         return data_delta
 
     def get_llcoccupany_delta(self):
-        return self.get_history_delta_by_Type('L3OCC')
+        return self.get_history_delta_by_type('L3OCC')
 
     def get_freq_delta(self):
-        return self.get_history_delta_by_Type('NF')
+        return self.get_history_delta_by_type('NF')
 
     def get_latest_mbt(self):
-        if 'MBL' not in self.metrics:
-            mbl = 0
-        else:
-            mbl = self.metrics['MBL']
-        if 'MBR' not in self.metrics:
-            mbr = 0
-        else:
-            mbr = self.metrics['MBR']
+        mbl = self.metrics.get('MBL', 0)
+        mbr = self.metrics.get('MBR', 0)
 
         return mbl + mbr
 
@@ -126,8 +126,8 @@ class Container:
 
     def update_cpu_usage(self):
         """ calculate cpu usage of container """
-        cur = time.time() * 1e9
         try:
+            cur = time.time() * 1e9
             filename = path_join('/sys/fs/cgroup/cpu/docker', self.cid, 'cpuacct.usage')
             with open(filename, 'r') as f:
                 usage = int(f.read().strip())
@@ -138,6 +138,15 @@ class Container:
                 self.timestamp = cur
         except (ValueError, IOError):
             pass
+
+    def update_metrics_history(self):
+        '''
+        add metric data to metrics history
+        metrics history only contains the most recent metrics data, defined by
+        self.historyDepth if histroy metrics data length exceeds the
+        self.historyDepth, the oldest data will be erased
+        '''
+        self.metrics_history.append(self.metrics.copy())
 
     def __detect_in_bin(self, thresh):
         metrics = self.metrics
@@ -198,13 +207,3 @@ class Container:
                 if self.utils < thresh['util_end'] or\
                    i == len(self.thresh) - 1:
                     return self.__detect_in_bin(thresh)
-
-    def __str__(self):
-        metrics = self.metrics
-        return metrics['TIME'].isoformat() + ',' + self.cid + ',' +\
-            self.name + ',' + str(metrics['INST']) + ',' +\
-            str(metrics['CYC']) + ',' + str(metrics['CPI']) + ',' +\
-            str(metrics['L3MPKI']) + ',' + str(metrics['L3MISS']) + ',' +\
-            str(metrics['NF']) + ',' + str(self.utils) + ',' +\
-            str(metrics['L3OCC']) + ',' + str(metrics['MBL']) + ',' +\
-            str(metrics['MBR']) + '\n'

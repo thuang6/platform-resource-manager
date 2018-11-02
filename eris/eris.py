@@ -23,9 +23,7 @@ from __future__ import division
 import os
 import sys
 
-import argparse
 import subprocess
-import threading
 import time
 import traceback
 
@@ -33,11 +31,13 @@ import docker
 import numpy as np
 import pandas as pd
 
+from argparse import ArgumentParser, FileType
 from datetime import datetime
 try:
     from os import cpu_count
 except ImportError:
     from multiprocessing import cpu_count
+from threading import Thread
 
 from container import Container, Contention
 from cpuquota import CpuQuota
@@ -47,11 +47,17 @@ from naivectrl import NaiveController
 from prometheus import PrometheusClient
 
 
-class Context:
+__version__ = 0.8
+
+
+class Context(object):
     """ This class encapsulate all configuration and args """
 
     def __init__(self):
-        self.interrupt = False
+        self._docker_client = None
+        self._prometheus = None
+
+        self.shutdown = False
         self.args = None
         self.tdp_file = 'tdp_thresh.csv'
         self.sysmax_file = 'lcmax.txt'
@@ -65,8 +71,39 @@ class Context:
         self.metric_cons = dict()
         self.thresh_map = dict()
         self.tdp_thresh_map = dict()
-        self.prometheus = None
         self.cgroup_driver = 'cgroupfs'
+
+    @property
+    def docker_client(self):
+        if self._docker_client is None:
+            self._docker_client = docker.from_env(version='auto')
+        return self._docker_client
+
+    @property
+    def prometheus(self):
+        if self._prometheus is None:
+            self._prometheus = PrometheusClient()
+        return self._prometheus
+
+
+def each_container_pgos_metric(lines, delim='\t'):
+    metric_mappings = {
+        'cycles': ('CYC', int),
+        'instructions': ('INST', int),
+        'LLC misses': ('L3MISS', int),
+        'LLC occupancy': ('L3OCC', int),
+        'Memory bandwidth local': ('MBL', float),
+        'Memory bandwidth remote': ('MBR', float),
+    }
+
+    for line in lines:
+        items = line.split(delim)
+        if len(items) < 4:
+            continue
+        cid, metric_name, timestamp, val = items[:4]
+        if metric_name in metric_mappings:
+            name, converter = metric_mappings[metric_name]
+            yield cid, {name: converter(val)}, int(timestamp)
 
 
 def set_metrics(ctx, data):
@@ -77,29 +114,16 @@ def set_metrics(ctx, data):
         data - metrics data collected from pgos
     """
     timestamp = datetime.now()
-    for line in data:
-        items = line.split('\t')
-        if len(items) >= 4:
-            cid = items[0]
-            metric_name = items[1]
-            val = items[3]
-            container = ctx.metric_cons[cid]
-            metrics = container.get_metrics()
-            if metric_name == 'cycles':
-                metrics['CYC'] = int(val)
-            elif metric_name == 'instructions':
-                metrics['INST'] = int(val)
-            elif metric_name == 'LLC misses':
-                metrics['L3MISS'] = int(val)
-            elif metric_name == 'LLC occupancy':
-                metrics['L3OCC'] = int(val)
-            elif metric_name == 'Memory bandwidth local':
-                metrics['MBL'] = float(val)
-            elif metric_name == 'Memory bandwidth remote':
-                metrics['MBR'] = float(val)
 
-    contention = {Contention.LLC: False, Contention.MEM_BW: False,
-                  Contention.UNKN: False}
+    for cid, metric, _ in each_container_pgos_metric(data):
+        container = ctx.metric_cons[cid]
+        container.metrics.update(metric)
+
+    contention = {
+        Contention.LLC: False,
+        Contention.MEM_BW: False,
+        Contention.UNKN: False
+    }
     contention_map = {}
     bes = []
     findbe = False
@@ -197,39 +221,26 @@ def set_metrics(ctx, data):
                 ctx.controllers[contention].update(bes, flag, False)
 
 
-def remove_finish_containers(containers, consmap):
+def remove_finished_containers(containers, consmap):
     """
     remove finished containers from cached container map
         containers - container list from docker
         mon_cons - cached container map
     """
-    idset = set()
-    for container in containers:
-        idset.add(container.id)
+    cids = {c.id for c in containers}
 
     for cid in consmap.copy():
-        if cid not in idset:
+        if cid not in cids:
             del consmap[cid]
 
 
-def list_docker_containers():
-    """ list all containers from docker """
-    client = docker.from_env()
-    return client.containers.list()
-
-
-def list_pids(con):
+def list_pids(container):
     """
     list all process id of one container
-        con - container object listed from docker
+        container - container object listed from Docker
     """
-    res = con.top()
-    procs = res['Processes']
-    pids = []
-    if procs:
-        for pid in procs:
-            pids.append(pid[1])
-    return pids
+    procs = container.top()['Processes']
+    return [pid[1] for pid in procs] if procs else []
 
 
 def mon_util_cycle(ctx):
@@ -242,8 +253,8 @@ def mon_util_cycle(ctx):
     be_utils = 0
     date = datetime.now().isoformat()
     bes = []
-    containers = list_docker_containers()
-    remove_finish_containers(containers, ctx.util_cons)
+    containers = ctx.docker_client.containers.list()
+    remove_finished_containers(containers, ctx.util_cons)
 
     for container in containers:
         cid = container.id
@@ -302,20 +313,17 @@ def mon_metric_cycle(ctx):
     Platform metrics monitor timer function
         ctx - agent context
     """
-    cgps = []
+    containers = ctx.docker_client.containers.list()
+    cgroups = []
     cids = []
     new_bes = []
-    containers = list_docker_containers()
-    remove_finish_containers(containers, ctx.metric_cons)
+    remove_finished_containers(containers, ctx.metric_cons)
 
     for container in containers:
         cid = container.id
         name = container.name
         pids = list_pids(container)
-        if ctx.args.key_cid:
-            key = cid
-        else:
-            key = name
+        key = cid if ctx.args.key_cid else name
         if cid in ctx.metric_cons:
             con = ctx.metric_cons[cid]
             con.update_pids(pids)
@@ -332,18 +340,18 @@ def mon_metric_cycle(ctx):
 
         if key in ctx.lc_set:
             cids.append(cid)
-            cgps.append('/sys/fs/cgroup/perf_event/' + con.parent_path +
+            cgroups.append('/sys/fs/cgroup/perf_event/' + con.parent_path +
                         con.con_path)
 
     if new_bes:
         ctx.llc.budgeting(new_bes)
 
-    if cgps:
+    if cgroups:
         period = str(ctx.args.metric_interval - 2)
         args = [
             './pgos',
             '-cids', ','.join(cids),
-            '-cgroup', ','.join(cgps),
+            '-cgroup', ','.join(cgroups),
             '-period', period,
             '-frequency', period,
             '-cycle', '1',
@@ -364,7 +372,7 @@ def monitor(func, ctx, interval):
         interval - timer interval
     """
     next_time = time.time()
-    while not ctx.interrupt:
+    while not ctx.shutdown:
         func(ctx)
         while True:
             next_time += interval
@@ -379,17 +387,20 @@ def init_threshbins(jdata):
     Initialize thresholds in all bins for one workload
         jdata - thresholds data for one workload
     """
-    threshbins = []
-    for row_turple in jdata.iterrows():
-        row = row_turple[1]
-        thresh = dict()
-        thresh['util_start'] = row['UTIL_START']
-        thresh['util_end'] = row['UTIL_END']
-        thresh['cpi'] = row['CPI_THRESH']
-        thresh['mpki'] = row['MPKI_THRESH']
-        thresh['mb'] = row['MB_THRESH']
-        threshbins.append(thresh)
-    return threshbins
+    key_mappings = [
+        ('util_start', 'UTIL_START'),
+        ('util_end', 'UTIL_END'),
+        ('cpi', 'CPI_THRESH'),
+        ('mpki', 'MPKI_THRESH'),
+        ('mb', 'MB_THRESH'),
+    ]
+    return [
+        {
+            from_key: row_tuple[1][to_key]
+            for from_key, to_key in key_mappings
+        }
+        for row_tuple in jdata.iterrows()
+    ]
 
 
 def init_tdp_map(ctx):
@@ -397,10 +408,7 @@ def init_tdp_map(ctx):
     Initialize thresholds for TDP contention for all workloads
         ctx - agent context
     """
-    if ctx.args.key_cid:
-        key = 'CID'
-    else:
-        key = 'CNAME'
+    key = 'CID' if ctx.args.key_cid else 'CNAME'
     tdp_df = pd.read_csv(ctx.tdp_file)
     cids = tdp_df[key].unique()
     for cid in cids:
@@ -510,14 +518,14 @@ def detect_cgroup_driver():
 def parse_arguments():
     """ agent command line arguments parse function """
 
-    parser = argparse.ArgumentParser(description='eris agent monitor\
-                                     container CPU utilization and platform\
-                                     metrics, detect potential resource\
-                                     contention and regulate best-efforts\
-                                     tasks resource usages')
+    parser = ArgumentParser(description='eris agent monitor\
+                            container CPU utilization and platform\
+                            metrics, detect potential resource\
+                            contention and regulate best-efforts\
+                            tasks resource usages')
     parser.add_argument('workload_conf_file', help='workload configuration\
                         file describes each task name, type, id, request cpu\
-                        count', type=argparse.FileType('rt'), default='wl.csv')
+                        count', type=FileType('rt'), default='wl.csv')
     parser.add_argument('-v', '--verbose', help='increase output verbosity',
                         action='store_true')
     parser.add_argument('-g', '--collect-metrics', help='collect platform\
@@ -537,8 +545,8 @@ def parse_arguments():
                         not exceed throttle threshold ', action='store_true')
     parser.add_argument('-n', '--disable-cat', help='disable CAT control while\
                         in resource regulation', action='store_true')
-    parser.add_argument('-p', '--enable_prometheus', help='allow eris send\
-                        metrics to prometheus', action='store_true')
+    parser.add_argument('-p', '--enable-prometheus', help='allow eris send\
+                        metrics to Prometheus', action='store_true')
     parser.add_argument('-u', '--util-interval', help='CPU utilization monitor\
                         interval', type=int, choices=range(1, 10), default=2)
     parser.add_argument('-m', '--metric-interval', help='platform metrics\
@@ -552,7 +560,7 @@ def parse_arguments():
                         one logical processor used in CPU cycle regulation',
                         type=float, default=0.5)
     parser.add_argument('-t', '--thresh-file', help='threshold model file build\
-                        from analyze.py tool', type=argparse.FileType('rt'))
+                        from analyze.py tool', type=FileType('rt'))
 
     args = parser.parse_args()
     if args.verbose:
@@ -569,7 +577,6 @@ def main():
     init_sysmax(ctx)
 
     if ctx.args.enable_prometheus:
-        ctx.prometheus = PrometheusClient()
         ctx.prometheus.start()
 
     if ctx.args.detect:
@@ -592,32 +599,30 @@ def main():
         with open('./util.csv', 'w') as utilf:
             utilf.write('TIME,CID,CNAME,UTIL\n')
 
-    util_thread = threading.Thread(target=monitor,
-                                   args=(mon_util_cycle, ctx,
-                                         ctx.args.util_interval))
-    util_thread.start()
+    threads = [Thread(target=monitor, args=(mon_util_cycle, ctx, ctx.args.util_interval))]
+
     if ctx.args.collect_metrics:
         if ctx.args.record:
-            with open('./metrics.csv', 'w') as metricf:
-                metricf.write('TIME,CID,CNAME,INST,CYC,CPI,L3MPKI,' +
-                              'L3MISS,NF,UTIL,L3OCC,MBL,MBR\n')
+            with open('./metrics.csv', 'w') as f:
+                print('TIME,CID,CNAME,INST,CYC,CPI,L3MPKI,L3MISS,NF,UTIL,L3OCC,MBL,MBR', file=f)
+        threads.append(Thread(target=monitor, args=(mon_metric_cycle, ctx, ctx.args.metric_interval)))
 
-        metric_thread = threading.Thread(target=monitor,
-                                         args=(mon_metric_cycle, ctx,
-                                               ctx.args.metric_interval))
-        metric_thread.start()
+    for thread in threads:
+        thread.start()
+
     print('eris agent version', __version__, 'is started!')
+
     try:
-        util_thread.join()
-        if ctx.args.collect_metrics:
-            metric_thread.join()
+        for thread in threads:
+            thread.join()
     except KeyboardInterrupt:
         print('Shutdown eris agent ...exiting')
-        ctx.interrupt = True
+        ctx.shutdown = True
     except Exception:
         traceback.print_exc(file=sys.stdout)
+
     sys.exit(0)
 
-__version__ = 0.8
+
 if __name__ == '__main__':
     main()
