@@ -40,6 +40,7 @@ var cycle = flag.Int("cycle", 1, "monitor time")
 var frequency = flag.Int64("frequency", 5, "sample frequency")
 var period = flag.Int64("period", 1, "sample period")
 var cgroupPath = flag.String("cgroup", "", "cgroups to be monitored")
+var containerIds = flag.String("cids", "", "container id list")
 
 var metrics = []C.uint64_t{C.PERF_COUNT_HW_INSTRUCTIONS, C.PERF_COUNT_HW_CPU_CYCLES, C.PERF_COUNT_HW_CACHE_MISSES}
 var metricsDescription = []string{"instructions", "cycles", "LLC misses"}
@@ -52,14 +53,19 @@ type Cgroup struct {
 	PgosHandler C.int
 }
 
-func NewCgroup(path string) (*Cgroup, error) {
+func NewCgroup(path string, cid string) (*Cgroup, error) {
 	cgroupFile, err := os.Open(path)
 	if err != nil {
 		println(path)
 		return nil, err
 	}
-	cgroupNames := strings.Split(strings.Trim(path, string(os.PathSeparator)), string(os.PathSeparator))
-	cgroupName := cgroupNames[len(cgroupNames)-1]
+	cgroupName := cid
+	if cid == "" {
+		cgroupNames := strings.Split(strings.Trim(path, string(os.PathSeparator)), string(os.PathSeparator))
+		cgroupName = cgroupNames[len(cgroupNames)-1]
+	}else{
+	   cgroupName = cid
+	}
 	return &Cgroup{
 		Path: path,
 		Name: cgroupName,
@@ -113,11 +119,18 @@ func main() {
 
 	flag.Parse()
 	cgroupsPath := strings.Split(*cgroupPath, ",")
-
+	var conIds = []string{}
+	if  *containerIds != "" {
+		conIds = strings.Split(*containerIds, ",")
+	}
 	cgroups := make([]*Cgroup, 0, len(cgroupsPath))
 	fds := make([]int32, 0, len(cgroupsPath))
 	for i := 0; i < len(cgroupsPath); i++ {
-		c, err := NewCgroup(cgroupsPath[i])
+		cid := ""
+		if  *containerIds != "" {
+			cid = conIds[i]
+		}
+		c, err := NewCgroup(cgroupsPath[i], cid)
 		if err != nil {
 			println(err.Error())
 			continue
