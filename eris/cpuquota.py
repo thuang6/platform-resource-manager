@@ -34,9 +34,10 @@ class CpuQuota(Resource):
     CPU_QUOTA_HALF_CORE = CPU_QUOTA_CORE * 0.5
     CPU_SHARE_BE = 2
     CPU_SHARE_LC = 200000
+    PREFIX = '/sys/fs/cgroup/cpu/'
 
     def __init__(self, sysMaxUtil, minMarginRatio, verbose):
-        super(CpuQuota,self).__init__()
+        super(CpuQuota, self).__init__()
         self.min_margin_ratio = minMarginRatio
         self.update_max_sys_util(sysMaxUtil)
         self.update()
@@ -61,8 +62,10 @@ class CpuQuota(Resource):
 
     @staticmethod
     def __get_cfs_period(container):
-        result = subprocess.run(['cat', '/sys/fs/cgroup/cpu/docker/' +
-                                 container.cid + '/cpu.cfs_period_us'],
+        result = subprocess.run(['cat', CpuQuota.PREFIX +
+                                 container.parent_path +
+                                 container.con_path +
+                                 '/cpu.cfs_period_us'],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
         res = result.stdout.decode('utf-8').strip()
@@ -80,8 +83,8 @@ class CpuQuota(Resource):
         else:
             rquota = quota
         subprocess.Popen('echo ' + str(rquota) + ' > ' +
-                         '/sys/fs/cgroup/cpu/docker/' +
-                         container.cid + '/cpu.cfs_quota_us',
+                         CpuQuota.PREFIX + container.parent_path +
+                         container.con_path + '/cpu.cfs_quota_us',
                          shell=True)
         print(datetime.now().isoformat(' ') + ' set container ' +
               container.name + ' cpu quota to ' + str(rquota))
@@ -93,8 +96,8 @@ class CpuQuota(Resource):
             share - given CPU share value
         """
         subprocess.Popen('echo ' + str(share) + ' > ' +
-                         '/sys/fs/cgroup/cpu/docker/' +
-                         container.cid + '/cpu.shares',
+                         CpuQuota.PREFIX + container.parent_path +
+                         container.con_path + '/cpu.shares',
                          shell=True)
         print(datetime.now().isoformat(' ') + ' set container ' +
               container.name + ' cpu share to ' + str(share))

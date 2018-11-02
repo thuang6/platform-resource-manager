@@ -46,8 +46,8 @@ class Container:
     contention detection method are encapsulated in this module
     """
 
-    def __init__(self, cid, cn, pids, verbose, thresh=[], tdp_thresh=[],
-                 history_depth=5):
+    def __init__(self, cgroup_driver, cid, cn, pids, verbose,
+                 thresh=[], tdp_thresh=[], history_depth=5):
         self.cid = cid
         self.name = cn
         self.pids = pids
@@ -61,6 +61,12 @@ class Container:
         self.history_depth = history_depth + 1
         self.metrics_history = deque([], self.history_depth)
         self.cpusets = []
+        if cgroup_driver == 'systemd':
+            self.con_path = 'docker-' + cid + '.scope'
+            self.parent_path = 'system.slice/'
+        else:
+            self.con_path = cid
+            self.parent_path = 'docker/'
 
     '''
     add metric data to metrics history

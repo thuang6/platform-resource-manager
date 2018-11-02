@@ -66,6 +66,7 @@ class Context:
         self.thresh_map = dict()
         self.tdp_thresh_map = dict()
         self.prometheus = None
+        self.cgroup_driver = 'cgroupfs'
 
 
 def set_metrics(ctx, data):
@@ -255,7 +256,8 @@ def mon_util_cycle(ctx):
         if cid in ctx.util_cons:
             con = ctx.util_cons[cid]
         else:
-            con = Container(cid, name, pids, ctx.args.verbose)
+            con = Container(ctx.cgroup_driver, cid, name, pids,
+                            ctx.args.verbose)
             ctx.util_cons[cid] = con
             if ctx.args.control:
                 if key in ctx.be_set:
@@ -301,6 +303,7 @@ def mon_metric_cycle(ctx):
         ctx - agent context
     """
     cgps = []
+    cids = []
     new_bes = []
     containers = list_docker_containers()
     remove_finish_containers(containers, ctx.metric_cons)
@@ -319,8 +322,8 @@ def mon_metric_cycle(ctx):
         else:
             thresh = ctx.thresh_map.get(key, [])
             tdp_thresh = ctx.tdp_thresh_map.get(key, [])
-            con = Container(cid, name, pids, ctx.args.verbose,
-                            thresh, tdp_thresh)
+            con = Container(ctx.cgroup_driver, cid, name, pids,
+                            ctx.args.verbose, thresh, tdp_thresh)
             ctx.metric_cons[cid] = con
             con.update_cpu_usage()
             if key in ctx.be_set and ctx.args.control\
@@ -328,7 +331,9 @@ def mon_metric_cycle(ctx):
                 new_bes.append(con)
 
         if key in ctx.lc_set:
-            cgps.append('/sys/fs/cgroup/perf_event/docker/' + cid)
+            cids.append(cid)
+            cgps.append('/sys/fs/cgroup/perf_event/' + con.parent_path +
+                        con.con_path)
 
     if new_bes:
         ctx.llc.budgeting(new_bes)
@@ -337,6 +342,7 @@ def mon_metric_cycle(ctx):
         period = str(ctx.args.metric_interval - 2)
         args = [
             './pgos',
+            '-cids', ','.join(cids),
             '-cgroup', ','.join(cgps),
             '-period', period,
             '-frequency', period,
@@ -488,6 +494,19 @@ def init_sysmax(ctx):
         print(ctx.sysmax_util)
 
 
+def detect_cgroup_driver():
+    """
+    Detect docker cgroup parent dir based on cgroup driver type
+    """
+    client = docker.from_env()
+    dockinfo = client.info()
+    cgroup_driver = dockinfo['CgroupDriver']
+    if cgroup_driver != 'cgroupfs':
+        print('Unknown cgroup driver: ' + cgroup_driver)
+
+    return cgroup_driver
+
+
 def parse_arguments():
     """ agent command line arguments parse function """
 
@@ -545,6 +564,7 @@ def main():
     """ Script entry point. """
     ctx = Context()
     ctx.args = parse_arguments()
+    ctx.cgroup_driver = detect_cgroup_driver()
     init_wlset(ctx)
     init_sysmax(ctx)
 
