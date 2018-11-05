@@ -1,0 +1,178 @@
+<!--
+Copyright (C) 2018 Intel Corporation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions
+and limitations under the License.
+
+
+SPDX-License-Identifier: Apache-2.0
+-->
+
+<head></head>
+<style>
+td {
+	width: 50%;
+}
+</style>
+<body>
+	<input type="file" id="fileinput" autocomplete="off">
+	<div id="util-div-1"></div>
+	<div id="util-div-2"></div>
+	<div id="util-div-3"></div>
+	<div id="util-div-4"></div>
+	<table style="width: 100%">
+		<tr><td rowspan=2><div id="result-div-1"></div><div id="no-data-div-1"></div><div id="cdf-div-1"></div><td><div id="histo-free-div-1"></div></td></tr>
+		<tr><td><div id="histo-skeptical-div-1"></div></td></tr>
+		<tr><td rowspan=2><div id="result-div-2"></div><div id="no-data-div-2"></div><div id="cdf-div-2"></div></td><td><div id="histo-free-div-2"></div></td></tr>
+		<tr><td><div id="histo-skeptical-div-2"></div></td></tr>
+		<tr><td rowspan=2><div id="result-div-3"></div><div id="no-data-div-3"></div><div id="cdf-div-3"></div></td><td><div id="histo-free-div-3"></div></td></tr>
+		<tr><td><div id="histo-skeptical-div-3"></div></td></tr>
+		<tr><td rowspan=2><div id="result-div-4"></div><div id="no-data-div-4"></div><div id="cdf-div-4"></div></td><td><div id="histo-free-div-4"></div></td></tr>
+		<tr><td><div id="histo-skeptical-div-4"></div></td></tr>
+	</table>
+	</table>
+
+</body>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script>
+	var jobs = []
+	function fileselected(e) {
+		var f =this.files[0]
+		var reader = new FileReader()
+		reader.onload = (function(file) {
+			return function(e) {
+				var lines = this.result.split('\n')
+				var col = lines[0].split(',').length 
+				var result = Array(col)
+				var data = Array(col-1)
+				for (i = 0;i < col;i ++) {
+					result[i] = [];
+				}
+				jobs = lines[0].split(',').slice(1)
+
+				for (i = 0;i < col - 1;i ++) {
+					data[i] = [];
+				}
+				for (i = 1;i < lines.length;i ++) {
+					row = lines[i].split(',');
+					if (row.length != col) {
+						continue;
+					}
+					var d = new Date(row[0])
+					for (j = 1;j < col;j ++) {
+						result[j].push([d, parseFloat(row[j])])
+						data[j-1].push(parseFloat(row[j]))
+					}
+				}
+				var xhttp = new XMLHttpRequest();
+				xhttp.onreadystatechange = function() {
+					if (xhttp.readyState == 4 && xhttp.status == 200) {
+						var result = JSON.parse(this.responseText);
+						for (i = 0;i < result.Result.length;i ++) {
+							document.getElementById('result-div-' + (i + 1)).innerHTML = result.Result[i]
+						}
+						for (i = 0;i < jobs.length;i ++) {
+							if (result.CDF[i].length == 0) {
+							} else {
+								// draw cdf
+								var table = new google.visualization.DataTable();
+								table.addColumn('number', 'Utilization')
+								table.addColumn('number', 'Contend Free Distribution')
+								table.addColumn('number', 'Contend Skeptical Distribution')
+								table.addRows(result.CDF[i]);
+								var options = {
+									hAxis: {
+										title: 'Utilization'
+									},
+									vAxis: {
+										title: 'Probability'
+									},
+									height: 350
+								};
+								var chart = new google.visualization.LineChart(document.getElementById('cdf-div-' + (i + 1)));
+								chart.draw(table, options);
+
+
+								var freeData = [['data point', 'utilization']];
+								var skepticalData = [['data point', 'utilization']];
+								var min = result.Free[i][0] < result.Skeptical[i][0]? result.Free[i][0]: result.Skeptical[i][0];
+								var max = result.Free[i][result.Free[i].length - 1] > result.Skeptical[i][result.Skeptical[i].length - 1]?result.Free[i][result.Free[i].length - 1]:result.Skeptical[i][result.Skeptical[i].length - 1] 
+
+								var length = Math.floor((max - min) / 15)
+								for (j = 0;;j +=length) {
+									freeData.push([j + '-' + (j + length), 0])
+									skepticalData.push([j + '-' + (j + length), 0])
+									if (j > max) {
+										break;
+									}
+								}
+								for (j = 0;j < result.Free[i].length;j ++) {
+									freeData[1 + Math.ceil(result.Free[i][j] / length)][1] ++
+								}
+								for (j = 0;j < result.Skeptical[i].length;j ++) {
+									skepticalData[1 + Math.ceil(result.Skeptical[i][j] / length)][1] ++
+								}
+
+
+
+								var table = new google.visualization.arrayToDataTable(freeData);
+								var options = {
+									title: 'Contend Free Histogram',
+								};
+								var chart = new google.visualization.ColumnChart(document.getElementById('histo-free-div-' + (i + 1)));
+								chart.draw(table, options);
+
+								var table = new google.visualization.arrayToDataTable(skepticalData);
+								var options = {
+									title: 'Contend Skeptical Histogram',
+								};
+								var chart = new google.visualization.ColumnChart(document.getElementById('histo-skeptical-div-' + (i + 1)));
+								chart.draw(table, options);
+
+
+							}
+						}
+					}
+				}
+				xhttp.open("POST", "detect", this.result)
+				xhttp.setRequestHeader("Content-type", "aplication/x-www-form-urlencoded")
+
+				xhttp.send(JSON.stringify({Jobs: jobs, Data: data}))
+
+				for (j = 1;j < col;j ++) {
+					var table = new google.visualization.DataTable();
+					table.addColumn('date', 'X')
+					table.addColumn('number', 'Utilization')
+					table.addRows(result[j]);
+					var options = {
+						title: jobs[j - 1],
+						hAxis: {
+							title: 'Time'
+						},
+						vAxis: {
+							title: 'Utilization'
+						}
+					};
+					var chart = new google.visualization.LineChart(document.getElementById('util-div-' + j));
+					chart.draw(table, options);
+				}
+			}
+		})(f);
+		reader.readAsText(f)
+	}
+	function ready() {
+		console.log("ready")
+	}
+	google.charts.load('current', {packages: ['corechart', 'line']});
+	google.charts.setOnLoadCallback(ready);
+	document.getElementById("fileinput").addEventListener('change', fileselected, false);
+</script>
