@@ -85,6 +85,10 @@ class Container(object):
             metrics['L3OCC'],
             metrics['MBL'],
             metrics['MBR'],
+            metrics['L2STALL'],
+            metrics['MEMSTALL'],
+            metrics['L2SPKI'],
+            metrics['MSPKI'],
         ]
         return ','.join(str(col) for col in cols) + '\n'
 
@@ -128,7 +132,8 @@ class Container(object):
         """ calculate cpu usage of container """
         try:
             cur = time.time() * 1e9
-            filename = path_join('/sys/fs/cgroup/cpu/docker', self.cid, 'cpuacct.usage')
+            filename = path_join('/sys/fs/cgroup/cpu/docker',
+                                 self.cid, 'cpuacct.usage')
             with open(filename, 'r') as f:
                 usage = int(f.read().strip())
                 if self.cpu_usage != 0:

@@ -35,15 +35,42 @@ import (
 	"unsafe"
 )
 
+type ModelSpecificEvent uint64
+const (
+	CYCLE_ACTIVITY_STALLS_L2_MISS ModelSpecificEvent = 0
+	CYCLE_ACTIVITY_STALLS_MEM_ANY ModelSpecificEvent = 1
+)
+
 var coreCount = flag.Int("core", 1, "core count")
 var cycle = flag.Int("cycle", 1, "monitor time")
 var frequency = flag.Int64("frequency", 5, "sample frequency")
 var period = flag.Int64("period", 1, "sample period")
 var cgroupPath = flag.String("cgroup", "", "cgroups to be monitored")
 var containerIds = flag.String("cids", "", "container id list")
+var metricsDescription = []string{"instructions", "cycles", "LLC misses", "stalls L2 miss", "stalls memory load"}
 
-var metrics = []C.uint64_t{C.PERF_COUNT_HW_INSTRUCTIONS, C.PERF_COUNT_HW_CPU_CYCLES, C.PERF_COUNT_HW_CACHE_MISSES}
-var metricsDescription = []string{"instructions", "cycles", "LLC misses"}
+var counters = []C.struct_perf_counter{ 
+			C.struct_perf_counter{
+				_type: C.PERF_TYPE_HARDWARE,
+				event: C.uint64_t(C.PERF_COUNT_HW_INSTRUCTIONS),
+			},
+			C.struct_perf_counter{
+				_type: C.PERF_TYPE_HARDWARE,
+				event: C.uint64_t(C.PERF_COUNT_HW_CPU_CYCLES),
+			},
+			C.struct_perf_counter{
+				_type: C.PERF_TYPE_HARDWARE,
+				event: C.uint64_t(C.PERF_COUNT_HW_CACHE_MISSES),
+			},
+			C.struct_perf_counter{
+				_type: C.PERF_TYPE_RAW,
+				event: C.uint64_t(CYCLE_ACTIVITY_STALLS_L2_MISS),
+			},
+			C.struct_perf_counter{
+				_type: C.PERF_TYPE_RAW,
+				event: C.uint64_t(CYCLE_ACTIVITY_STALLS_MEM_ANY),
+			},
+		}
 
 type Cgroup struct {
 	Path        string
@@ -147,12 +174,18 @@ func main() {
 		return
 	}
 	for i := 0; i < *cycle; i++ {
-		result := make([]uint64, len(fds)*len(metrics))
+		result := make([]uint64, len(fds)*len(counters))
 		now := time.Now().Unix()
-		C.collect((*C.pid_t)(unsafe.Pointer((&fds[0]))), C.int(len(fds)), C.int(*coreCount), &metrics[0], C.int(len(metrics)), (*C.uint64_t)(unsafe.Pointer(&result[0])), C.unsigned(*period))
+		C.collect( (*C.pid_t)(unsafe.Pointer(&fds[0])),
+				     C.int(len(fds)),
+				     C.int(*coreCount),
+				     (*C.struct_perf_counter)(unsafe.Pointer(&counters[0])),
+				     C.int(len(counters)),
+				     (*C.uint64_t)(unsafe.Pointer(&result[0])),
+				     C.unsigned(*period))
 		for j := 0; j < len(cgroups); j++ {
-			for k := 0; k < len(metrics); k++ {
-				fmt.Printf("%s\t%s\t%d\t%d\n", cgroups[j].Name, metricsDescription[k], now, result[j*len(metrics)+k])
+			for k := 0; k < len(counters); k++ {
+				fmt.Printf("%s\t%s\t%d\t%d\n", cgroups[j].Name, metricsDescription[k], now, result[j*len(counters)+k])
 			}
 			pgosValue := C.pgos_mon_poll(cgroups[j].PgosHandler)
 			fmt.Printf("%s\t%s\t%d\t%+v\n", cgroups[j].Name, "LLC occupancy", now, pgosValue.llc/1024)

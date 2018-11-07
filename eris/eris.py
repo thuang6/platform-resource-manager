@@ -91,6 +91,8 @@ def each_container_pgos_metric(lines, delim='\t'):
         'cycles': ('CYC', int),
         'instructions': ('INST', int),
         'LLC misses': ('L3MISS', int),
+        'stalls L2 miss': ('L2STALL', int),
+        'stalls memory load': ('MEMSTALL', int),
         'LLC occupancy': ('L3OCC', int),
         'Memory bandwidth local': ('MBL', float),
         'Memory bandwidth remote': ('MBR', float),
@@ -141,9 +143,15 @@ def set_metrics(ctx, data):
                 if metrics['INST'] == 0:
                     metrics['CPI'] = 0
                     metrics['L3MPKI'] = 0
+                    metrics['L2SPKI'] = 0
+                    metrics['MSPKI'] = 0
                 else:
                     metrics['CPI'] = metrics['CYC'] / metrics['INST']
                     metrics['L3MPKI'] = metrics['L3MISS'] * 1000 /\
+                        metrics['INST']
+                    metrics['L2SPKI'] = metrics['L2STALL'] * 1000 /\
+                        metrics['INST']
+                    metrics['MSPKI'] = metrics['MEMSTALL'] * 1000 /\
                         metrics['INST']
                 if con.utils == 0:
                     metrics['NF'] = 0
@@ -340,8 +348,8 @@ def mon_metric_cycle(ctx):
 
         if key in ctx.lc_set:
             cids.append(cid)
-            cgroups.append('/sys/fs/cgroup/perf_event/' + con.parent_path +
-                        con.con_path)
+            cgroups.append('/sys/fs/cgroup/perf_event/' +
+                           con.parent_path + con.con_path)
 
     if new_bes:
         ctx.llc.budgeting(new_bes)
@@ -357,7 +365,8 @@ def mon_metric_cycle(ctx):
             '-cycle', '1',
             '-core', str(cpu_count()),
         ]
-
+        if ctx.args.verbose:
+            print(' '.join(args))
         output = subprocess.check_output(args, stderr=subprocess.STDOUT)
         data = output.decode('utf-8').splitlines()
         if ctx.args.verbose:
@@ -599,13 +608,17 @@ def main():
         with open('./util.csv', 'w') as utilf:
             utilf.write('TIME,CID,CNAME,UTIL\n')
 
-    threads = [Thread(target=monitor, args=(mon_util_cycle, ctx, ctx.args.util_interval))]
+    threads = [Thread(target=monitor, args=(mon_util_cycle,
+                                            ctx, ctx.args.util_interval))]
 
     if ctx.args.collect_metrics:
         if ctx.args.record:
-            with open('./metrics.csv', 'w') as f:
-                print('TIME,CID,CNAME,INST,CYC,CPI,L3MPKI,L3MISS,NF,UTIL,L3OCC,MBL,MBR', file=f)
-        threads.append(Thread(target=monitor, args=(mon_metric_cycle, ctx, ctx.args.metric_interval)))
+            with open('./metrics.csv', 'w') as metricf:
+                print('TIME,CID,CNAME,INST,CYC,CPI,L3MPKI,L3MISS,NF,UTIL,L3OCC,\
+MBL,MBR,L2STALL,MEMSTALL,L2SPKI,MSPKI', file=metricf)
+        threads.append(Thread(target=monitor,
+                              args=(mon_metric_cycle,
+                                    ctx, ctx.args.metric_interval)))
 
     for thread in threads:
         thread.start()
