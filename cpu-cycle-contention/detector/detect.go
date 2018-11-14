@@ -23,7 +23,7 @@ import (
 	"log"
 )
 
-const minDataPoint = 50
+const minDataPoint = 15
 
 func Detect(method string, r io.Reader) (interface{}, error) {
 	u, err := NewUtilizationData(r)

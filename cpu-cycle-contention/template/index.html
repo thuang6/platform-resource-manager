@@ -25,27 +25,14 @@ td {
 </style>
 <body>
 	<input type="file" id="fileinput" autocomplete="off">
-	<div id="util-div-1"></div>
-	<div id="util-div-2"></div>
-	<div id="util-div-3"></div>
-	<div id="util-div-4"></div>
-	<table style="width: 100%">
-		<tr><td rowspan=2><div id="result-div-1"></div><div id="no-data-div-1"></div><div id="cdf-div-1"></div><td><div id="histo-free-div-1"></div></td></tr>
-		<tr><td><div id="histo-skeptical-div-1"></div></td></tr>
-		<tr><td rowspan=2><div id="result-div-2"></div><div id="no-data-div-2"></div><div id="cdf-div-2"></div></td><td><div id="histo-free-div-2"></div></td></tr>
-		<tr><td><div id="histo-skeptical-div-2"></div></td></tr>
-		<tr><td rowspan=2><div id="result-div-3"></div><div id="no-data-div-3"></div><div id="cdf-div-3"></div></td><td><div id="histo-free-div-3"></div></td></tr>
-		<tr><td><div id="histo-skeptical-div-3"></div></td></tr>
-		<tr><td rowspan=2><div id="result-div-4"></div><div id="no-data-div-4"></div><div id="cdf-div-4"></div></td><td><div id="histo-free-div-4"></div></td></tr>
-		<tr><td><div id="histo-skeptical-div-4"></div></td></tr>
-	</table>
-	</table>
-
 </body>
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/jquery-1.11.3.js"></script>
 <script>
 	var jobs = []
 	function fileselected(e) {
+		$('body > .util-div').remove()
+		$('body > table').remove()
 		var f =this.files[0]
 		var reader = new FileReader()
 		reader.onload = (function(file) {
@@ -58,6 +45,16 @@ td {
 					result[i] = [];
 				}
 				jobs = lines[0].split(',').slice(1)
+				for (i = 1;i <= jobs.length;i ++) {
+					$('body').append('<div id="util-div-' + i + '" class="util-div"></div>')
+				}
+				$('body').append('<table style="width: 100%"></table>')
+				for (i = 1;i <= jobs.length;i ++) {
+					$('table').append('<tr><td rowspan=2><div id="result-div-' + i 
+					+ '"></div><div id="no-data-div-' + i 
+					+ '"></div><div id="cdf-div-' + i + '"></div><td><div id="histo-free-div-' + i 
+					+ '"></div></td></tr><tr><td><div id="histo-skeptical-div-' + i + '"></div></td></tr>')
+				}
 
 				for (i = 0;i < col - 1;i ++) {
 					data[i] = [];
@@ -94,6 +91,10 @@ td {
 										title: 'Utilization'
 									},
 									vAxis: {
+										viewWindow: {
+											max: 1.0,
+											min: 0.0
+										},
 										title: 'Probability'
 									},
 									height: 350

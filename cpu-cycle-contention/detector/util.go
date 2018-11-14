@@ -64,10 +64,10 @@ func NewUtilizationData(r io.Reader) (util *UtilizationData, err error) {
 func (this *UtilizationData) GetContendingData(job int) (free []float64, skeptical []float64, max float64) {
 	max, min := -1.0, 100000.0
 	for i := 0; i < len(this.Data[job]); i++ {
-		if this.Data[job][i] > max {
+		if this.Data[job][i] > max && this.Total[i]-this.Data[job][i] > zeroFilter {
 			max = this.Data[job][i]
 		}
-		if this.Data[job][i] < min {
+		if this.Data[job][i] < min && this.Total[i]-this.Data[job][i] > zeroFilter {
 			min = this.Data[job][i]
 		}
 	}
