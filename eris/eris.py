@@ -177,12 +177,13 @@ def set_metrics(ctx, data):
                                                     metrics['L3OCC'], 0)
 
                 if ctx.args.detect:
-                    contend = con.contention_detect()
+                    contend_res = con.contention_detect()
                     if_contended = False
 
-                    if contend is not None:
+                    if contend_res:
                         if_contended = True
-                        contention[contend] = True
+                        for contend in contend_res:
+                            contention[contend] = True
 
                     tdp_contend = con.tdp_contention_detect()
                     if tdp_contend is not None:
@@ -248,7 +249,9 @@ def list_pids(container):
         container - container object listed from Docker
     """
     procs = container.top()['Processes']
-    return [pid[1] for pid in procs] if procs else []
+    pids = [pid[1] for pid in procs] if procs else []
+    return [tid for pid in pids
+            for tid in os.listdir('/proc/' + pid + '/task')] if pids else []
 
 
 def mon_util_cycle(ctx):
@@ -402,6 +405,8 @@ def init_threshbins(jdata):
         ('cpi', 'CPI_THRESH'),
         ('mpki', 'MPKI_THRESH'),
         ('mb', 'MB_THRESH'),
+        ('l2spki', 'L2SPKI_THRESH'),
+        ('mspki', 'MSPKI_THRESH'),
     ]
     return [
         {
@@ -441,11 +446,7 @@ def init_threshmap(ctx):
     Initialize thresholds for other contentions for all workloads
         ctx - agent context
     """
-    if ctx.args.key_cid:
-        key = 'CID'
-    else:
-        key = 'CNAME'
-
+    key = 'CID' if ctx.args.key_cid else 'CNAME'
     thresh_file = 'thresh.csv'
     if ctx.args.thresh_file is not None:
         thresh_file = ctx.args.thresh_file

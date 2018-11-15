@@ -26,6 +26,7 @@ import subprocess
 import time
 
 from collections import deque
+from itertools import islice
 from datetime import datetime
 from enum import Enum
 from os.path import join as path_join
@@ -72,7 +73,7 @@ class Container(object):
     def __str__(self):
         metrics = self.metrics
         cols = [
-            metrics['TIME'].isoformat(),
+            metrics['TIME'],
             self.cid,
             self.name,
             metrics['INST'],
@@ -92,6 +93,16 @@ class Container(object):
         ]
         return ','.join(str(col) for col in cols) + '\n'
 
+    def update_metrics(self, row_tuple):
+        key_mappings = [('TIME', str), ('INST', int), ('CYC', int),
+                        ('CPI', float), ('L3MPKI', float), ('L3MISS', int),
+                        ('NF', float), ('L3OCC', int), ('MBL', float),
+                        ('MBR', float), ('L2STALL', int), ('MEMSTALL', int),
+                        ('L2SPKI', float), ('MSPKI', float)]
+        for key, converter in key_mappings:
+            self.metrics[key] = converter(row_tuple[1][key])
+        self.utils = float(row_tuple[1]['UTIL'])
+
     def get_history_delta_by_type(self, column_name):
         length = len(self.metrics_history)
         if length == 0:
@@ -99,7 +110,8 @@ class Container(object):
         if length == 1:
             return self.metrics_history[0][column_name]
 
-        data_sum = sum(m[column_name] for m in self.metrics_history[:-1])
+        data_sum = sum(m[column_name] for m in
+                       list(islice(self.metrics_history, length - 1)))
         data_avg = float(data_sum) / (length - 1)
         data_delta = self.metrics_history[-1][column_name] - data_avg
 
@@ -155,29 +167,41 @@ class Container(object):
 
     def __detect_in_bin(self, thresh):
         metrics = self.metrics
+        contend_res = []
         if metrics['CPI'] > thresh['cpi']:
-            if metrics['L3MPKI'] > thresh['mpki']:
-                print('Last Level Cache contention is detected at ' +
-                      datetime.now().isoformat(' '))
-                print('Latency critical container ' + self.name + ', CPI = ' +
-                      str(metrics['CPI']) + ', MKPI = ' +
-                      str(metrics['L3MPKI']) + '\n')
-                return Contention.LLC
-            if metrics['MBL'] + metrics['MBR'] < thresh['mb']:
-                print('Memory Bandwidth contention detected at ' +
-                      datetime.now().isoformat(' '))
-                print('Latency critical container ' + self.name + ', CPI = ' +
-                      str(metrics['CPI']) + ', MBL = ' + str(metrics['MBL']) +
-                      ', MBR = ' + str(metrics['MBR']) + '\n')
-                return Contention.MEM_BW
+            unk_res = True
+            if metrics['L3MPKI'] > thresh['mpki'] or\
+               metrics['L2SPKI'] > thresh['l2spki']:
+                print('Last Level Cache contention is detected at %s' %
+                      metrics['TIME'])
+                print('Latency critical container %s, CPI = %f, threshold =\
+%f, MPKI = %f, threshold = %f, L2SPKI = %f, threshold = %f \n' %
+                      (self.name, metrics['CPI'], thresh['cpi'],
+                       metrics['L3MPKI'], thresh['mpki'],
+                       metrics['L2SPKI'], thresh['l2spki']))
+                unk_res = False
+                contend_res.append(Contention.LLC)
+                return contend_res
+            if metrics['MBL'] + metrics['MBR'] < thresh['mb'] or\
+               metrics['MSPKI'] > thresh['mspki']:
+                print('Memory Bandwidth contention detected at %s' %
+                      metrics['TIME'])
+                print('Latency critical container %s, CPI = %f, threshold =\
+%f, MBL = %f, MBR = %f, threshold = %f, MSPKI = %f, threshold = %f \n' %
+                      (self.name, metrics['CPI'], thresh['cpi'],
+                       metrics['MBL'], metrics['MBR'], thresh['mb'],
+                       metrics['MSPKI'], thresh['mspki']))
+                unk_res = False
+                contend_res.append(Contention.MEM_BW)
+                return contend_res
+            if unk_res:
+                print('Performance is impacted at %s' %
+                      metrics['TIME'])
+                print('Latency critical container %s, CPI = %f, threshold =\
+                     %f \n' % (self.name, metrics['CPI'], thresh['cpi']))
+                contend_res.append(Contention.UNKN)
 
-            print('Performance is impacted at ' +
-                  datetime.now().isoformat(' '))
-            print('Latency critical container ' + self.name +
-                  ' CPI exceeds threshold, value = ', str(metrics['CPI']))
-            return Contention.UNKN
-
-        return None
+        return contend_res
 
     def tdp_contention_detect(self):
         """ detect TDP contention in container """
@@ -198,13 +222,13 @@ class Container(object):
     def contention_detect(self):
         """ detect resouce contention after find proper utilization bin """
         if not self.thresh:
-            return None
+            return []
 
         for i in range(0, len(self.thresh)):
             thresh = self.thresh[i]
             if self.utils < thresh['util_start']:
                 if i == 0:
-                    return None
+                    return []
 
                 return self.__detect_in_bin(self.thresh[i - 1])
 
