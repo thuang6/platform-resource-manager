@@ -102,6 +102,7 @@ class Container(object):
         for key, converter in key_mappings:
             self.metrics[key] = converter(row_tuple[1][key])
         self.utils = float(row_tuple[1]['UTIL'])
+        self.update_metrics_history()
 
     def get_history_delta_by_type(self, column_name):
         length = len(self.metrics_history)
@@ -170,8 +171,7 @@ class Container(object):
         contend_res = []
         if metrics['CPI'] > thresh['cpi']:
             unk_res = True
-            if metrics['L3MPKI'] > thresh['mpki'] or\
-               metrics['L2SPKI'] > thresh['l2spki']:
+            if metrics['L3MPKI'] > thresh['mpki']:
                 print('Last Level Cache contention is detected at %s' %
                       metrics['TIME'])
                 print('Latency critical container %s, CPI = %f, threshold =\

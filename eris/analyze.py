@@ -25,7 +25,9 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 from gmmfense import GmmFense
-from container import Container
+from container import Container, Contention
+from eris import remove_finished_containers, detect_contender
+from eris import init_threshmap, init_tdp_map
 
 
 def get_quartile(args, mdf, is_upper):
@@ -224,73 +226,44 @@ def process_lc_max():
         lcmaxf.write(str(maxulc) + '\n')
 
 
-def init_tdp_map(args):
+def process_offline_data(args):
     """
-    Initialize thresholds for TDP contention for all workloads
-        args - application arguments
+    General procedure of offline analysis
+        args - arguments from command line input
     """
-    thresh_map = {}
-    key = 'CNAME'
-    tdp_df = pd.read_csv('tdp_thresh.csv')
-    cids = tdp_df[key].unique()
-    for cid in cids:
-        tdpdata = tdp_df[tdp_df[key] == cid]
+    thresh_map = init_threshmap(args)
+    tdp_thresh_map = init_tdp_map(args)
+    metric_cons = dict()
 
-        for row_turple in tdpdata.iterrows():
-            row = row_turple[1]
-            thresh = dict()
-            thresh['util'] = row['UTIL']
-            thresh['mean'] = row['MEAN']
-            thresh['std'] = row['STD']
-            thresh['bar'] = row['BAR']
-            thresh_map[cid] = thresh
+    mdf = pd.read_csv(args.metric_file)
+    key = 'CID' if args.key_cid else 'CNAME'
+    times = mdf['TIME'].unique()
+    for time in times:
+        pdata = mdf[mdf['TIME'] == time]
+        cids = pdata[key].unique()
+        remove_finished_containers(cids, metric_cons)
+        for cid in cids:
+            jdata = pdata[pdata[key] == cid]
+            thresh = thresh_map.get(cid, [])
+            tdp_thresh = tdp_thresh_map.get(cid, [])
+            if cid in metric_cons:
+                con = metric_cons[cid]
+            else:
+                con = Container('cgroupfs', '', cid, [], args.verbose, thresh,
+                                tdp_thresh)
+                metric_cons[cid] = con
+            for row_tuple in jdata.iterrows():
+                con.update_metrics(row_tuple)
 
-    if args.verbose:
-        print(thresh_map)
-    return thresh_map
-
-
-def init_threshbins(jdata):
-    """
-    Initialize thresholds in all bins for one workload
-        jdata - thresholds data for one workload
-    """
-    key_mappings = [
-        ('util_start', 'UTIL_START'),
-        ('util_end', 'UTIL_END'),
-        ('cpi', 'CPI_THRESH'),
-        ('mpki', 'MPKI_THRESH'),
-        ('mb', 'MB_THRESH'),
-        ('l2spki', 'L2SPKI_THRESH'),
-        ('mspki', 'MSPKI_THRESH'),
-    ]
-    return [
-        {
-            from_key: row_tuple[1][to_key]
-            for from_key, to_key in key_mappings
-        }
-        for row_tuple in jdata.iterrows()
-    ]
-
-
-def init_threshmap(args):
-    """
-    Initialize thresholds for other contentions for all workloads
-        args - application arguments
-    """
-    key = 'CNAME'
-    thresh_map = {}
-    thresh_file = 'thresh.csv'
-    thresh_df = pd.read_csv(thresh_file)
-    cids = thresh_df[key].unique()
-    for cid in cids:
-        jdata = thresh_df[thresh_df[key] == cid].sort_values('UTIL_START')
-        bins = init_threshbins(jdata)
-        thresh_map[cid] = bins
-
-    if args.verbose:
-        print(thresh_map)
-    return thresh_map
+        for cid in cids:
+            con = metric_cons[cid]
+            contend_res = con.contention_detect()
+            tdp_contend = con.tdp_contention_detect()
+            if tdp_contend:
+                contend_res.append(tdp_contend)
+            for contend in contend_res:
+                if contend != Contention.UNKN:
+                    detect_contender(metric_cons, contend, con)
 
 
 def process(args):
@@ -299,22 +272,7 @@ def process(args):
         args - arguments from command line input
     """
     if args.offline:
-        thresh_map = init_threshmap(args)
-        tdp_thresh_map = init_tdp_map(args)
-
-        mdf = pd.read_csv(args.metric_file)
-        cnames = mdf['CNAME'].unique()
-        for cname in cnames:
-            jdata = mdf[mdf['CNAME'] == cname]
-            thresh = thresh_map.get(cname, [])
-            tdp_thresh = tdp_thresh_map.get(cname, [])
-            con = Container('cgroupfs', '', cname, [], args.verbose, thresh,
-                            tdp_thresh)
-            for row_tuple in jdata.iterrows():
-                con.update_metrics(row_tuple)
-                con.contention_detect()
-                con.tdp_contention_detect()
-
+        process_offline_data(args)
     else:
         workloadinfo = init_wl(args)
         process_by_partition(args, workloadinfo)
@@ -328,11 +286,9 @@ def main():
                                      collected from eris agent and build data\
                                      model for contention detect and resource\
                                      regulation.')
-
     parser.add_argument('workload_conf_file', help='workload configuration\
                         file describes each task name, type, id, request cpu\
                         count', type=argparse.FileType('rt'), default='wl.csv')
-
     parser.add_argument('-v', '--verbose', help='increase output verbosity',
                         action='store_true')
     parser.add_argument('-t', '--thresh', help='threshold used in outlier\
@@ -346,6 +302,8 @@ def main():
                         default='metrics.csv')
     parser.add_argument('-o', '--offline', help='do offline analysis based on\
                         given metrics file', action='store_true')
+    parser.add_argument('-i', '--key-cid', help='use container id in workload\
+                        configuration file as key id', action='store_true')
 
     args = parser.parse_args()
     if args.verbose:

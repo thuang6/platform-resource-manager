@@ -59,7 +59,6 @@ class Context(object):
 
         self.shutdown = False
         self.args = None
-        self.tdp_file = 'tdp_thresh.csv'
         self.sysmax_file = 'lcmax.txt'
         self.sysmax_util = 0
         self.lc_set = {}
@@ -69,8 +68,8 @@ class Context(object):
         self.controllers = {}
         self.util_cons = dict()
         self.metric_cons = dict()
-        self.thresh_map = dict()
-        self.tdp_thresh_map = dict()
+        self.thresh_map = None
+        self.tdp_thresh_map = None
         self.cgroup_driver = 'cgroupfs'
 
     @property
@@ -108,6 +107,29 @@ def each_container_pgos_metric(lines, delim='\t'):
             yield cid, {name: converter(val)}, int(timestamp)
 
 
+def detect_contender(metric_cons, contention_type, container_contended):
+    resource_delta_max = -np.Inf
+    suspect = "unknown"
+
+    for cid, container in metric_cons.items():
+        delta = 0
+        if cid == container_contended.cid:
+            continue
+        if contention_type == Contention.LLC:
+            delta = container.get_llcoccupany_delta()
+        elif contention_type == Contention.MEM_BW:
+            delta = container.get_latest_mbt()
+        elif contention_type == Contention.TDP:
+            delta = container.get_freq_delta()
+
+        if delta > 0 and delta > resource_delta_max:
+            resource_delta_max = delta
+            suspect = container.name
+
+        print('Contention %s for container %s: Suspect is %s' %
+              (contention_type, container_contended.name, suspect))
+
+
 def set_metrics(ctx, data):
     """
     This function collect metrics from pgos tool and trigger resource
@@ -130,10 +152,7 @@ def set_metrics(ctx, data):
     bes = []
     findbe = False
     for cid, con in ctx.metric_cons.items():
-        if ctx.args.key_cid:
-            key = con.cid
-        else:
-            key = con.name
+        key = con.cid if ctx.args.key_cid else con.name
 
         if key in ctx.lc_set:
             con.update_cpu_usage()
@@ -203,41 +222,20 @@ def set_metrics(ctx, data):
                     in contention_list.items():
                 if contention_type_if_happened and\
                    contention_type != Contention.UNKN:
-                    resource_delta_max = -np.Inf
-                    suspect = "unknown"
-
-                    for cid, container in ctx.metric_cons.items():
-                        delta = 0
-                        if cid == container_contended.cid:
-                            continue
-                        if contention_type == Contention.LLC:
-                            delta = container.get_llcoccupany_delta()
-                        elif contention_type == Contention.MEM_BW:
-                            delta = container.get_latest_mbt()
-                        elif contention_type == Contention.TDP:
-                            delta = container.get_freq_delta()
-
-                        if delta > 0 and delta > resource_delta_max:
-                            resource_delta_max = delta
-                            suspect = container.name
-
-                    print('Contention %s for container %s: Suspect is %s' %
-                          (contention_type, container_contended.name, suspect))
-
+                    detect_contender(ctx.metric_cons, contention_type,
+                                     container_contended)
     if findbe and ctx.args.control:
         for contention, flag in contention.items():
             if contention in ctx.controllers:
                 ctx.controllers[contention].update(bes, flag, False)
 
 
-def remove_finished_containers(containers, consmap):
+def remove_finished_containers(cids, consmap):
     """
     remove finished containers from cached container map
-        containers - container list from docker
+        cids - container id list from docker
         mon_cons - cached container map
     """
-    cids = {c.id for c in containers}
-
     for cid in consmap.copy():
         if cid not in cids:
             del consmap[cid]
@@ -265,16 +263,13 @@ def mon_util_cycle(ctx):
     date = datetime.now().isoformat()
     bes = []
     containers = ctx.docker_client.containers.list()
-    remove_finished_containers(containers, ctx.util_cons)
+    remove_finished_containers({c.id for c in containers}, ctx.util_cons)
 
     for container in containers:
         cid = container.id
         name = container.name
         pids = list_pids(container)
-        if ctx.args.key_cid:
-            key = cid
-        else:
-            key = name
+        key = cid if ctx.args.key_cid else name
         if cid in ctx.util_cons:
             con = ctx.util_cons[cid]
         else:
@@ -417,14 +412,17 @@ def init_threshbins(jdata):
     ]
 
 
-def init_tdp_map(ctx):
+def init_tdp_map(args):
     """
     Initialize thresholds for TDP contention for all workloads
-        ctx - agent context
+        args - agent command line arguments
     """
-    key = 'CID' if ctx.args.key_cid else 'CNAME'
-    tdp_df = pd.read_csv(ctx.tdp_file)
+    tdp_file = args.tdp_file if hasattr(args, 'tdp_file')\
+        and args.tdp_file else 'tdp_thresh.csv'
+    tdp_df = pd.read_csv(tdp_file)
+    key = 'CID' if args.key_cid else 'CNAME'
     cids = tdp_df[key].unique()
+    thresh_map = {}
     for cid in cids:
         tdpdata = tdp_df[tdp_df[key] == cid]
 
@@ -435,30 +433,32 @@ def init_tdp_map(ctx):
             thresh['mean'] = row['MEAN']
             thresh['std'] = row['STD']
             thresh['bar'] = row['BAR']
-            ctx.tdp_thresh_map[cid] = thresh
+            thresh_map[cid] = thresh
 
-    if ctx.args.verbose:
-        print(ctx.tdp_thresh_map)
+    if args.verbose:
+        print(thresh_map)
+    return thresh_map
 
 
-def init_threshmap(ctx):
+def init_threshmap(args):
     """
     Initialize thresholds for other contentions for all workloads
-        ctx - agent context
+        args - agent command line arguments
     """
-    key = 'CID' if ctx.args.key_cid else 'CNAME'
-    thresh_file = 'thresh.csv'
-    if ctx.args.thresh_file is not None:
-        thresh_file = ctx.args.thresh_file
+    thresh_file = args.thresh_file if hasattr(args, 'thresh_file')\
+        and args.thresh_file else 'thresh.csv'
     thresh_df = pd.read_csv(thresh_file)
+    key = 'CID' if args.key_cid else 'CNAME'
     cids = thresh_df[key].unique()
+    thresh_map = {}
     for cid in cids:
         jdata = thresh_df[thresh_df[key] == cid].sort_values('UTIL_START')
         bins = init_threshbins(jdata)
-        ctx.thresh_map[cid] = bins
+        thresh_map[cid] = bins
 
-    if ctx.args.verbose:
-        print(ctx.thresh_map)
+    if args.verbose:
+        print(thresh_map)
+    return thresh_map
 
 
 def init_wlset(ctx):
@@ -466,10 +466,7 @@ def init_wlset(ctx):
     Initialize workload set for both LC and BE
         ctx - agent context
     """
-    if ctx.args.key_cid:
-        key = 'CID'
-    else:
-        key = 'CNAME'
+    key = 'CID' if ctx.args.key_cid else 'CNAME'
     wl_df = pd.read_csv(ctx.args.workload_conf_file)
     lcs = []
     bes = []
@@ -571,6 +568,8 @@ def parse_arguments():
                         type=float, default=0.5)
     parser.add_argument('-t', '--thresh-file', help='threshold model file build\
                         from analyze.py tool', type=FileType('rt'))
+    parser.add_argument('-x', '--tdp-file', help='TDP threshold model file build\
+                        from analyze.py tool', type=FileType('rt'))
 
     args = parser.parse_args()
     if args.verbose:
@@ -590,8 +589,8 @@ def main():
         ctx.prometheus.start()
 
     if ctx.args.detect:
-        init_threshmap(ctx)
-        init_tdp_map(ctx)
+        ctx.thresh_map = init_threshmap(ctx.args)
+        ctx.tdp_thresh_map = init_tdp_map(ctx.args)
 
     if ctx.args.control:
         ctx.cpuq = CpuQuota(ctx.sysmax_util, ctx.args.margin_ratio,
