@@ -25,6 +25,9 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 from gmmfense import GmmFense
+from container import Container, Contention
+from eris import remove_finished_containers, detect_contender
+from eris import init_threshmap, init_tdp_map
 
 
 def get_quartile(args, mdf, is_upper):
@@ -128,7 +131,8 @@ def process_by_partition(args, workloadinfo):
     """
     with open('./thresh.csv', 'w') as threshf:
         threshf.write('CID,CNAME,UTIL_START,UTIL_END,' +
-                      'CPI_THRESH,MPKI_THRESH,MB_THRESH\n')
+                      'CPI_THRESH,MPKI_THRESH,MB_THRESH,' +
+                      'L2SPKI_THRESH,MSPKI_THRESH\n')
 
     with open('./tdp_thresh.csv', 'w') as tdpf:
         tdpf.write('CID,CNAME,UTIL,MEAN,STD,BAR\n')
@@ -182,22 +186,33 @@ def process_by_partition(args, workloadinfo):
 
                 memb = jdataf['MBL'] + jdataf['MBR']
                 mb_thresh = get_fense(args, memb, False)
+
+                l2spki = jdataf['L2SPKI']
+                l2spki_thresh = get_fense(args, l2spki, True)
+
+                mspki = jdataf['MSPKI']
+                mspki_thresh = get_fense(args, mspki, True)
             except:
                 continue
 
-            print('Job: {job}, UTIL: [{util_lower}, {util_higher}],\
-                  CPI Threshold: {cpi_thres}, MKPI Threshold: {mkpi_thres},\
-                  MB Threshold: {mb_thresh}'.format(job=job,
-                                                    util_lower=lower_bound,
-                                                    util_higher=higher_bound,
-                                                    cpi_thres=cpi_thresh,
-                                                    mkpi_thres=mpki_thresh,
-                                                    mb_thresh=mb_thresh))
+            print('Job: {job}, UTIL: [{util_lower}, {util_higher}], \
+CPI Threshold: {cpi_thres}, MKPI Threshold: {mkpi_thres}, \
+MB Threshold: {mb_thresh}, L2SPKI Threshold: {l2spki_thresh}, \
+MSPKI Threshold: {mspki_thresh}'.format(job=job,
+                                        util_lower=lower_bound,
+                                        util_higher=higher_bound,
+                                        cpi_thres=cpi_thresh,
+                                        mkpi_thres=mpki_thresh,
+                                        mb_thresh=mb_thresh,
+                                        l2spki_thresh=l2spki_thresh,
+                                        mspki_thresh=mspki_thresh))
 
             with open('./thresh.csv', 'a') as threshf:
                 threshf.write(cid + ',' + job + ',' + str(lower_bound) + ',' +
                               str(higher_bound) + ',' + str(cpi_thresh) + ',' +
-                              str(mpki_thresh) + ',' + str(mb_thresh) + '\n')
+                              str(mpki_thresh) + ',' + str(mb_thresh) + ',' +
+                              str(l2spki_thresh) + ',' + str(mspki_thresh) +
+                              '\n')
 
 
 def process_lc_max():
@@ -211,14 +226,57 @@ def process_lc_max():
         lcmaxf.write(str(maxulc) + '\n')
 
 
+def process_offline_data(args):
+    """
+    General procedure of offline analysis
+        args - arguments from command line input
+    """
+    thresh_map = init_threshmap(args)
+    tdp_thresh_map = init_tdp_map(args)
+    metric_cons = dict()
+
+    mdf = pd.read_csv(args.metric_file)
+    key = 'CID' if args.key_cid else 'CNAME'
+    times = mdf['TIME'].unique()
+    for time in times:
+        pdata = mdf[mdf['TIME'] == time]
+        cids = pdata[key].unique()
+        remove_finished_containers(cids, metric_cons)
+        for cid in cids:
+            jdata = pdata[pdata[key] == cid]
+            thresh = thresh_map.get(cid, [])
+            tdp_thresh = tdp_thresh_map.get(cid, [])
+            if cid in metric_cons:
+                con = metric_cons[cid]
+            else:
+                con = Container('cgroupfs', '', cid, [], args.verbose, thresh,
+                                tdp_thresh)
+                metric_cons[cid] = con
+            for row_tuple in jdata.iterrows():
+                con.update_metrics(row_tuple)
+
+        for cid in cids:
+            con = metric_cons[cid]
+            contend_res = con.contention_detect()
+            tdp_contend = con.tdp_contention_detect()
+            if tdp_contend:
+                contend_res.append(tdp_contend)
+            for contend in contend_res:
+                if contend != Contention.UNKN:
+                    detect_contender(metric_cons, contend, con)
+
+
 def process(args):
     """
     General procedure of analysis
         args - arguments from command line input
     """
-    workloadinfo = init_wl(args)
-    process_by_partition(args, workloadinfo)
-    process_lc_max()
+    if args.offline:
+        process_offline_data(args)
+    else:
+        workloadinfo = init_wl(args)
+        process_by_partition(args, workloadinfo)
+        process_lc_max()
 
 
 def main():
@@ -228,11 +286,9 @@ def main():
                                      collected from eris agent and build data\
                                      model for contention detect and resource\
                                      regulation.')
-
     parser.add_argument('workload_conf_file', help='workload configuration\
                         file describes each task name, type, id, request cpu\
                         count', type=argparse.FileType('rt'), default='wl.csv')
-
     parser.add_argument('-v', '--verbose', help='increase output verbosity',
                         action='store_true')
     parser.add_argument('-t', '--thresh', help='threshold used in outlier\
@@ -244,6 +300,10 @@ def main():
     parser.add_argument('-m', '--metric-file', help='metrics file collected\
                         from eris agent', type=argparse.FileType('rt'),
                         default='metrics.csv')
+    parser.add_argument('-o', '--offline', help='do offline analysis based on\
+                        given metrics file', action='store_true')
+    parser.add_argument('-i', '--key-cid', help='use container id in workload\
+                        configuration file as key id', action='store_true')
 
     args = parser.parse_args()
     if args.verbose:

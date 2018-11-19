@@ -59,7 +59,6 @@ class Context(object):
 
         self.shutdown = False
         self.args = None
-        self.tdp_file = 'tdp_thresh.csv'
         self.sysmax_file = 'lcmax.txt'
         self.sysmax_util = 0
         self.lc_set = {}
@@ -69,8 +68,8 @@ class Context(object):
         self.controllers = {}
         self.util_cons = dict()
         self.metric_cons = dict()
-        self.thresh_map = dict()
-        self.tdp_thresh_map = dict()
+        self.thresh_map = None
+        self.tdp_thresh_map = None
         self.cgroup_driver = 'cgroupfs'
 
     @property
@@ -91,6 +90,8 @@ def each_container_pgos_metric(lines, delim='\t'):
         'cycles': ('CYC', int),
         'instructions': ('INST', int),
         'LLC misses': ('L3MISS', int),
+        'stalls L2 miss': ('L2STALL', int),
+        'stalls memory load': ('MEMSTALL', int),
         'LLC occupancy': ('L3OCC', int),
         'Memory bandwidth local': ('MBL', float),
         'Memory bandwidth remote': ('MBR', float),
@@ -104,6 +105,29 @@ def each_container_pgos_metric(lines, delim='\t'):
         if metric_name in metric_mappings:
             name, converter = metric_mappings[metric_name]
             yield cid, {name: converter(val)}, int(timestamp)
+
+
+def detect_contender(metric_cons, contention_type, container_contended):
+    resource_delta_max = -np.Inf
+    suspect = "unknown"
+
+    for cid, container in metric_cons.items():
+        delta = 0
+        if cid == container_contended.cid:
+            continue
+        if contention_type == Contention.LLC:
+            delta = container.get_llcoccupany_delta()
+        elif contention_type == Contention.MEM_BW:
+            delta = container.get_latest_mbt()
+        elif contention_type == Contention.TDP:
+            delta = container.get_freq_delta()
+
+        if delta > 0 and delta > resource_delta_max:
+            resource_delta_max = delta
+            suspect = container.name
+
+        print('Contention %s for container %s: Suspect is %s' %
+              (contention_type, container_contended.name, suspect))
 
 
 def set_metrics(ctx, data):
@@ -128,10 +152,7 @@ def set_metrics(ctx, data):
     bes = []
     findbe = False
     for cid, con in ctx.metric_cons.items():
-        if ctx.args.key_cid:
-            key = con.cid
-        else:
-            key = con.name
+        key = con.cid if ctx.args.key_cid else con.name
 
         if key in ctx.lc_set:
             con.update_cpu_usage()
@@ -141,9 +162,15 @@ def set_metrics(ctx, data):
                 if metrics['INST'] == 0:
                     metrics['CPI'] = 0
                     metrics['L3MPKI'] = 0
+                    metrics['L2SPKI'] = 0
+                    metrics['MSPKI'] = 0
                 else:
                     metrics['CPI'] = metrics['CYC'] / metrics['INST']
                     metrics['L3MPKI'] = metrics['L3MISS'] * 1000 /\
+                        metrics['INST']
+                    metrics['L2SPKI'] = metrics['L2STALL'] * 1000 /\
+                        metrics['INST']
+                    metrics['MSPKI'] = metrics['MEMSTALL'] * 1000 /\
                         metrics['INST']
                 if con.utils == 0:
                     metrics['NF'] = 0
@@ -169,12 +196,13 @@ def set_metrics(ctx, data):
                                                     metrics['L3OCC'], 0)
 
                 if ctx.args.detect:
-                    contend = con.contention_detect()
+                    contend_res = con.contention_detect()
                     if_contended = False
 
-                    if contend is not None:
+                    if contend_res:
                         if_contended = True
-                        contention[contend] = True
+                        for contend in contend_res:
+                            contention[contend] = True
 
                     tdp_contend = con.tdp_contention_detect()
                     if tdp_contend is not None:
@@ -194,41 +222,20 @@ def set_metrics(ctx, data):
                     in contention_list.items():
                 if contention_type_if_happened and\
                    contention_type != Contention.UNKN:
-                    resource_delta_max = -np.Inf
-                    suspect = "unknown"
-
-                    for cid, container in ctx.metric_cons.items():
-                        delta = 0
-                        if cid == container_contended.cid:
-                            continue
-                        if contention_type == Contention.LLC:
-                            delta = container.get_llcoccupany_delta()
-                        elif contention_type == Contention.MEM_BW:
-                            delta = container.get_latest_mbt()
-                        elif contention_type == Contention.TDP:
-                            delta = container.get_freq_delta()
-
-                        if delta > 0 and delta > resource_delta_max:
-                            resource_delta_max = delta
-                            suspect = container.name
-
-                    print('Contention %s for container %s: Suspect is %s' %
-                          (contention_type, container_contended.name, suspect))
-
+                    detect_contender(ctx.metric_cons, contention_type,
+                                     container_contended)
     if findbe and ctx.args.control:
         for contention, flag in contention.items():
             if contention in ctx.controllers:
                 ctx.controllers[contention].update(bes, flag, False)
 
 
-def remove_finished_containers(containers, consmap):
+def remove_finished_containers(cids, consmap):
     """
     remove finished containers from cached container map
-        containers - container list from docker
+        cids - container id list from docker
         mon_cons - cached container map
     """
-    cids = {c.id for c in containers}
-
     for cid in consmap.copy():
         if cid not in cids:
             del consmap[cid]
@@ -240,7 +247,9 @@ def list_pids(container):
         container - container object listed from Docker
     """
     procs = container.top()['Processes']
-    return [pid[1] for pid in procs] if procs else []
+    pids = [pid[1] for pid in procs] if procs else []
+    return [tid for pid in pids
+            for tid in os.listdir('/proc/' + pid + '/task')] if pids else []
 
 
 def mon_util_cycle(ctx):
@@ -254,16 +263,13 @@ def mon_util_cycle(ctx):
     date = datetime.now().isoformat()
     bes = []
     containers = ctx.docker_client.containers.list()
-    remove_finished_containers(containers, ctx.util_cons)
+    remove_finished_containers({c.id for c in containers}, ctx.util_cons)
 
     for container in containers:
         cid = container.id
         name = container.name
         pids = list_pids(container)
-        if ctx.args.key_cid:
-            key = cid
-        else:
-            key = name
+        key = cid if ctx.args.key_cid else name
         if cid in ctx.util_cons:
             con = ctx.util_cons[cid]
         else:
@@ -340,8 +346,8 @@ def mon_metric_cycle(ctx):
 
         if key in ctx.lc_set:
             cids.append(cid)
-            cgroups.append('/sys/fs/cgroup/perf_event/' + con.parent_path +
-                        con.con_path)
+            cgroups.append('/sys/fs/cgroup/perf_event/' +
+                           con.parent_path + con.con_path)
 
     if new_bes:
         ctx.llc.budgeting(new_bes)
@@ -357,7 +363,8 @@ def mon_metric_cycle(ctx):
             '-cycle', '1',
             '-core', str(cpu_count()),
         ]
-
+        if ctx.args.verbose:
+            print(' '.join(args))
         output = subprocess.check_output(args, stderr=subprocess.STDOUT)
         data = output.decode('utf-8').splitlines()
         if ctx.args.verbose:
@@ -393,6 +400,8 @@ def init_threshbins(jdata):
         ('cpi', 'CPI_THRESH'),
         ('mpki', 'MPKI_THRESH'),
         ('mb', 'MB_THRESH'),
+        ('l2spki', 'L2SPKI_THRESH'),
+        ('mspki', 'MSPKI_THRESH'),
     ]
     return [
         {
@@ -403,14 +412,17 @@ def init_threshbins(jdata):
     ]
 
 
-def init_tdp_map(ctx):
+def init_tdp_map(args):
     """
     Initialize thresholds for TDP contention for all workloads
-        ctx - agent context
+        args - agent command line arguments
     """
-    key = 'CID' if ctx.args.key_cid else 'CNAME'
-    tdp_df = pd.read_csv(ctx.tdp_file)
+    tdp_file = args.tdp_file if hasattr(args, 'tdp_file')\
+        and args.tdp_file else 'tdp_thresh.csv'
+    tdp_df = pd.read_csv(tdp_file)
+    key = 'CID' if args.key_cid else 'CNAME'
     cids = tdp_df[key].unique()
+    thresh_map = {}
     for cid in cids:
         tdpdata = tdp_df[tdp_df[key] == cid]
 
@@ -421,34 +433,32 @@ def init_tdp_map(ctx):
             thresh['mean'] = row['MEAN']
             thresh['std'] = row['STD']
             thresh['bar'] = row['BAR']
-            ctx.tdp_thresh_map[cid] = thresh
+            thresh_map[cid] = thresh
 
-    if ctx.args.verbose:
-        print(ctx.tdp_thresh_map)
+    if args.verbose:
+        print(thresh_map)
+    return thresh_map
 
 
-def init_threshmap(ctx):
+def init_threshmap(args):
     """
     Initialize thresholds for other contentions for all workloads
-        ctx - agent context
+        args - agent command line arguments
     """
-    if ctx.args.key_cid:
-        key = 'CID'
-    else:
-        key = 'CNAME'
-
-    thresh_file = 'thresh.csv'
-    if ctx.args.thresh_file is not None:
-        thresh_file = ctx.args.thresh_file
+    thresh_file = args.thresh_file if hasattr(args, 'thresh_file')\
+        and args.thresh_file else 'thresh.csv'
     thresh_df = pd.read_csv(thresh_file)
+    key = 'CID' if args.key_cid else 'CNAME'
     cids = thresh_df[key].unique()
+    thresh_map = {}
     for cid in cids:
         jdata = thresh_df[thresh_df[key] == cid].sort_values('UTIL_START')
         bins = init_threshbins(jdata)
-        ctx.thresh_map[cid] = bins
+        thresh_map[cid] = bins
 
-    if ctx.args.verbose:
-        print(ctx.thresh_map)
+    if args.verbose:
+        print(thresh_map)
+    return thresh_map
 
 
 def init_wlset(ctx):
@@ -456,10 +466,7 @@ def init_wlset(ctx):
     Initialize workload set for both LC and BE
         ctx - agent context
     """
-    if ctx.args.key_cid:
-        key = 'CID'
-    else:
-        key = 'CNAME'
+    key = 'CID' if ctx.args.key_cid else 'CNAME'
     wl_df = pd.read_csv(ctx.args.workload_conf_file)
     lcs = []
     bes = []
@@ -561,6 +568,8 @@ def parse_arguments():
                         type=float, default=0.5)
     parser.add_argument('-t', '--thresh-file', help='threshold model file build\
                         from analyze.py tool', type=FileType('rt'))
+    parser.add_argument('-x', '--tdp-file', help='TDP threshold model file build\
+                        from analyze.py tool', type=FileType('rt'))
 
     args = parser.parse_args()
     if args.verbose:
@@ -580,8 +589,8 @@ def main():
         ctx.prometheus.start()
 
     if ctx.args.detect:
-        init_threshmap(ctx)
-        init_tdp_map(ctx)
+        ctx.thresh_map = init_threshmap(ctx.args)
+        ctx.tdp_thresh_map = init_tdp_map(ctx.args)
 
     if ctx.args.control:
         ctx.cpuq = CpuQuota(ctx.sysmax_util, ctx.args.margin_ratio,
@@ -599,13 +608,17 @@ def main():
         with open('./util.csv', 'w') as utilf:
             utilf.write('TIME,CID,CNAME,UTIL\n')
 
-    threads = [Thread(target=monitor, args=(mon_util_cycle, ctx, ctx.args.util_interval))]
+    threads = [Thread(target=monitor, args=(mon_util_cycle,
+                                            ctx, ctx.args.util_interval))]
 
     if ctx.args.collect_metrics:
         if ctx.args.record:
-            with open('./metrics.csv', 'w') as f:
-                print('TIME,CID,CNAME,INST,CYC,CPI,L3MPKI,L3MISS,NF,UTIL,L3OCC,MBL,MBR', file=f)
-        threads.append(Thread(target=monitor, args=(mon_metric_cycle, ctx, ctx.args.metric_interval)))
+            with open('./metrics.csv', 'w') as metricf:
+                print('TIME,CID,CNAME,INST,CYC,CPI,L3MPKI,L3MISS,NF,UTIL,L3OCC,\
+MBL,MBR,L2STALL,MEMSTALL,L2SPKI,MSPKI', file=metricf)
+        threads.append(Thread(target=monitor,
+                              args=(mon_metric_cycle,
+                                    ctx, ctx.args.metric_interval)))
 
     for thread in threads:
         thread.start()
