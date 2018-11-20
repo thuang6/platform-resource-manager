@@ -16,6 +16,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 all:
-	go build -a -o pgos main.go
+	go build -a -o pgos *.go
 clean:
 	rm ./pgos

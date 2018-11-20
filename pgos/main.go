@@ -22,7 +22,6 @@ package main
 // #include <linux/perf_event.h>
 // #cgo LDFLAGS: -lpqos -lm
 // #include <pqos.h>
-// #include "perf.c"
 // #include "pgos.c"
 // int LOG_VER_SUPER_VERBOSE = 2;
 import "C"
@@ -50,27 +49,17 @@ var cgroupPath = flag.String("cgroup", "", "cgroups to be monitored")
 var containerIds = flag.String("cids", "", "container id list")
 var metricsDescription = []string{"instructions", "cycles", "LLC misses", "stalls L2 miss", "stalls memory load"}
 
-var counters = []C.struct_perf_counter{
-	C.struct_perf_counter{
-		_type: C.PERF_TYPE_HARDWARE,
-		event: C.uint64_t(C.PERF_COUNT_HW_INSTRUCTIONS),
-	},
-	C.struct_perf_counter{
-		_type: C.PERF_TYPE_HARDWARE,
-		event: C.uint64_t(C.PERF_COUNT_HW_CPU_CYCLES),
-	},
-	C.struct_perf_counter{
-		_type: C.PERF_TYPE_HARDWARE,
-		event: C.uint64_t(C.PERF_COUNT_HW_CACHE_MISSES),
-	},
-	C.struct_perf_counter{
-		_type: C.PERF_TYPE_RAW,
-		event: C.uint64_t(CYCLE_ACTIVITY_STALLS_L2_MISS),
-	},
-	C.struct_perf_counter{
-		_type: C.PERF_TYPE_RAW,
-		event: C.uint64_t(CYCLE_ACTIVITY_STALLS_MEM_ANY),
-	},
+type PerfCounter struct {
+	Type   C.uint32_t
+	Config C.uint64_t
+}
+
+var counters = []PerfCounter{
+	PerfCounter{Type: C.PERF_TYPE_HARDWARE, Config: C.PERF_COUNT_HW_INSTRUCTIONS},
+	PerfCounter{Type: C.PERF_TYPE_HARDWARE, Config: C.PERF_COUNT_HW_CPU_CYCLES},
+	PerfCounter{Type: C.PERF_TYPE_HARDWARE, Config: C.PERF_COUNT_HW_CACHE_MISSES},
+	PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(CYCLE_ACTIVITY_STALLS_L2_MISS)},
+	PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(CYCLE_ACTIVITY_STALLS_MEM_ANY)},
 }
 
 type Cgroup struct {
@@ -78,6 +67,8 @@ type Cgroup struct {
 	Name        string
 	Pid         uint32
 	File        *os.File `json:"-"`
+	Leaders     []uintptr
+	Followers   []uintptr
 	PgosHandler C.int
 }
 
@@ -94,10 +85,23 @@ func NewCgroup(path string, cid string) (*Cgroup, error) {
 	} else {
 		cgroupName = cid
 	}
+	leaders := make([]uintptr, 0, *coreCount)
+	followers := make([]uintptr, 0, *coreCount*(len(counters)-1))
+
+	for i := 0; i < *coreCount; i++ {
+		l := OpenLeader(cgroupFile.Fd(), uintptr(i), counters[0].Type, counters[0].Config)
+		leaders = append(leaders, l)
+		for j := 1; j < len(counters); j++ {
+			f := OpenFollower(l, uintptr(i), counters[j].Type, counters[j].Config)
+			followers = append(followers, f)
+		}
+	}
 	return &Cgroup{
-		Path: path,
-		Name: cgroupName,
-		File: cgroupFile,
+		Path:      path,
+		Name:      cgroupName,
+		File:      cgroupFile,
+		Leaders:   leaders,
+		Followers: followers,
 	}, nil
 }
 
@@ -169,31 +173,41 @@ func main() {
 	}
 
 	frequencyDuration := fmt.Sprintf("%ds", *frequency-(*period))
-	d, err := time.ParseDuration(frequencyDuration)
+	monitorDuration := fmt.Sprintf("%ds", *period)
+	fd, err := time.ParseDuration(frequencyDuration)
+	md, err := time.ParseDuration(monitorDuration)
 	if err != nil {
 		println(err.Error())
 		return
 	}
 	for i := 0; i < *cycle; i++ {
-		result := make([]uint64, len(fds)*len(counters))
 		now := time.Now().Unix()
-		C.collect((*C.pid_t)(unsafe.Pointer(&fds[0])),
-			C.int(len(fds)),
-			C.int(*coreCount),
-			(*C.struct_perf_counter)(unsafe.Pointer(&counters[0])),
-			C.int(len(counters)),
-			(*C.uint64_t)(unsafe.Pointer(&result[0])),
-			C.unsigned(*period))
 		for j := 0; j < len(cgroups); j++ {
-			for k := 0; k < len(counters); k++ {
-				fmt.Printf("%s\t%s\t%d\t%d\n", cgroups[j].Name, metricsDescription[k], now, result[j*len(counters)+k])
+			for k := 0; k < len(cgroups[j].Leaders); k++ {
+				StartLeader(cgroups[j].Leaders[k])
 			}
+		}
+		time.Sleep(md)
+		for j := 0; j < len(cgroups); j++ {
+			res := make([]uint64, len(counters))
+			for k := 0; k < *coreCount; k++ {
+				StopLeader(cgroups[j].Leaders[k])
+				result := ReadLeader(cgroups[j].Leaders[k])
+				for l := 0; l < len(counters); l++ {
+					res[l] += result.Data[l].Value
+				}
+			}
+			for k := 0; k < len(counters); k++ {
+				fmt.Printf("%s\t%s\t%d\t%+v\n", cgroups[j].Name, metricsDescription[k], now, res[k])
+			}
+		}
+		for j := 0; j < len(cgroups); j++ {
 			pgosValue := C.pgos_mon_poll(cgroups[j].PgosHandler)
 			fmt.Printf("%s\t%s\t%d\t%+v\n", cgroups[j].Name, "LLC occupancy", now, pgosValue.llc/1024)
 			fmt.Printf("%s\t%s\t%d\t%+v\n", cgroups[j].Name, "Memory bandwidth local", now, float64(pgosValue.mbm_local_delta)/1024.0/1024.0/float64(*period))
 			fmt.Printf("%s\t%s\t%d\t%+v\n", cgroups[j].Name, "Memory bandwidth remote", now, float64(pgosValue.mbm_remote_delta)/1024.0/1024.0/float64(*period))
 		}
-		time.Sleep(d)
+		time.Sleep(fd)
 	}
 	C.pgos_mon_stop()
 	C.pqos_fini()

@@ -17,6 +17,7 @@
 // 
 #include <pqos.h>
 #include <stdio.h>
+#include <string.h>
 
 #define MAX_PID_GROUP 100
 typedef struct pqos_config pqos_config;
