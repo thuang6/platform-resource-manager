@@ -26,51 +26,47 @@ from mresource import Resource
 
 class LlcOccup(Resource):
     """ This class is the resource class of LLC occupancy """
-    LLC_BMP_LG = ['0x7', '0x1f', '0x7f', '0x1ff', '0x7ff',
-                  '0x1fff', '0x7fff', '0x1ffff', '0x7ffff', '0xfffff']
-    LLC_BMP = ['0x1', '0x3', '0x7', '0xf', '0x1f', '0x3f', '0x7f', '0xff',
-               '0x1ff', '0x3ff', '0x7ff', '0xfff', '0x1fff', '0x3fff',
-               '0x7fff', '0xffff', '0x1ffff', '0x3ffff', '0x7ffff', '0xfffff']
 
-    USE_PQOS = True
+    def __init__(self, init_level, exclusive):
+        bitcnt = LlcOccup._get_cbm_bit_count()
+        self.be_bmp = [hex(((1 << (i + 1)) - 1) << (bitcnt - 1 - i))
+                       for i in range(bitcnt)]
+        self.lc_bmp = [hex((1 << (bitcnt - 1 - i)) - 1)
+                       for i in range(bitcnt)]
+        if exclusive:
+            self.be_bmp = self.be_bmp[0:int(bitcnt / 2)]
+            self.lc_bmp = self.lc_bmp[0:int(bitcnt / 2)]
+        super(LlcOccup, self).__init__(init_level, int(bitcnt / 2) if
+                                       exclusive else bitcnt)
 
-    def budgeting(self, containers):
+    @staticmethod
+    def _get_cbm_bit_count():
+        with open('/sys/fs/resctrl/info/L3/cbm_mask') as cbmf:
+            cbm_mask = cbmf.readline()
+            cbm = int(cbm_mask, 16)
+            cbm_bin = bin(cbm)
+            setbits = [bit for bit in cbm_bin[2:] if bit == '1']
+            return len(setbits)
+
+    def _budgeting(self, containers, clsid, is_be):
         cpids = []
         cns = []
         for con in containers:
             cpids.append(','.join(con.pids))
             cns.append(con.name)
 
-        if LlcOccup.USE_PQOS:
-            # in POC, assume only eris controls CAT, use fixed CLOS number 1
-            cml = 'pqos -I -a' + '\'pid:1=' + ','.join(cpids) + '\''
-            subprocess.Popen(cml, shell=True)
+        bmp = self.be_bmp if is_be else self.lc_bmp
+        cml = 'pqos -I -a' + '\'pid:' + clsid + '=' + ','.join(cpids) + '\''
+        subprocess.Popen(cml, shell=True)
 
-        if self.is_full_level() or self.quota_level >= len(LlcOccup.LLC_BMP):
-            if LlcOccup.USE_PQOS:
-                cml = 'pqos -e' + '\'llc:1=' +\
-                    LlcOccup.LLC_BMP[len(LlcOccup.LLC_BMP) - 1] + '\''
-            else:
-                cml = 'rdtset -t ' + '\'l3=' +\
-                        LlcOccup.LLC_BMP[len(LlcOccup.LLC_BMP) - 1] + '\''\
-                        ' -I -p ' + ','.join(cpids)
-            subprocess.Popen(cml, shell=True)
+        cml = 'pqos -e' + '\'llc:' + clsid + '=' + bmp[self.quota_level] + '\''
+        subprocess.Popen(cml, shell=True)
 
-            print(datetime.now().isoformat(' ') +
-                  ' set best effort container ' + ','.join(cns) +
-                  ' llc occupancy to ' +
-                  LlcOccup.LLC_BMP[len(LlcOccup.LLC_BMP) - 1])
-        else:
-            if LlcOccup.USE_PQOS:
-                cml = 'pqos -e' + '\'llc:1=' +\
-                    LlcOccup.LLC_BMP[self.quota_level] + '\''
-            else:
-                cml = 'rdtset -t ' + '\'l3=' +\
-                    LlcOccup.LLC_BMP[self.quota_level] + '\''\
-                    ' -I -p ' + ','.join(cpids)
-            subprocess.Popen(cml, shell=True)
+        print(datetime.now().isoformat(' ') + ' set container ' +
+              ','.join(cns) + ' llc occupancy to ' + bmp[self.quota_level])
 
-            print(datetime.now().isoformat(' ') +
-                  ' set best effort container ' +
-                  ','.join(cns) + ' llc occupancy to ' +
-                  LlcOccup.LLC_BMP[self.quota_level])
+    def budgeting(self, bes, lcs):
+        if bes:
+            self._budgeting(bes, '1', True)
+        if lcs:
+            self._budgeting(lcs, '2', False)
