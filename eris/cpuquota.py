@@ -102,9 +102,9 @@ class CpuQuota(Resource):
         print(datetime.now().isoformat(' ') + ' set container ' +
               container.name + ' cpu share to ' + str(share))
 
-    def budgeting(self, containers):
-        newq = int(self.cpu_quota / len(containers))
-        for con in containers:
+    def budgeting(self, bes, lcs):
+        newq = int(self.cpu_quota / len(bes))
+        for con in bes:
             if self.is_min_level() or self.is_full_level():
                 self.__set_quota(con, self.cpu_quota)
             else:

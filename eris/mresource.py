@@ -14,7 +14,6 @@
 #
 #
 # SPDX-License-Identifier: Apache-2.0
-
 """ This module defines general resource control methods """
 
 
@@ -24,8 +23,9 @@ class Resource(object):
     BUGET_LEV_MIN = 0
     BUGET_LEV_MAX = 20
 
-    def __init__(self, init_level=BUGET_LEV_MIN):
+    def __init__(self, init_level=BUGET_LEV_MIN, level_max=BUGET_LEV_MAX):
         self.quota_level = init_level
+        self.level_max = level_max
 
     def is_min_level(self):
         """ is resource controled in lowest level """
@@ -43,7 +43,7 @@ class Resource(object):
     def increase_level(self):
         """ increase resource to next level """
         self.quota_level = self.quota_level + 1
-        if self.quota_level == Resource.BUGET_LEV_MAX:
+        if self.quota_level == self.level_max:
             self.quota_level = Resource.BUGET_LEV_FULL
         self.update()
 
@@ -51,6 +51,6 @@ class Resource(object):
         """ update resource level to real value of concrete resource class """
         pass
 
-    def budgeting(self, containers):
+    def budgeting(self, bes, lcs):
         """ control resouce based on current resource level """
         pass

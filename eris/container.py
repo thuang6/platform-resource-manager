@@ -175,30 +175,28 @@ class Container(object):
                 print('Last Level Cache contention is detected at %s' %
                       metrics['TIME'])
                 print('Latency critical container %s, CPI = %f, threshold =\
-%f, MPKI = %f, threshold = %f, L2SPKI = %f, threshold = %f \n' %
+%f, MPKI = %f, threshold = %f, L2SPKI = %f, threshold = %f' %
                       (self.name, metrics['CPI'], thresh['cpi'],
                        metrics['L3MPKI'], thresh['mpki'],
                        metrics['L2SPKI'], thresh['l2spki']))
                 unk_res = False
                 contend_res.append(Contention.LLC)
-                return contend_res
             if metrics['MBL'] + metrics['MBR'] < thresh['mb'] or\
                metrics['MSPKI'] > thresh['mspki']:
                 print('Memory Bandwidth contention detected at %s' %
                       metrics['TIME'])
                 print('Latency critical container %s, CPI = %f, threshold =\
-%f, MBL = %f, MBR = %f, threshold = %f, MSPKI = %f, threshold = %f \n' %
+%f, MBL = %f, MBR = %f, threshold = %f, MSPKI = %f, threshold = %f' %
                       (self.name, metrics['CPI'], thresh['cpi'],
                        metrics['MBL'], metrics['MBR'], thresh['mb'],
                        metrics['MSPKI'], thresh['mspki']))
                 unk_res = False
                 contend_res.append(Contention.MEM_BW)
-                return contend_res
             if unk_res:
                 print('Performance is impacted at %s' %
                       metrics['TIME'])
                 print('Latency critical container %s, CPI = %f, threshold =\
-                     %f \n' % (self.name, metrics['CPI'], thresh['cpi']))
+                     %f' % (self.name, metrics['CPI'], thresh['cpi']))
                 contend_res.append(Contention.UNKN)
 
         return contend_res

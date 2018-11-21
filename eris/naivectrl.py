@@ -29,7 +29,7 @@ class NaiveController:
         self.cyc_thresh = cyc_thresh
         self.cyc_cnt = 0
 
-    def update(self, be_containers, detected, hold):
+    def update(self, be_containers, lc_containers, detected, hold):
         """
         Update contention detection result to controller, controller conducts
         control policy on BE workloads based on current contention status
@@ -46,7 +46,7 @@ class NaiveController:
             else:
                 # always throttle BE to minimal
                 self.res.set_level(Resource.BUGET_LEV_MIN)
-                self.res.budgeting(be_containers)
+                self.res.budgeting(be_containers, lc_containers)
         else:
             if hold or self.res.is_full_level():
                 # no contention, pass
@@ -57,4 +57,4 @@ class NaiveController:
                 if self.cyc_cnt >= self.cyc_thresh:
                     self.cyc_cnt = 0
                     self.res.increase_level()
-                    self.res.budgeting(be_containers)
+                    self.res.budgeting(be_containers, lc_containers)

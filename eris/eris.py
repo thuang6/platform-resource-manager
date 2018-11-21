@@ -150,11 +150,14 @@ def set_metrics(ctx, data):
     }
     contention_map = {}
     bes = []
+    lcs = []
     findbe = False
     for cid, con in ctx.metric_cons.items():
         key = con.cid if ctx.args.key_cid else con.name
 
         if key in ctx.lc_set:
+            if ctx.args.exclusive_cat:
+                lcs.append(con)
             con.update_cpu_usage()
             metrics = con.get_metrics()
             if metrics:
@@ -227,7 +230,7 @@ def set_metrics(ctx, data):
     if findbe and ctx.args.control:
         for contention, flag in contention.items():
             if contention in ctx.controllers:
-                ctx.controllers[contention].update(bes, flag, False)
+                ctx.controllers[contention].update(bes, lcs, flag, False)
 
 
 def remove_finished_containers(cids, consmap):
@@ -262,6 +265,7 @@ def mon_util_cycle(ctx):
     be_utils = 0
     date = datetime.now().isoformat()
     bes = []
+    newbe = False
     containers = ctx.docker_client.containers.list()
     remove_finished_containers({c.id for c in containers}, ctx.util_cons)
 
@@ -278,7 +282,7 @@ def mon_util_cycle(ctx):
             ctx.util_cons[cid] = con
             if ctx.args.control:
                 if key in ctx.be_set:
-                    ctx.cpuq.budgeting([con])
+                    newbe = True
                     ctx.cpuq.set_share(con, CpuQuota.CPU_SHARE_BE)
                 else:
                     ctx.cpuq.set_share(con, CpuQuota.CPU_SHARE_LC)
@@ -307,11 +311,14 @@ def mon_util_cycle(ctx):
         if ctx.args.control:
             ctx.cpuq.update_max_sys_util(lc_utils)
 
+    if newbe:
+        ctx.cpuq.budgeting(bes, [])
+
     if findbe and ctx.args.control:
         exceed, hold = ctx.cpuq.detect_margin_exceed(lc_utils, be_utils)
         if not ctx.args.enable_hold:
             hold = False
-        ctx.controllers[Contention.CPU_CYC].update(bes, exceed, hold)
+        ctx.controllers[Contention.CPU_CYC].update(bes, [], exceed, hold)
 
 
 def mon_metric_cycle(ctx):
@@ -322,8 +329,11 @@ def mon_metric_cycle(ctx):
     containers = ctx.docker_client.containers.list()
     cgroups = []
     cids = []
-    new_bes = []
-    remove_finished_containers(containers, ctx.metric_cons)
+    bes = []
+    lcs = []
+    newcon = False
+    newbe = False
+    remove_finished_containers({c.id for c in containers}, ctx.metric_cons)
 
     for container in containers:
         cid = container.id
@@ -340,17 +350,20 @@ def mon_metric_cycle(ctx):
                             ctx.args.verbose, thresh, tdp_thresh)
             ctx.metric_cons[cid] = con
             con.update_cpu_usage()
-            if key in ctx.be_set and ctx.args.control\
-               and not ctx.args.disable_cat:
-                new_bes.append(con)
-
+            if ctx.args.control and not ctx.args.disable_cat:
+                newcon = True
+                if key in ctx.be_set:
+                    newbe = True
         if key in ctx.lc_set:
+            if ctx.args.exclusive_cat:
+                lcs.append(con)
             cids.append(cid)
             cgroups.append('/sys/fs/cgroup/perf_event/' +
                            con.parent_path + con.con_path)
-
-    if new_bes:
-        ctx.llc.budgeting(new_bes)
+        if key in ctx.be_set:
+            bes.append(con)
+    if newbe or newcon and bes and ctx.args.exclusive_cat:
+        ctx.llc.budgeting(bes, lcs)
 
     if cgroups:
         period = str(ctx.args.metric_interval - 2)
@@ -552,6 +565,8 @@ def parse_arguments():
                         not exceed throttle threshold ', action='store_true')
     parser.add_argument('-n', '--disable-cat', help='disable CAT control while\
                         in resource regulation', action='store_true')
+    parser.add_argument('-w', '--exclusive-cat', help='use exclusive CAT control while\
+                        in resource regulation', action='store_true')
     parser.add_argument('-p', '--enable-prometheus', help='allow eris send\
                         metrics to Prometheus', action='store_true')
     parser.add_argument('-u', '--util-interval', help='CPU utilization monitor\
@@ -596,10 +611,10 @@ def main():
         ctx.cpuq = CpuQuota(ctx.sysmax_util, ctx.args.margin_ratio,
                             ctx.args.verbose)
         quota_controller = NaiveController(ctx.cpuq, ctx.args.quota_cycles)
-        ctx.llc = LlcOccup()
+        ctx.llc = LlcOccup(Resource.BUGET_LEV_MIN, ctx.args.exclusive_cat)
         llc_controller = NaiveController(ctx.llc, ctx.args.llc_cycles)
         if ctx.args.disable_cat:
-            ctx.llc = LlcOccup(init_level=Resource.BUGET_LEV_FULL)
+            ctx.llc = LlcOccup(Resource.BUGET_LEV_FULL, exclusive=False)
             ctx.controllers = {Contention.CPU_CYC: quota_controller}
         else:
             ctx.controllers = {Contention.CPU_CYC: quota_controller,
