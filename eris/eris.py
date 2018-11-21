@@ -541,8 +541,8 @@ def parse_arguments():
     parser = ArgumentParser(description='eris agent monitor\
                             container CPU utilization and platform\
                             metrics, detect potential resource\
-                            contention and regulate best-efforts\
-                            tasks resource usages')
+                            contention and regulate \
+                            task resource usages')
     parser.add_argument('workload_conf_file', help='workload configuration\
                         file describes each task name, type, id, request cpu\
                         count', type=FileType('rt'), default='wl.csv')
@@ -565,7 +565,7 @@ def parse_arguments():
                         not exceed throttle threshold ', action='store_true')
     parser.add_argument('-n', '--disable-cat', help='disable CAT control while\
                         in resource regulation', action='store_true')
-    parser.add_argument('-w', '--exclusive-cat', help='use exclusive CAT control while\
+    parser.add_argument('-x', '--exclusive-cat', help='use exclusive CAT control while\
                         in resource regulation', action='store_true')
     parser.add_argument('-p', '--enable-prometheus', help='allow eris send\
                         metrics to Prometheus', action='store_true')
@@ -583,7 +583,7 @@ def parse_arguments():
                         type=float, default=0.5)
     parser.add_argument('-t', '--thresh-file', help='threshold model file build\
                         from analyze.py tool', type=FileType('rt'))
-    parser.add_argument('-x', '--tdp-file', help='TDP threshold model file build\
+    parser.add_argument('-w', '--tdp-file', help='TDP threshold model file build\
                         from analyze.py tool', type=FileType('rt'))
 
     args = parser.parse_args()
