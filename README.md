@@ -52,7 +52,7 @@ In order to use resource manager tool, CSP will need to provide a workload confi
                    workload_conf_file
     
     eris agent monitor container CPU utilization and platform metrics, detect
-    potential resource contention and regulate best-efforts tasks resource usages
+    potential resource contention and regulate task resource usages
     
     positional arguments:
       workload_conf_file    workload configuration file describes each task name,
@@ -73,6 +73,7 @@ In order to use resource manager tool, CSP will need to provide a workload confi
       -e, --enable-hold     keep container resource usage in current level while
                             the usage is close but not exceed throttle threshold
       -n, --disable-cat     disable CAT control while in resource regulation
+      -x, --exclusive-cat   use exclusive CAT control while in resource regulation
       -p, --enable_prometheus
                             allow eris send metrics to prometheus
       -u UTIL_INTERVAL, --util-interval UTIL_INTERVAL
@@ -88,6 +89,9 @@ In order to use resource manager tool, CSP will need to provide a workload confi
                             CPU cycle regulation
       -t THRESH_FILE, --thresh-file THRESH_FILE
                             threshold model file build from analyze.py tool
+      -w TDP_FILE, --tdp-file TDP_FILE
+                            TDP threshold model file build from analyze.py tool
+
 
 **analyze tool command line arguments**
 
@@ -112,6 +116,10 @@ In order to use resource manager tool, CSP will need to provide a workload confi
                             fense type used in outlier detection
       -m METRIC_FILE, --metric-file METRIC_FILE
                             metrics file collected from eris agent
+      -o, --offline         do offline analysis based on given metrics file
+      -i, --key-cid         use container id in workload configuration file as key
+                            id
+
 
 ## Typical Usage
 
