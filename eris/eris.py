@@ -46,7 +46,6 @@ from mresource import Resource
 from naivectrl import NaiveController
 from prometheus import PrometheusClient
 
-
 __version__ = 0.8
 
 
@@ -603,9 +602,8 @@ def main():
     if ctx.args.enable_prometheus:
         ctx.prometheus.start()
 
-    if ctx.args.detect:
-        ctx.thresh_map = init_threshmap(ctx.args)
-        ctx.tdp_thresh_map = init_tdp_map(ctx.args)
+    ctx.thresh_map = init_threshmap(ctx.args) if ctx.args.detect else {}
+    ctx.tdp_thresh_map = init_tdp_map(ctx.args) if ctx.args.detect else {}
 
     if ctx.args.control:
         ctx.cpuq = CpuQuota(ctx.sysmax_util, ctx.args.margin_ratio,
