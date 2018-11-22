@@ -9,8 +9,8 @@ runner: !DetectionRunner
   anomalies_storage: !LogStorage
     output_filename: /tmp/anomalies.log
   detector: !ContentionDetector
-    mode_config: 'detect' 
-  rdt_enabled: False
+    mode_config: 'collect' 
+  rdt_enabled: True
   extra_labels:
     env_uniq_id: "120"
     own_ip: "10.3.88.120"
