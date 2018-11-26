@@ -1,7 +1,7 @@
 # PRM
 
 ## Description
-PRM plugin for [owca](https://github.com/intel/owca)
+PRM plugin for [Orchestration-aware Workload Collocation Agent](https://github.com/intel/owca)
 
 PRM Plugin is able to collect the hardware and os metrics, build model and detect the contention.
 
