@@ -1,10 +1,12 @@
 # PRM
 
+PRM plugin for [Orchestration-aware Workload Collocation Agent](https://github.com/intel/owca).
+
 ## Description
-PRM plugin for [Orchestration-aware Workload Collocation Agent](https://github.com/intel/owca)
 
-PRM Plugin is able to collect the hardware and os metrics, build model and detect the contention.
+For full documentation of OWCA and complete installation guide please follow [this link](https://github.com/intel/owca).
 
+PRM plugin uses hardware and os metrics, build model and detect the contention.
 
 ## Build
 
@@ -15,7 +17,7 @@ tox
 
 ## Configuration
 
-Default configration file is mesos_prm.yaml
+Default configuration file is ``mesos_prm.yaml``:
 
 ```
 loggers:
