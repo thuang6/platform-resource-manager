@@ -5,6 +5,8 @@ PRM plugin for [Orchestration-aware Workload Collocation Agent](https://github.c
 
 PRM Plugin is able to collect the hardware and os metrics, build model and detect the contention.
 
+## Labels assumptions
+type: 'best_effort'
 
 ## Build
 
