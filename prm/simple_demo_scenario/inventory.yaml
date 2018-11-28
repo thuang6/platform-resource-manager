@@ -13,7 +13,7 @@ application_hosts:
     # Global variables to run workloads.
     cluster: example
     role: root
-    image_tag: 2f59fc840663337f94490a19684f46399e4853bd
+    image_tag: 5d63eb76795a227c0985618c918669f02a30c7ed
 
     wrapper_kafka_brokers: 100.64.176.12
     docker_registry: 100.64.176.12:80
