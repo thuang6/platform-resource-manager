@@ -65,9 +65,9 @@ type PerfStruct struct {
 
 func OpenLeader(cgroupFd uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t) uintptr {
 	leaderAttr := C.struct_perf_event_attr{
-		_type:       perfType,
-		size:        C.def_PERF_ATTR_SIZE_VER5,
-		config:      C.ulonglong(C.get_config_of_event(perfType, perfConfig)),
+		_type:       C.__u32(perfType),
+		size:        C.__u32(C.def_PERF_ATTR_SIZE_VER5),
+		config:      C.__u64(C.get_config_of_event(perfType, perfConfig)),
 		sample_type: C.PERF_SAMPLE_IDENTIFIER,
 		read_format: C.PERF_FORMAT_GROUP |
 			C.PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -80,9 +80,9 @@ func OpenLeader(cgroupFd uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C
 
 func OpenFollower(leader uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t) uintptr {
 	followerAttr := C.struct_perf_event_attr{
-		_type:       perfType,
-		size:        C.def_PERF_ATTR_SIZE_VER5,
-		config:      C.ulonglong(C.get_config_of_event(perfType, perfConfig)),
+		_type:       C.__u32(perfType),
+		size:        C.__u32(C.def_PERF_ATTR_SIZE_VER5),
+		config:      C.__u64(C.get_config_of_event(perfType, perfConfig)),
 		sample_type: C.PERF_SAMPLE_IDENTIFIER,
 		read_format: C.PERF_FORMAT_GROUP |
 			C.PERF_FORMAT_TOTAL_TIME_ENABLED |
