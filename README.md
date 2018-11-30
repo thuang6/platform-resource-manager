@@ -1,7 +1,7 @@
 # Platform Resource Manager
 
-Platform Resource Manager is a suite of software packages to help a Cloud Service Provider to co-locate best-efforts jobs with latency-critical jobs in a cluster.    
-The suite provides an analyze tool to build a model for platform resource contention detection. 
+Platform Resource Manager is a suite of software packages to help you to co-locate best-efforts jobs with latency-critical jobs on a node and in a cluster.    
+The suite provides an analysis tool [analyze] to build a model for platform resource contention detection. 
 The suite also provides an agent to monitor and control platform resources (CPU Cycle, Last Level Cache, Memory Bandwidth, etc.. ) on each node.    
 
 ## Requirements
@@ -32,7 +32,7 @@ Assuming all requirements are installed and configured properly, follow the step
 
 **Prepare workload configuration file**
 
-In order to use resource manager tool, CSP will need to provide a workload configuration CSV file in advance. Each row in file describes name, id, type (BE, LC), request CPU count of one task (Container).  The following is an example file demonstrating the file format.  
+In order to use resource manager tool, you will need to provide a workload configuration CSV file in advance. Each row in file describes name, id, type (Best-Effort, Latency-Critical), request CPU count of one task (Container).  The following is an example file demonstrating the file format.  
 
     CID,CNAME,TYPE,CPUS
     aae649c89423,cassandra_workload,LC,10
