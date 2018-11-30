@@ -19,6 +19,7 @@ confluent-kafka = "==0.11.4"
 
 [dev-packages]
 pex = "==1.5.1"
+tox = "==3.5.2"
 
 [requires]
 python_version = "3.6"
