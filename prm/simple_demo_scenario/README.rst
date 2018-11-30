@@ -8,14 +8,22 @@ Assumptions:
 - load generator Mesos node address: 100.64.176.21
 - docker registry address: 100.64.176.13
 - working directory: PRM project top level directory
-- export variable $REMOTE_USER to user which should execute command on the remote
-- export variable $REMOTE_IP to IP address of the remote
+- an user having root priviliges on 100.64.176.13: user_abc
+
+
+#. export needed shell variables:
+
+.. code-block:: sh
+
+export REMOTE_USER=user_abc
+export REMOTE_IP=100.64.176.13
+
 
 #. kill all jobs, stop agant and clean a temporary model data:
 
 .. code-block:: sh
 
-    ansible-playbook -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=clean_jobs -v
+    ansible-playbook -l $REMOTE_IP -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=clean_jobs -v
     ansible -u $REMOTE_USER -b all -i $REMOTE_IP, -msystemd -a'name=owca state=stopped'
     ansible -u $REMOTE_USER -b all -i $REMOTE_IP, -a'rm -f /var/lib/owca/lc-util.csv /var/lib/owca/workload-meta.json /var/lib/owca/workload-data.csv /var/lib/owca/threshold.json'
 
@@ -23,7 +31,7 @@ Assumptions:
 
 .. code-block:: sh
 
-    ansible-playbook -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=clean_jobs,twemcache_mutilate,tensorflow_benchmark_prediction,cassandra_stress--cassandra
+    ansible-playbook -l $REMOTE_IP -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=clean_jobs,twemcache_mutilate,tensorflow_benchmark_prediction,cassandra_stress--cassandra
 
 #. reconfigure (set action_delay to 20seconds) and restart OWCA+PRM to run in collect mode
 
@@ -44,10 +52,10 @@ Assumptions:
 
 .. code-block:: sh
 
-    ansible-playbook -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=cassandra_stress--stress
+    ansible-playbook -l $REMOTE_IP -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=cassandra_stress--stress
 
 #. kill cassandra load generator (stress) and observe anomaly disappers:
 
 .. code-block:: sh
 
-    ansible-playbook -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=clean_jobs -ekill_job_name=cassandra_stress--cassandra_stress--9142 -v
+    ansible-playbook -l $REMOTE_IP -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=clean_jobs -ekill_job_name=cassandra_stress--cassandra_stress--9142 -v
