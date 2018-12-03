@@ -75,7 +75,8 @@ application_hosts:
           slo: 1000
           communication_port: 11311
           twemcache:
-            threads: 4
+            env:
+              worker_threads: 4
             resources:
               cpu: 4
               ram: 50
