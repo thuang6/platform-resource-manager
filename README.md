@@ -1,3 +1,5 @@
+# It is alpha version for evaluation.
+
 # Platform Resource Manager
 
 Platform Resource Manager is a suite of software packages to help you to co-locate best-efforts jobs with latency-critical jobs on a node and in a cluster.    
