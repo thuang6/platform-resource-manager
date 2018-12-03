@@ -52,10 +52,10 @@ export REMOTE_IP=100.64.176.13
 
 .. code-block:: sh
 
-    ansible-playbook -l $REMOTE_IP -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=cassandra_stress--stress
+    ansible-playbook -l $REMOTE_IP -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=cassandra_stress--stress -v
 
 #. kill cassandra load generator (stress) and observe anomaly disappers:
 
 .. code-block:: sh
 
-    ansible-playbook -l $REMOTE_IP -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=clean_jobs -ekill_job_name=cassandra_stress--cassandra_stress--9142 -v
+    ansible-playbook -l $REMOTE_IP -i simple_demo_scenario/inventory.yaml owca/workloads/run_workloads.yaml --tags=clean_jobs -ekill_job_name=cassandra_stress.default--cassandra_stress--9142.0 -v
