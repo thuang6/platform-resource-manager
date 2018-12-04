@@ -1,0 +1,122 @@
+# @Scenario LLC contention:
+# 3 redis instances;
+# 3 twemcached instances (one big instance with big workload, other two relatively small);
+# start cassandra service but no workload to train the model;
+# start the cassandra stressor to test the model for cache contention.
+
+application_hosts:
+  hosts:
+    100.64.176.13:
+      env_uniq_id: 13
+      load_generator_host_ip: 100.64.176.21
+    # another pair of nodes
+    100.64.176.14:
+      env_uniq_id: 14
+      load_generator_host_ip: 100.64.176.22
+    # another pair of nodes
+    100.64.176.15:
+      env_uniq_id: 15
+      load_generator_host_ip: 100.64.176.23
+  vars:
+    # Variables for setting ansible.
+    ansible_connection: local
+    ansible_ssh_user: root
+    ansible_user: root
+
+    # Global variables to run workloads.
+    cluster: example
+    role: root
+    image_tag: 5d63eb76795a227c0985618c918669f02a30c7ed
+
+    wrapper_kafka_brokers: 100.64.176.12
+    docker_registry: 100.64.176.12:80
+
+    workloads:
+      twemcache_mutilate:
+        small:
+          count: 2
+          slo: 100000
+          communication_port: 11211
+          twemcache:
+            env:
+              worker_threads: 2
+              max_memory: 4024
+            resources:
+              cpu: 2
+              ram: 50
+              disk: 50
+          mutilate:
+            env:
+              sli_percentile: 95    # Note: 99 percentile is too sensitive
+              threads: 2
+              connections: 24       # originally was 1, but that seems to be too small
+              warmup_time: 30
+              qps: 40000            # that's original value (40k)
+            resources:
+              cpu: 2
+              ram: 10
+              disk: 20
+        big:
+          # twice as much cores assigned, and 4 times more threads
+          count: 1
+          slo: 100000
+          communication_port: 11213
+          twemcache:
+            env:
+              worker_threads: 8
+              max_memory: 4024
+            resources:
+              cpu: 4
+              ram: 50
+              disk: 50
+          mutilate:
+            env:
+              sli_percentile: 95
+              threads: 6
+              connections: 16
+              warmup_time: 30
+              qps: 300000           # that's original value (300k)
+            resources:
+              cpu: 8
+              ram: 10
+              disk: 20
+
+      redis_rpc_perf:
+        default:
+          count: 3
+          slo: 100000
+          communication_port: 6789
+          redis:
+            image_name: centos/redis
+            image_tag: latest
+            resources:
+              cpu: 1
+              ram: 2
+              disk: 2
+          rpc_perf:
+            resources:
+              cpu: 1
+              ram: 2
+              disk: 2
+      
+      cassandra_stress:
+        default:
+          count: 1
+          communication_port: 9142
+          jmx_port: 7299
+          slo: 1000
+          cassandra:
+            image_name: cassandra
+            image_tag: 3.11.3
+            resources:
+              cpu: 10
+              ram: 50
+              disk: 50
+          cassandra_stress:
+            env:
+              threads: 8
+              #qps: @TODO in cassandra_stress.aurora
+            resources:
+              cpu: 8
+              ram: 20
+              disk: 50
