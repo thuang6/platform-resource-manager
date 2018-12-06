@@ -1,50 +1,5 @@
-# Assumptions:
-# - service Mesos node address: 100.64.176.13
-# - load generator Mesos node address: 100.64.176.21
-# - docker registry address: 100.64.176.13
-
 application_hosts:
-  hosts:
-
-    100.64.176.13:
-      env_uniq_id: 13
-      load_generator_host_ip: 100.64.176.21
-
-    # another pair of nodes
-    100.64.176.14:
-      env_uniq_id: 14
-      load_generator_host_ip: 100.64.176.22
-
-    # another pair of nodes
-    100.64.176.15:
-      env_uniq_id: 15
-      load_generator_host_ip: 100.64.176.23
-
   vars:
-    # Variables for setting ansible.
-    ansible_connection: local
-    ansible_ssh_user: root
-    ansible_user: root
-
-    # Global variables to run workloads.
-    cluster: example
-    role: root
-    image_tag: 5d63eb76795a227c0985618c918669f02a30c7ed
-
-    wrapper_kafka_brokers: 100.64.176.12
-    docker_registry: 100.64.176.12:80
-
-    default_resources:
-      cpu: 1
-      ram: 1
-      disk: 1
-
-    # Host 100.64.176.13 resources sums:
-    #   cpu: 10 + 4 + 1 = 15
-    #   ram: 150GB
-    #   disk: 150GB
-
-    # Per workload parameters.
     workloads:
       cassandra_stress:
         default:
