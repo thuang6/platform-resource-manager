@@ -100,7 +100,7 @@ class ContentionDetector(detectors.AnomalyDetector):
 
     def _cid_to_app(self, cid, tasks_labels: TasksLabels):
         if 'application' in tasks_labels[cid]:
-            return tasks_labels[cid]['application']
+            return tasks_labels[cid]['application'] + '.' + tasks_labels[cid]['workload_version_name']
 
         return None
 
