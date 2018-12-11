@@ -11,7 +11,7 @@ PRM plugin uses hardware and os metrics, build model and detect the contention.
 ## Build
 
 ```
-git submodule --init owca
+git submodule update --init owca
 tox
 ```
 

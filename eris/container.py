@@ -30,6 +30,7 @@ from itertools import islice
 from datetime import datetime
 from enum import Enum
 from os.path import join as path_join
+from analyze.analyzer import Metric
 
 
 class Contention(Enum):
@@ -73,35 +74,37 @@ class Container(object):
     def __str__(self):
         metrics = self.metrics
         cols = [
-            metrics['TIME'],
+            metrics['time'],
             self.cid,
             self.name,
-            metrics['INST'],
-            metrics['CYC'],
-            metrics['CPI'],
-            metrics['L3MPKI'],
-            metrics['L3MISS'],
-            metrics['NF'],
+            metrics[Metric.INST],
+            metrics[Metric.CYC],
+            metrics[Metric.CPI],
+            metrics[Metric.L3MPKI],
+            metrics[Metric.L3MISS],
+            metrics[Metric.NF],
             self.utils,
-            metrics['L3OCC'],
-            metrics['MBL'],
-            metrics['MBR'],
-            metrics['L2STALL'],
-            metrics['MEMSTALL'],
-            metrics['L2SPKI'],
-            metrics['MSPKI'],
+            metrics[Metric.L3OCC],
+            metrics[Metric.MBL],
+            metrics[Metric.MBR],
+            metrics[Metric.L2STALL],
+            metrics[Metric.MEMSTALL],
+            metrics[Metric.L2SPKI],
+            metrics[Metric.MSPKI],
         ]
         return ','.join(str(col) for col in cols) + '\n'
 
     def update_metrics(self, row_tuple):
-        key_mappings = [('TIME', str), ('INST', int), ('CYC', int),
-                        ('CPI', float), ('L3MPKI', float), ('L3MISS', int),
-                        ('NF', float), ('L3OCC', int), ('MBL', float),
-                        ('MBR', float), ('L2STALL', int), ('MEMSTALL', int),
-                        ('L2SPKI', float), ('MSPKI', float)]
+        key_mappings = [('time', str), (Metric.INST, int), (Metric.CYC, int),
+                        (Metric.CPI, float), (Metric.L3MPKI, float),
+                        (Metric.L3MISS, int), (Metric.NF, float),
+                        (Metric.L3OCC, int), (Metric.MBL, float),
+                        (Metric.MBR, float), (Metric.L2STALL, int),
+                        (Metric.MEMSTALL, int), (Metric.L2SPKI, float),
+                        (Metric.MSPKI, float)]
         for key, converter in key_mappings:
             self.metrics[key] = converter(row_tuple[1][key])
-        self.utils = float(row_tuple[1]['UTIL'])
+        self.utils = float(row_tuple[1][Metric.UTIL])
         self.update_metrics_history()
 
     def get_history_delta_by_type(self, column_name):
@@ -110,29 +113,50 @@ class Container(object):
             return 0
         if length == 1:
             return self.metrics_history[0][column_name]
-
         data_sum = sum(m[column_name] for m in
                        list(islice(self.metrics_history, length - 1)))
         data_avg = float(data_sum) / (length - 1)
         data_delta = self.metrics_history[-1][column_name] - data_avg
-
         return data_delta
 
     def get_llcoccupany_delta(self):
-        return self.get_history_delta_by_type('L3OCC')
+        return self.get_history_delta_by_type(Metric.L3OCC)
 
     def get_freq_delta(self):
-        return self.get_history_delta_by_type('NF')
+        return self.get_history_delta_by_type(Metric.NF)
 
     def get_latest_mbt(self):
-        mbl = self.metrics.get('MBL', 0)
-        mbr = self.metrics.get('MBR', 0)
+        mbl = self.metrics.get(Metric.MBL, 0)
+        mbr = self.metrics.get(Metric.MBR, 0)
 
         return mbl + mbr
 
-    def get_metrics(self):
+    def get_full_metrics(self, timestamp, interval):
         """ retrieve container platform metrics """
-        return self.metrics
+        self.update_cpu_usage()
+        metrics = self.metrics
+        if self.metrics:
+            metrics['time'] = timestamp
+            if metrics[Metric.INST] == 0:
+                metrics[Metric.CPI] = 0
+                metrics[Metric.L3MPKI] = 0
+                metrics[Metric.L2SPKI] = 0
+                metrics[Metric.MSPKI] = 0
+            else:
+                metrics[Metric.CPI] = metrics[Metric.CYC] /\
+                    metrics[Metric.INST]
+                metrics[Metric.L3MPKI] = metrics[Metric.L3MISS] * 1000 /\
+                    metrics[Metric.INST]
+                metrics[Metric.L2SPKI] = metrics[Metric.L2STALL] * 1000 /\
+                    metrics[Metric.INST]
+                metrics[Metric.MSPKI] = metrics[Metric.MEMSTALL] * 1000 /\
+                    metrics[Metric.INST]
+            if self.utils == 0:
+                metrics[Metric.NF] = 0
+            else:
+                metrics[Metric.NF] = int(metrics[Metric.CYC] / interval /
+                                         10000 / self.utils)
+        return metrics
 
     def update_pids(self, pids):
         """
@@ -169,34 +193,34 @@ class Container(object):
     def __detect_in_bin(self, thresh):
         metrics = self.metrics
         contend_res = []
-        if metrics['CPI'] > thresh['cpi']:
+        if metrics[Metric.CPI] > thresh['cpi']:
             unk_res = True
-            if metrics['L3MPKI'] > thresh['mpki']:
+            if metrics[Metric.L3MPKI] > thresh['mpki']:
                 print('Last Level Cache contention is detected at %s' %
-                      metrics['TIME'])
+                      metrics['time'])
                 print('Latency critical container %s, CPI = %f, threshold =\
 %f, MPKI = %f, threshold = %f, L2SPKI = %f, threshold = %f' %
-                      (self.name, metrics['CPI'], thresh['cpi'],
-                       metrics['L3MPKI'], thresh['mpki'],
-                       metrics['L2SPKI'], thresh['l2spki']))
+                      (self.name, metrics[Metric.CPI], thresh['cpi'],
+                       metrics[Metric.L3MPKI], thresh['mpki'],
+                       metrics[Metric.L2SPKI], thresh['l2spki']))
                 unk_res = False
                 contend_res.append(Contention.LLC)
-            if metrics['MBL'] + metrics['MBR'] < thresh['mb'] or\
-               metrics['MSPKI'] > thresh['mspki']:
+            if metrics[Metric.MBL] + metrics[Metric.MBR] < thresh['mb'] or\
+               metrics[Metric.MSPKI] > thresh['mspki']:
                 print('Memory Bandwidth contention detected at %s' %
-                      metrics['TIME'])
+                      metrics['time'])
                 print('Latency critical container %s, CPI = %f, threshold =\
 %f, MBL = %f, MBR = %f, threshold = %f, MSPKI = %f, threshold = %f' %
-                      (self.name, metrics['CPI'], thresh['cpi'],
-                       metrics['MBL'], metrics['MBR'], thresh['mb'],
-                       metrics['MSPKI'], thresh['mspki']))
+                      (self.name, metrics[Metric.CPI], thresh['cpi'],
+                       metrics[Metric.MBL], metrics[Metric.MBR], thresh['mb'],
+                       metrics[Metric.MSPKI], thresh['mspki']))
                 unk_res = False
                 contend_res.append(Contention.MEM_BW)
             if unk_res:
                 print('Performance is impacted at %s' %
-                      metrics['TIME'])
+                      metrics['time'])
                 print('Latency critical container %s, CPI = %f, threshold =\
-                     %f' % (self.name, metrics['CPI'], thresh['cpi']))
+%f' % (self.name, metrics[Metric.CPI], thresh['cpi']))
                 contend_res.append(Contention.UNKN)
 
         return contend_res
@@ -207,11 +231,11 @@ class Container(object):
             return None
 
         if self.verbose:
-            print(self.utils, self.metrics['NF'], self.tdp_thresh['util'],
+            print(self.utils, self.metrics[Metric.NF], self.tdp_thresh['util'],
                   self.tdp_thresh['bar'])
 
         if self.utils >= self.tdp_thresh['util'] and\
-           self.metrics['NF'] < self.tdp_thresh['bar']:
+           self.metrics[Metric.NF] < self.tdp_thresh['bar']:
             print('TDP Contention Alert!')
             return Contention.TDP
 
