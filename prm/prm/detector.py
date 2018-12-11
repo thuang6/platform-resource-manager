@@ -42,6 +42,7 @@ class ContentionDetector(detectors.AnomalyDetector):
             self.analyzer.build_model()
 
     def _init_data_file(self, data_file, cols):
+        headline = None
         try:
             with open(data_file, 'r') as dtf:
                 headline = dtf.readline()
