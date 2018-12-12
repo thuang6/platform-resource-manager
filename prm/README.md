@@ -5,8 +5,15 @@ PRM plugin for [Orchestration-aware Workload Collocation Agent](https://github.c
 
 PRM Plugin is able to collect the hardware and os metrics, build model and detect the contention.
 
-## Labels assumptions
-type: 'best_effort'
+## Required OWCA labels
+The PRM plugin needs some labels to be passed to the *detect* API function:
+* 'application',
+* 'application_version_name'.
+
+The second label is needed as there might be two instances of the same application for which 
+seperate statistical models needs to be build. E.g. two instances of twemcache with different 
+CPU cores allocated needs seperate models; for that reason the label 'application_version_name' 
+have to be different for that two twemcache instances.
 
 ## Build
 
