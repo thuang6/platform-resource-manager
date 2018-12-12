@@ -48,7 +48,7 @@ class ContentionDetector(detectors.AnomalyDetector):
                 headline = dtf.readline()
         except Exception:
                 log.debug('cannot open %r for reading - ignore', data_file)
-        if headline != ','.join(cols):
+        if headline != ','.join(cols) + '\n':
             with open(data_file, 'w') as dtf:
                 dtf.write(','.join(cols) + '\n')
 
@@ -201,16 +201,16 @@ class ContentionDetector(detectors.AnomalyDetector):
     def _record_utils(self, time, utils):
         row = [str(time), '', 'lcs']
         for i in range(3, len(self.ucols)):
-            row.append(utils)
+            row.append(str(utils))
         with open(Analyzer.UTIL_FILE, 'a') as utilf:
-            utilf.write(','.join(str(row)) + '\n')
+            utilf.write(','.join(row) + '\n')
 
     def _record_metrics(self, time, name, cid, metrics):
-        row = [str(time), cid, name]
+        row = [str(time), cid, name if name else '']
         for i in range(3, len(self.mcols)):
-            row.append(metrics[self.mcols[i]])
+            row.append(str(metrics[self.mcols[i]]))
         with open(Analyzer.METRIC_FILE, 'a') as metricf:
-            metricf.write(','.join(str(row)) + '\n')
+            metricf.write(','.join(row) + '\n')
 
     def _update_workload_meta(self):
         with open(ContentionDetector.WL_META_FILE, 'w') as wlf:
@@ -232,7 +232,9 @@ class ContentionDetector(detectors.AnomalyDetector):
                 app = self._cid_to_app(cid, tasks_labels)
                 if app:
                     self.workload_meta[app] = resources
-        self._update_workload_meta()
+
+        if self.mode_config == ContentionDetector.COLLECT_MODE:
+            self._update_workload_meta()
 
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
@@ -255,9 +257,11 @@ class ContentionDetector(detectors.AnomalyDetector):
 
                 if self.mode_config == ContentionDetector.COLLECT_MODE:
                     name = tasks_labels[cid].get('name', '')
-                    self._record_metrics(
-                        platform.timestamp,
-                        self._cid_to_app(cid, tasks_labels), name, metrics)
+                    app = self._cid_to_app(cid, tasks_labels) 
+                    if app:
+                        self._record_metrics(
+                            platform.timestamp,
+                            app, name, metrics)
 
         self._remove_finished_tasks(cidset)
 

@@ -199,7 +199,6 @@ class Analyzer:
         self._process_lc_max(util_file)
         mdf = pd.read_csv(metric_file)
         cnames = mdf['name'].unique()
-
         for cname in cnames:
             self.threshold[cname] = {"tdp": {}, "thresh": []}
             jdata = mdf[mdf['name'] == cname]
@@ -207,6 +206,6 @@ class Analyzer:
             self._build_thresh(jdata, span, strict, verbose)
 
         if verbose:
-            print(self.threshold)
+            log.info(self.threshold)
         with open(self.thresh_file, 'w') as threshf:
             threshf.write(json.dumps(self.threshold))
