@@ -1,6 +1,6 @@
 Demo scenarios
 ....................
-This document describes how to run demo scenarios on a mesos/aurora cluster.
+This document describes how to run demo scenarios on a Apache Mesos/Aurora cluster.
 
 Assumptions:
 
@@ -10,7 +10,7 @@ Assumptions:
 
 
 
-1. export needed shell variables:
+1. Export required environment variables:
 
 .. code-block:: sh
 
@@ -21,7 +21,7 @@ Assumptions:
 
 
 
-2. kill all jobs, stop agant and clean a temporary model data:
+2. Kill all jobs, stop agent and remove a temporary model data:
 
 .. code-block:: sh
 
@@ -31,7 +31,7 @@ Assumptions:
 
 
 
-3. Run application needed for `collect` mode.
+3. Start application.
 
 .. code-block:: sh
 
@@ -49,7 +49,7 @@ Assumptions:
 
 
 
-4. reconfigure (set action_delay to 20seconds) and restart OWCA+PRM to run in `colect` mode
+4. Reconfigure OWCA (by setting `action_delay` to 20 seconds) and restart it to run in `collect` mode
 
 .. code-block:: sh
 
@@ -59,7 +59,7 @@ Assumptions:
 
 
 
-5. create/kill the job observe anomaly disappers/appears
+5. Keep creating and killing jobs to observe anomalies.
 
 .. code-block:: sh
 
