@@ -144,23 +144,24 @@ class Analyzer:
                     memb = jdataf[Metric.MBL] + jdataf[Metric.MBR]
                 mb_thresh = self._get_fense(memb, False, strict,
                                             span, verbose)
-                if Metric.L2SPKI in jdataf.columns:
-                    l2spki = jdataf[Metric.L2SPKI]
-                    l2spki_thresh = self._get_fense(l2spki, True, strict,
-                                                    span, verbose)
-                if Metric.MSPKI in jdataf.columns:
-                    mspki = jdataf[Metric.MSPKI]
-                    mspki_thresh = self._get_fense(mspki, True, strict,
-                                                   span, verbose)
-                self.threshold[job]['thresh'].append({
+                thresh = {
                     'util_start': lower_bound.item(),
                     'util_end': higher_bound.item(),
                     'cpi': cpi_thresh.item(),
                     'mpki': mpki_thresh.item(),
-                    'mb': mb_thresh.item(),
-                    'l2spki': l2spki_thresh.item(),
-                    'mspki': mspki_thresh.item(),
-                    })
+                    'mb': mb_thresh.item()
+                }
+                if Metric.L2SPKI in jdataf.columns:
+                    l2spki = jdataf[Metric.L2SPKI]
+                    l2spki_thresh = self._get_fense(l2spki, True, strict,
+                                                    span, verbose)
+                    thresh['l2spki'] = l2spki_thresh.item()
+                if Metric.MSPKI in jdataf.columns:
+                    mspki = jdataf[Metric.MSPKI]
+                    mspki_thresh = self._get_fense(mspki, True, strict,
+                                                   span, verbose)
+                    thresh['mspki'] = mspki_thresh.item()
+                self.threshold[job]['thresh'].append(thresh)
             except Exception:
                 if verbose:
                     log.exception('error in build threshold util=%r (%r)',
