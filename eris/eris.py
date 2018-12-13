@@ -473,7 +473,7 @@ def parse_arguments():
     parser.add_argument('-u', '--util-interval', help='CPU utilization monitor\
                         interval', type=int, choices=range(1, 10), default=2)
     parser.add_argument('-m', '--metric-interval', help='platform metrics\
-                        monitor interval', type=int, choices=range(5, 60),
+                        monitor interval', type=int, choices=range(1, 60),
                         default=20)
     parser.add_argument('-l', '--llc-cycles', help='cycle number in LLC\
                         controller', type=int, default=6)

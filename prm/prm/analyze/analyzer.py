@@ -25,7 +25,7 @@ from scipy import stats
 import numpy as np
 import pandas as pd
 
-from prm.analyze.gmmfense import GmmFense
+from .gmmfense import GmmFense
 log = logging.getLogger(__name__)
 
 

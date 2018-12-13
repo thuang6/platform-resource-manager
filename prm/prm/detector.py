@@ -257,7 +257,7 @@ class ContentionDetector(detectors.AnomalyDetector):
 
                 if self.mode_config == ContentionDetector.COLLECT_MODE:
                     name = tasks_labels[cid].get('name', '')
-                    app = self._cid_to_app(cid, tasks_labels) 
+                    app = self._cid_to_app(cid, tasks_labels)
                     if app:
                         self._record_metrics(
                             platform.timestamp,
