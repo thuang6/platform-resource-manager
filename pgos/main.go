@@ -20,16 +20,17 @@ package main
 // #include <stdint.h>
 // #include <sys/types.h>
 // #include <linux/perf_event.h>
-// #cgo LDFLAGS: -lpqos -lm
+// #cgo LDFLAGS: -lpqos -lm ./perf.o ./pgos.o ./helper.o
 // #include <pqos.h>
-// #include "pgos.c"
-// int LOG_VER_SUPER_VERBOSE = 2;
+// #include "pgos.h"
+// #include "helper.h"
 import "C"
 import (
 	"flag"
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 	"unsafe"
 )
@@ -70,6 +71,69 @@ type Cgroup struct {
 	Leaders     []uintptr
 	Followers   []uintptr
 	PgosHandler C.int
+}
+
+//export collect
+func collect(ctx C.struct_context) C.struct_context {
+	core := int(ctx.core)
+	coreCount = &core
+	pqosLog, err := os.OpenFile("/tmp/pqos.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	defer pqosLog.Close()
+
+	config := C.struct_pqos_config{
+		fd_log:     C.int(pqosLog.Fd()),
+		verbose:    2,
+		_interface: C.PQOS_INTER_OS,
+	}
+	C.pqos_init(&config)
+	cgroups := make([]*Cgroup, 0, int(ctx.cgroup_count))
+
+	for i := 0; i < int(ctx.cgroup_count); i++ {
+		cg := C.get_cgroup(ctx.cgroups, C.int(i))
+		path, cid := C.GoString(cg.path), C.GoString(cg.cid)
+		c, err := NewCgroup(path, cid)
+		if err != nil {
+			panic(err)
+		} else {
+			c.GetPgosHandler()
+			cgroups = append(cgroups, c)
+		}
+	}
+	now := time.Now().Unix()
+	ctx.timestamp = C.uint64_t(now)
+	for j := 0; j < len(cgroups); j++ {
+		for k := 0; k < len(cgroups[j].Leaders); k++ {
+			StartLeader(cgroups[j].Leaders[k])
+		}
+	}
+	time.Sleep(time.Duration(ctx.period) * time.Second)
+	for j := 0; j < len(cgroups); j++ {
+		cg := C.get_cgroup(ctx.cgroups, C.int(j))
+		res := make([]uint64, len(counters))
+		for k := 0; k < *coreCount; k++ {
+			StopLeader(cgroups[j].Leaders[k])
+			result := ReadLeader(cgroups[j].Leaders[k])
+			for l := 0; l < len(counters); l++ {
+				res[l] += result.Data[l].Value
+			}
+		}
+		pgosValue := C.pgos_mon_poll(cgroups[j].PgosHandler)
+
+		cg.instructions = C.uint64_t(res[0])
+		cg.cycles = C.uint64_t(res[1])
+		cg.llc_misses = C.uint64_t(res[2])
+		cg.stalls_l2_misses = C.uint64_t(res[3])
+		cg.stalls_memory_load = C.uint64_t(res[4])
+
+		cg.llc_occupancy = pgosValue.llc / 1024
+		cg.mbm_local = C.double(float64(pgosValue.mbm_local_delta) / 1024.0 / 1024.0 / float64(*period))
+		cg.mbm_remote = C.double(float64(pgosValue.mbm_remote_delta) / 1024.0 / 1024.0 / float64(*period))
+		cgroups[j].Close()
+	}
+	return ctx
 }
 
 func NewCgroup(path string, cid string) (*Cgroup, error) {
@@ -127,6 +191,12 @@ func (this *Cgroup) GetPgosHandler() {
 }
 
 func (this *Cgroup) Close() error {
+	for i := 0; i < len(this.Followers); i++ {
+		syscall.Close(int(this.Followers[i]))
+	}
+	for i := 0; i < len(this.Leaders); i++ {
+		syscall.Close(int(this.Leaders[i]))
+	}
 	err := this.File.Close()
 	if err != nil {
 		return err
@@ -142,9 +212,9 @@ func main() {
 	}
 	defer pqosLog.Close()
 
-	config := C.pqos_config{
+	config := C.struct_pqos_config{
 		fd_log:     C.int(pqosLog.Fd()),
-		verbose:    C.LOG_VER_SUPER_VERBOSE,
+		verbose:    2,
 		_interface: C.PQOS_INTER_OS,
 	}
 	C.pqos_init(&config)

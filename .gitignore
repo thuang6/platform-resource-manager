@@ -4,12 +4,15 @@
 *.pyc
 __pycache__
 .vscode
+*.o
+*.so
 
 # VirtualEnv
 /env
 
 # platform-resource-manager specific
 pgos/pgos
+pgos/libpgos.h
 eris/pgos
 eris/lcmax.txt
 eris/metrics.csv

@@ -15,7 +15,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-all:
-	go build -a -o pgos *.go
+libpgos.so: perf.o helper.o pgos.o
+	go build -a -buildmode=c-shared -o libpgos.so *.go
+	go build -o pgos *.go
+perf.o:
+	gcc -c -o perf.o perf.c
+helper.o:
+	gcc -c -o helper.o helper.c
+pgos.o:
+	gcc -c -o pgos.o pgos.c
 clean:
-	rm ./pgos
+	rm ./pgos ./libpgos.so ./*.o

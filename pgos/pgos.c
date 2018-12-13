@@ -15,14 +15,11 @@
 // 
 // SPDX-License-Identifier: Apache-2.0
 // 
-#include <pqos.h>
+#include "pgos.h"
 #include <stdio.h>
 #include <string.h>
 
 #define MAX_PID_GROUP 100
-typedef struct pqos_config pqos_config;
-typedef struct pqos_mon_data pqos_mon_data;
-typedef struct pqos_event_values pqos_event_values;
 
 struct pqos_mon_data data[MAX_PID_GROUP];
 int idx = 0;
@@ -36,8 +33,8 @@ int pgos_mon_start_pids(unsigned pid_num, pid_t *pids) {
 
 struct pqos_event_values pgos_mon_poll(int index) {
     if (index < 0 || index > idx) {
-        pqos_event_values zero_ret;
-        memset(&zero_ret, 0, sizeof(pqos_event_values));
+        struct pqos_event_values zero_ret;
+        memset(&zero_ret, 0, sizeof(struct pqos_event_values));
         return zero_ret;
     }
     struct pqos_mon_data *data_addr = &data[index];
