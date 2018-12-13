@@ -29,7 +29,6 @@ import traceback
 
 import docker
 import numpy as np
-import pandas as pd
 
 from argparse import ArgumentParser, FileType
 from datetime import datetime
@@ -45,6 +44,7 @@ from llcoccup import LlcOccup
 from mresource import Resource
 from naivectrl import NaiveController
 from prometheus import PrometheusClient
+from analyze.analyzer import Metric, Analyzer
 
 __version__ = 0.8
 
@@ -58,7 +58,6 @@ class Context(object):
 
         self.shutdown = False
         self.args = None
-        self.sysmax_file = 'lcmax.txt'
         self.sysmax_util = 0
         self.lc_set = {}
         self.be_set = {}
@@ -67,8 +66,7 @@ class Context(object):
         self.controllers = {}
         self.util_cons = dict()
         self.metric_cons = dict()
-        self.thresh_map = None
-        self.tdp_thresh_map = None
+        self.analyzer = None
         self.cgroup_driver = 'cgroupfs'
 
     @property
@@ -86,14 +84,14 @@ class Context(object):
 
 def each_container_pgos_metric(lines, delim='\t'):
     metric_mappings = {
-        'cycles': ('CYC', int),
-        'instructions': ('INST', int),
-        'LLC misses': ('L3MISS', int),
-        'stalls L2 miss': ('L2STALL', int),
-        'stalls memory load': ('MEMSTALL', int),
-        'LLC occupancy': ('L3OCC', int),
-        'Memory bandwidth local': ('MBL', float),
-        'Memory bandwidth remote': ('MBR', float),
+        'cycles': (Metric.CYC, int),
+        'instructions': (Metric.INST, int),
+        'LLC misses': (Metric.L3MISS, int),
+        'stalls L2 miss': (Metric.L2STALL, int),
+        'stalls memory load': (Metric.MEMSTALL, int),
+        'LLC occupancy': (Metric.L3OCC, int),
+        'Memory bandwidth local': (Metric.MBL, float),
+        'Memory bandwidth remote': (Metric.MBR, float),
     }
 
     for line in lines:
@@ -125,8 +123,8 @@ def detect_contender(metric_cons, contention_type, container_contended):
             resource_delta_max = delta
             suspect = container.name
 
-        print('Contention %s for container %s: Suspect is %s' %
-              (contention_type, container_contended.name, suspect))
+    print('Contention %s for container %s: Suspect is %s' %
+          (contention_type, container_contended.name, suspect))
 
 
 def set_metrics(ctx, data):
@@ -153,50 +151,29 @@ def set_metrics(ctx, data):
     findbe = False
     for cid, con in ctx.metric_cons.items():
         key = con.cid if ctx.args.key_cid else con.name
+        metrics = con.get_full_metrics(timestamp, ctx.args.metric_interval)
+        if metrics:
+            if ctx.args.detect:
+                con.update_metrics_history()
+
+            if ctx.args.record:
+                with open(Analyzer.METRIC_FILE, 'a') as metricf:
+                    metricf.write(str(con))
+
+                if ctx.args.enable_prometheus:
+                    ctx.prometheus.send_metrics(con.name, con.utils,
+                                                metrics[Metric.CYC],
+                                                metrics[Metric.L3MISS],
+                                                metrics[Metric.INST],
+                                                metrics[Metric.NF],
+                                                metrics[Metric.MBR] +
+                                                metrics[Metric.MBL],
+                                                metrics[Metric.L3OCC], 0)
 
         if key in ctx.lc_set:
             if ctx.args.exclusive_cat:
                 lcs.append(con)
-            con.update_cpu_usage()
-            metrics = con.get_metrics()
             if metrics:
-                metrics['TIME'] = timestamp
-                if metrics['INST'] == 0:
-                    metrics['CPI'] = 0
-                    metrics['L3MPKI'] = 0
-                    metrics['L2SPKI'] = 0
-                    metrics['MSPKI'] = 0
-                else:
-                    metrics['CPI'] = metrics['CYC'] / metrics['INST']
-                    metrics['L3MPKI'] = metrics['L3MISS'] * 1000 /\
-                        metrics['INST']
-                    metrics['L2SPKI'] = metrics['L2STALL'] * 1000 /\
-                        metrics['INST']
-                    metrics['MSPKI'] = metrics['MEMSTALL'] * 1000 /\
-                        metrics['INST']
-                if con.utils == 0:
-                    metrics['NF'] = 0
-                else:
-                    metrics['NF'] = int(metrics['CYC'] /
-                                        ctx.args.metric_interval /
-                                        10000 / con.utils)
-                if ctx.args.detect:
-                    con.update_metrics_history()
-
-                if ctx.args.record:
-                    with open('./metrics.csv', 'a') as metricf:
-                        metricf.write(str(con))
-
-                    if ctx.args.enable_prometheus:
-                        ctx.prometheus.send_metrics(con.name, con.utils,
-                                                    metrics['CYC'],
-                                                    metrics['L3MISS'],
-                                                    metrics['INST'],
-                                                    metrics['NF'],
-                                                    metrics['MBR'] +
-                                                    metrics['MBL'],
-                                                    metrics['L3OCC'], 0)
-
                 if ctx.args.detect:
                     contend_res = con.contention_detect()
                     if_contended = False
@@ -243,6 +220,15 @@ def remove_finished_containers(cids, consmap):
             del consmap[cid]
 
 
+def list_tids(pid):
+    tids = []
+    try:
+        tids = os.listdir('/proc/' + pid + '/task')
+    except Exception:
+        traceback.print_exc(file=sys.stdout)
+    return tids
+
+
 def list_pids(container):
     """
     list all process id of one container
@@ -251,7 +237,7 @@ def list_pids(container):
     procs = container.top()['Processes']
     pids = [pid[1] for pid in procs] if procs else []
     return [tid for pid in pids
-            for tid in os.listdir('/proc/' + pid + '/task')] if pids else []
+            for tid in list_tids(pid)] if pids else []
 
 
 def mon_util_cycle(ctx):
@@ -287,7 +273,7 @@ def mon_util_cycle(ctx):
                     ctx.cpuq.set_share(con, CpuQuota.CPU_SHARE_LC)
         con.update_cpu_usage()
         if ctx.args.record:
-            with open('./util.csv', 'a') as utilf:
+            with open(Analyzer.UTIL_FILE, 'a') as utilf:
                 utilf.write(date + ',' + cid + ',' + name +
                             ',' + str(con.utils) + '\n')
 
@@ -301,12 +287,13 @@ def mon_util_cycle(ctx):
 
     loadavg = os.getloadavg()[0]
     if ctx.args.record:
-        with open('./util.csv', 'a') as utilf:
+        with open(Analyzer.UTIL_FILE, 'a') as utilf:
             utilf.write(date + ',,lcs,' + str(lc_utils) + '\n')
             utilf.write(date + ',,loadavg1m,' + str(loadavg) + '\n')
 
     if lc_utils > ctx.sysmax_util:
-        update_sysmax(ctx, lc_utils)
+        ctx.sysmax_util = lc_utils
+        ctx.analyzer.update_lcutilmax(lc_utils)
         if ctx.args.control:
             ctx.cpuq.update_max_sys_util(lc_utils)
 
@@ -343,8 +330,8 @@ def mon_metric_cycle(ctx):
             con = ctx.metric_cons[cid]
             con.update_pids(pids)
         else:
-            thresh = ctx.thresh_map.get(key, [])
-            tdp_thresh = ctx.tdp_thresh_map.get(key, [])
+            thresh = ctx.analyzer.get_thresh(key)
+            tdp_thresh = ctx.analyzer.get_tdp_thresh(key)
             con = Container(ctx.cgroup_driver, cid, name, pids,
                             ctx.args.verbose, thresh, tdp_thresh)
             ctx.metric_cons[cid] = con
@@ -356,11 +343,12 @@ def mon_metric_cycle(ctx):
         if key in ctx.lc_set:
             if ctx.args.exclusive_cat:
                 lcs.append(con)
-            cids.append(cid)
-            cgroups.append('/sys/fs/cgroup/perf_event/' +
-                           con.parent_path + con.con_path)
         if key in ctx.be_set:
             bes.append(con)
+
+        cids.append(cid)
+        cgroups.append('/sys/fs/cgroup/perf_event/' +
+                       con.parent_path + con.con_path)
     if newbe or newcon and bes and ctx.args.exclusive_cat:
         ctx.llc.budgeting(bes, lcs)
 
@@ -377,11 +365,14 @@ def mon_metric_cycle(ctx):
         ]
         if ctx.args.verbose:
             print(' '.join(args))
-        output = subprocess.check_output(args, stderr=subprocess.STDOUT)
-        data = output.decode('utf-8').splitlines()
-        if ctx.args.verbose:
-            print(output.decode('utf-8'))
-        set_metrics(ctx, data)
+        try:
+            output = subprocess.check_output(args, stderr=subprocess.STDOUT)
+            data = output.decode('utf-8').splitlines()
+            if ctx.args.verbose:
+                print(output.decode('utf-8'))
+            set_metrics(ctx, data)
+        except Exception:
+            traceback.print_exc(file=sys.stdout)
 
 
 def monitor(func, ctx, interval):
@@ -401,94 +392,18 @@ def monitor(func, ctx, interval):
         time.sleep(delta)
 
 
-def init_threshbins(jdata):
-    """
-    Initialize thresholds in all bins for one workload
-        jdata - thresholds data for one workload
-    """
-    key_mappings = [
-        ('util_start', 'UTIL_START'),
-        ('util_end', 'UTIL_END'),
-        ('cpi', 'CPI_THRESH'),
-        ('mpki', 'MPKI_THRESH'),
-        ('mb', 'MB_THRESH'),
-        ('l2spki', 'L2SPKI_THRESH'),
-        ('mspki', 'MSPKI_THRESH'),
-    ]
-    return [
-        {
-            from_key: row_tuple[1][to_key]
-            for from_key, to_key in key_mappings
-        }
-        for row_tuple in jdata.iterrows()
-    ]
-
-
-def init_tdp_map(args):
-    """
-    Initialize thresholds for TDP contention for all workloads
-        args - agent command line arguments
-    """
-    tdp_file = args.tdp_file if hasattr(args, 'tdp_file')\
-        and args.tdp_file else 'tdp_thresh.csv'
-    tdp_df = pd.read_csv(tdp_file)
-    key = 'CID' if args.key_cid else 'CNAME'
-    cids = tdp_df[key].unique()
-    thresh_map = {}
-    for cid in cids:
-        tdpdata = tdp_df[tdp_df[key] == cid]
-
-        for row_turple in tdpdata.iterrows():
-            row = row_turple[1]
-            thresh = dict()
-            thresh['util'] = row['UTIL']
-            thresh['mean'] = row['MEAN']
-            thresh['std'] = row['STD']
-            thresh['bar'] = row['BAR']
-            thresh_map[cid] = thresh
-
-    if args.verbose:
-        print(thresh_map)
-    return thresh_map
-
-
-def init_threshmap(args):
-    """
-    Initialize thresholds for other contentions for all workloads
-        args - agent command line arguments
-    """
-    thresh_file = args.thresh_file if hasattr(args, 'thresh_file')\
-        and args.thresh_file else 'thresh.csv'
-    thresh_df = pd.read_csv(thresh_file)
-    key = 'CID' if args.key_cid else 'CNAME'
-    cids = thresh_df[key].unique()
-    thresh_map = {}
-    for cid in cids:
-        jdata = thresh_df[thresh_df[key] == cid].sort_values('UTIL_START')
-        bins = init_threshbins(jdata)
-        thresh_map[cid] = bins
-
-    if args.verbose:
-        print(thresh_map)
-    return thresh_map
-
-
 def init_wlset(ctx):
     """
     Initialize workload set for both LC and BE
         ctx - agent context
     """
-    key = 'CID' if ctx.args.key_cid else 'CNAME'
-    wl_df = pd.read_csv(ctx.args.workload_conf_file)
     lcs = []
     bes = []
-    for row_turple in wl_df.iterrows():
-        row = row_turple[1]
-        workload = row[key]
-        if row['TYPE'] == 'LC':
-            lcs.append(workload)
+    for key, meta in ctx.analyzer.get_wl_meta().items():
+        if meta['type'] == 'best_efforts':
+            bes.append(key)
         else:
-            bes.append(workload)
+            lcs.append(key)
     ctx.lc_set = set(lcs)
     ctx.be_set = set(bes)
     if ctx.args.verbose:
@@ -496,26 +411,13 @@ def init_wlset(ctx):
         print(ctx.be_set)
 
 
-def update_sysmax(ctx, lc_utils):
-    """
-    Update system maximal utilization based on utilization of LC workloads
-        ctx - agent context
-        lc_utils - monitored LC workload utilization maximal value
-    """
-    ctx.sysmax_util = int(lc_utils)
-    subprocess.Popen('echo ' + str(ctx.sysmax_util) + ' > ' + ctx.sysmax_file,
-                     shell=True)
-
-
 def init_sysmax(ctx):
     """
-    Initialize historical system maximal utilization from model file
+    Initialize historical LC tasks maximal utilization from model file
         ctx - agent context
     """
-    try:
-        with open(ctx.sysmax_file, 'r') as f:
-            ctx.sysmax_util = int(f.read().strip())
-    except (IOError, ValueError):
+    ctx.sysmax_util = ctx.analyzer.get_lcutilmax()
+    if ctx.sysmax_util == 0:
         ctx.sysmax_util = cpu_count() * 100
     if ctx.args.verbose:
         print(ctx.sysmax_util)
@@ -544,7 +446,7 @@ def parse_arguments():
                             task resource usages')
     parser.add_argument('workload_conf_file', help='workload configuration\
                         file describes each task name, type, id, request cpu\
-                        count', type=FileType('rt'), default='wl.csv')
+                        count', type=FileType('rt'), default='workload.json')
     parser.add_argument('-v', '--verbose', help='increase output verbosity',
                         action='store_true')
     parser.add_argument('-g', '--collect-metrics', help='collect platform\
@@ -571,7 +473,7 @@ def parse_arguments():
     parser.add_argument('-u', '--util-interval', help='CPU utilization monitor\
                         interval', type=int, choices=range(1, 10), default=2)
     parser.add_argument('-m', '--metric-interval', help='platform metrics\
-                        monitor interval', type=int, choices=range(5, 60),
+                        monitor interval', type=int, choices=range(1, 60),
                         default=20)
     parser.add_argument('-l', '--llc-cycles', help='cycle number in LLC\
                         controller', type=int, default=6)
@@ -581,9 +483,7 @@ def parse_arguments():
                         one logical processor used in CPU cycle regulation',
                         type=float, default=0.5)
     parser.add_argument('-t', '--thresh-file', help='threshold model file build\
-                        from analyze.py tool', type=FileType('rt'))
-    parser.add_argument('-w', '--tdp-file', help='TDP threshold model file build\
-                        from analyze.py tool', type=FileType('rt'))
+                        from analyze.py tool', default=Analyzer.THRESH_FILE)
 
     args = parser.parse_args()
     if args.verbose:
@@ -596,14 +496,13 @@ def main():
     ctx = Context()
     ctx.args = parse_arguments()
     ctx.cgroup_driver = detect_cgroup_driver()
+    ctx.analyzer = Analyzer(ctx.args.workload_conf_file,
+                            ctx.args.thresh_file)
     init_wlset(ctx)
     init_sysmax(ctx)
 
     if ctx.args.enable_prometheus:
         ctx.prometheus.start()
-
-    ctx.thresh_map = init_threshmap(ctx.args) if ctx.args.detect else {}
-    ctx.tdp_thresh_map = init_tdp_map(ctx.args) if ctx.args.detect else {}
 
     if ctx.args.control:
         ctx.cpuq = CpuQuota(ctx.sysmax_util, ctx.args.margin_ratio,
@@ -618,17 +517,22 @@ def main():
             ctx.controllers = {Contention.CPU_CYC: quota_controller,
                                Contention.LLC: llc_controller}
     if ctx.args.record:
-        with open('./util.csv', 'w') as utilf:
-            utilf.write('TIME,CID,CNAME,UTIL\n')
+        cols = ['time', 'cid', 'name', Metric.UTIL]
+        with open(Analyzer.UTIL_FILE, 'w') as utilf:
+            utilf.write(','.join(cols) + '\n')
 
     threads = [Thread(target=monitor, args=(mon_util_cycle,
                                             ctx, ctx.args.util_interval))]
 
     if ctx.args.collect_metrics:
         if ctx.args.record:
-            with open('./metrics.csv', 'w') as metricf:
-                print('TIME,CID,CNAME,INST,CYC,CPI,L3MPKI,L3MISS,NF,UTIL,L3OCC,\
-MBL,MBR,L2STALL,MEMSTALL,L2SPKI,MSPKI', file=metricf)
+            cols = ['time', 'cid', 'name', Metric.INST, Metric.CYC,
+                    Metric.CPI, Metric.L3MPKI, Metric.L3MISS, Metric.NF,
+                    Metric.UTIL, Metric.L3OCC, Metric.MBL, Metric.MBR,
+                    Metric.L2STALL, Metric.MEMSTALL, Metric.L2SPKI,
+                    Metric.MSPKI]
+            with open(Analyzer.METRIC_FILE, 'w') as metricf:
+                metricf.write(','.join(cols) + '\n')
         threads.append(Thread(target=monitor,
                               args=(mon_metric_cycle,
                                     ctx, ctx.args.metric_interval)))

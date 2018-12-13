@@ -1,4 +1,5 @@
 import logging
+import json
 import numpy as np
 from owca import detectors
 from owca.platforms import Platform
@@ -7,8 +8,8 @@ from owca.detectors import TasksResources, TasksLabels
 from owca.detectors import ContendedResource
 from owca.metrics import Metric as OwcaMetric
 
-from prm.container import Container, Metric
-from prm.analyze.analyze import Analyzer
+from prm.container import Container
+from prm.analyze.analyzer import Metric, Analyzer
 
 log = logging.getLogger(__name__)
 
@@ -16,13 +17,40 @@ log = logging.getLogger(__name__)
 class ContentionDetector(detectors.AnomalyDetector):
     COLLECT_MODE = 'collect'
     DETECT_MODE = 'detect'
+    WL_META_FILE = 'workload.json'
 
     def __init__(self, mode_config: str = 'collect'):
         log.debug('Mode config: %s', mode_config)
         self.mode_config = mode_config
         self.container_map = dict()
-        self.analyzer = Analyzer()
-        self.analyzer.set_mode(mode_config)
+        self.ucols = ['time', 'cid', 'name', Metric.UTIL]
+        self.mcols = ['time', 'cid', 'name', Metric.CYC, Metric.INST,
+                      Metric.L3MISS, Metric.L3OCC, Metric.MB, Metric.CPI,
+                      Metric.L3MPKI, Metric.NF, Metric.UTIL]
+        if mode_config == ContentionDetector.COLLECT_MODE:
+            self.analyzer = Analyzer()
+            self.workload_meta = {}
+            self._init_data_file(Analyzer.UTIL_FILE, self.ucols)
+            self._init_data_file(Analyzer.METRIC_FILE, self.mcols)
+        else:
+            try:
+                with open(ContentionDetector.WL_META_FILE, 'r') as wlf:
+                    self.analyzer = Analyzer(wlf)
+            except Exception as e:
+                log.exception('cannot read workload file - stopped')
+                raise e
+            self.analyzer.build_model()
+
+    def _init_data_file(self, data_file, cols):
+        headline = None
+        try:
+            with open(data_file, 'r') as dtf:
+                headline = dtf.readline()
+        except Exception:
+                log.debug('cannot open %r for reading - ignore', data_file)
+        if headline != ','.join(cols) + '\n':
+            with open(data_file, 'w') as dtf:
+                dtf.write(','.join(cols) + '\n')
 
     def _detect_contenders(self, con: Container, resource: ContendedResource):
         contenders = []
@@ -68,7 +96,7 @@ class ContentionDetector(detectors.AnomalyDetector):
         analyzer = self.analyzer
         cid = con.cid
         if app in analyzer.threshold:
-            thresh = analyzer.threshold[app]['thresh']
+            thresh = analyzer.get_thresh(app)
             contends, owca_metrics = con.contention_detect(thresh)
             log.debug('cid=%r contends=%r', cid, contends)
             log.debug('cid=%r threshold metrics=%r', cid, owca_metrics)
@@ -76,7 +104,7 @@ class ContentionDetector(detectors.AnomalyDetector):
                 contenders = self._detect_contenders(con, contend)
                 self._append_anomaly(anomalies, contend, cid, contenders,
                                      owca_metrics)
-            thresh_tdp = analyzer.threshold[app]['tdp']
+            thresh_tdp = analyzer.get_tdp_thresh(app)
             tdp_contend, owca_metrics = con.tdp_contention_detect(thresh_tdp)
             if tdp_contend:
                 contenders = self._detect_contenders(con, tdp_contend)
@@ -111,9 +139,9 @@ class ContentionDetector(detectors.AnomalyDetector):
         return False
 
     def _get_headroom_metrics(self, assign_cpus, lcutil, sysutil):
-        util_max = self.analyzer.threshold['lcutilmax']
+        util_max = self.analyzer.get_lcutilmax()
         if util_max < lcutil:
-            self.analyzer.threshold['lcutilmax'] = lcutil
+            self.analyzer.update_lcutilmax(lcutil)
             util_max = lcutil
         capacity = assign_cpus * 100
         return [OwcaMetric(name=Metric.LCCAPACITY, value=capacity),
@@ -151,21 +179,42 @@ class ContentionDetector(detectors.AnomalyDetector):
                             OwcaMetric(
                                 name='threshold_cpi',
                                 labels=dict(start=str(int(d['util_start'])),
-                                            end=str(int(d['util_end'])), cid=cid),
+                                            end=str(int(d['util_end'])),
+                                            cid=cid),
                                 value=d['cpi']),
                             OwcaMetric(
                                 name='threshold_mpki',
                                 labels=dict(start=str(int(d['util_start'])),
-                                            end=str(int(d['util_end'])), cid=cid),
+                                            end=str(int(d['util_end'])),
+                                            cid=cid),
                                 value=(d['mpki'])),
                             OwcaMetric(
                                 name='threshold_mb',
                                 labels=dict(start=str(int(d['util_start'])),
-                                            end=str(int(d['util_end'])), cid=cid),
+                                            end=str(int(d['util_end'])),
+                                            cid=cid),
                                 value=(d['mb'])),
                         ])
 
         return metrics
+
+    def _record_utils(self, time, utils):
+        row = [str(time), '', 'lcs']
+        for i in range(3, len(self.ucols)):
+            row.append(str(utils))
+        with open(Analyzer.UTIL_FILE, 'a') as utilf:
+            utilf.write(','.join(row) + '\n')
+
+    def _record_metrics(self, time, name, cid, metrics):
+        row = [str(time), cid, name if name else '']
+        for i in range(3, len(self.mcols)):
+            row.append(str(metrics[self.mcols[i]]))
+        with open(Analyzer.METRIC_FILE, 'a') as metricf:
+            metricf.write(','.join(row) + '\n')
+
+    def _update_workload_meta(self):
+        with open(ContentionDetector.WL_META_FILE, 'w') as wlf:
+            wlf.write(json.dumps(self.workload_meta))
 
     def detect(
             self,
@@ -182,7 +231,10 @@ class ContentionDetector(detectors.AnomalyDetector):
             if self.mode_config == ContentionDetector.COLLECT_MODE:
                 app = self._cid_to_app(cid, tasks_labels)
                 if app:
-                    self.analyzer.add_workload_meta(app, resources)
+                    self.workload_meta[app] = resources
+
+        if self.mode_config == ContentionDetector.COLLECT_MODE:
+            self._update_workload_meta()
 
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
@@ -204,13 +256,12 @@ class ContentionDetector(detectors.AnomalyDetector):
                 metric_list.extend(owca_metrics)
 
                 if self.mode_config == ContentionDetector.COLLECT_MODE:
-                    if 'name' not in tasks_labels[cid]:
-                        name = ''
-                    else:
-                        name = tasks_labels[cid]['name']
-                    self.analyzer.add_workload_data(
-                        self._cid_to_app(cid, tasks_labels), name,
-                        metrics)
+                    name = tasks_labels[cid].get('name', '')
+                    app = self._cid_to_app(cid, tasks_labels)
+                    if app:
+                        self._record_metrics(
+                            platform.timestamp,
+                            app, name, metrics)
 
         self._remove_finished_tasks(cidset)
 
@@ -224,7 +275,7 @@ class ContentionDetector(detectors.AnomalyDetector):
                     anomalies = self._detect_one_task(container, app)
                     anomaly_list.extend(anomalies)
         elif self.mode_config == ContentionDetector.COLLECT_MODE:
-            self.analyzer.add_lc_util(platform.timestamp, lcutil)
+            self._record_utils(platform.timestamp, lcutil)
         if anomaly_list:
             log.debug('anomalies: %r', anomaly_list)
         if metric_list:

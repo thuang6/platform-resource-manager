@@ -21,29 +21,13 @@ This module implements resource contention detection on one workload
 
 import logging
 from datetime import datetime
-from enum import Enum
 from collections import deque
 from owca.metrics import Metric as OwcaMetric
 from owca.metrics import Measurements, MetricName
 from owca.detectors import ContendedResource
+from prm.analyze.analyzer import Metric
 
 log = logging.getLogger(__name__)
-
-
-class Metric(str, Enum):
-    """ This enumeration defines calculated metrics from owca measurements """
-    CYC = 'cycle'
-    INST = 'instruction'
-    L3MISS = 'cache_miss'
-    L3OCC = 'cache_occupancy'
-    MB = 'memory_bandwidth_total'
-    CPI = 'cycles_per_instruction'
-    L3MPKI = 'cache_miss_per_kilo_instruction'
-    NF = 'normalized_frequency'
-    UTIL = 'cpu_utilization'
-    LCCAPACITY = 'latency_critical_utilization_capacity'
-    LCMAX = 'latency_critical_utilization_max'
-    SYSUTIL = 'system_utilization'
 
 
 class Container:

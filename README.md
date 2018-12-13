@@ -34,15 +34,39 @@ Assuming all requirements are installed and configured properly, follow the step
 
 **Prepare workload configuration file**
 
-In order to use resource manager tool, you will need to provide a workload configuration CSV file in advance. Each row in file describes name, id, type (Best-Effort, Latency-Critical), request CPU count of one task (Container).  The following is an example file demonstrating the file format.  
-
-    CID,CNAME,TYPE,CPUS
-    aae649c89423,cassandra_workload,LC,10
-    a329d2f81064,django_workload,LC,8
-    dad9db5f267d,memcache_workload_1,LC,2
-    932dd3f0d648,stress-ng,BE,2
-    8559c3d2a864,tensorflow_training,BE,1
-
+In order to use resource manager tool, you will need to provide a workload configuration json file in advance. Each row in file describes name, id, type (Best-Effort, Latency-Critical), request CPU count of one task (Container).  The following is an example file demonstrating the file format.  
+```json
+{
+    "cassandra_workload": {
+        "cpus": 10,
+        "type": "latency_critical"
+    },
+    "django_workload": {
+        "cpus": 8,
+        "type": "latency_critical"
+    },
+    "memcache_workload_1": {
+        "cpus": 2,
+        "type": "latency_critical"
+    },
+    "memcache_workload_2": {
+        "cpus": 2,
+        "type": "latency_critical"
+    },
+    "memcache_workload_3": {
+        "cpus": 2,
+        "type": "latency_critical"
+    },
+    "stress-ng": {
+        "cpus": 2,
+        "type": "best_efforts"
+    },
+    "tensorflow_training": {
+        "cpus": 1,
+        "type": "best_efforts"
+    }
+}
+```
  
 ## Command Line Arguments
 
@@ -79,8 +103,8 @@ In order to use resource manager tool, you will need to provide a workload confi
       -p, --enable_prometheus
                             allow eris send metrics to prometheus
       -u UTIL_INTERVAL, --util-interval UTIL_INTERVAL
-                            CPU utilization monitor interval
-      -m METRIC_INTERVAL, --metric-interval METRIC_INTERVAL
+                            CPU utilization monitor interval (1, 10)
+      -m METRIC_INTERVAL, --metric-interval METRIC_INTERVAL (1, 60)
                             platform metrics monitor interval
       -l LLC_CYCLES, --llc-cycles LLC_CYCLES
                             cycle number in LLC controller
@@ -91,8 +115,6 @@ In order to use resource manager tool, you will need to provide a workload confi
                             CPU cycle regulation
       -t THRESH_FILE, --thresh-file THRESH_FILE
                             threshold model file build from analyze.py tool
-      -w TDP_FILE, --tdp-file TDP_FILE
-                            TDP threshold model file build from analyze.py tool
 
 
 **analyze tool command line arguments**
@@ -114,10 +136,12 @@ In order to use resource manager tool, you will need to provide a workload confi
       -v, --verbose         increase output verbosity
       -t THRESH, --thresh THRESH
                             threshold used in outlier detection
-      -f {quartile,normal,gmm-strict,gmm-normal}, --fense-type {quartile,normal,gmm-strict,gmm-normal}
+      -f {gmm-strict,gmm-normal}, --fense-type {gmm-strict,gmm-normal}
                             fense type used in outlier detection
       -m METRIC_FILE, --metric-file METRIC_FILE
                             metrics file collected from eris agent
+      -u UTIL_FILE, --util-file UTIL_FILE
+                            Utilization file collected from eris agent
       -o, --offline         do offline analysis based on given metrics file
       -i, --key-cid         use container id in workload configuration file as key
                             id
@@ -128,16 +152,16 @@ In order to use resource manager tool, you will need to provide a workload confi
 
 Step 1 - Run latency critical tasks and stress workloads on one node, the CPU utilization will be recorded in util.csv and platform metrics will be recorded in metrics.csv
 
-    sudo python eris.py --collect-metrics --record wl.csv
+    sudo python eris.py --collect-metrics --record workload.json
 
-Step 2 - Analyze data collected from eris agent, build data model for resource contention detection and regulation. Model file thresh.csv, tdp_thresh.csv and lcmax.txt will be generated.
+Step 2 - Analyze data collected from eris agent, build data model for resource contention detection and regulation. Model file threshold.json will be generated.
 
-    sudo python analyze.py wl.csv
+    sudo python analyze.py workload.json
 
 Step 3 - Add best-efforts task to node, restart monitor and detect potential resource contention
 
-    sudo python eris.py --collect-metrics --record --detect wl.csv
+    sudo python eris.py --collect-metrics --record --detect workload.json
 
 optionally, user can enable resource regulation on best-efforts tasks as well
 
-    sudo python eris.py --collect-metrics --record --detect --control wl.csv
+    sudo python eris.py --collect-metrics --record --detect --control workload.json

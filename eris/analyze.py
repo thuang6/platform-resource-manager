@@ -21,231 +21,30 @@ from __future__ import print_function
 from __future__ import division
 
 import argparse
-import numpy as np
 import pandas as pd
-from scipy import stats
-from gmmfense import GmmFense
 from container import Container, Contention
 from eris import remove_finished_containers, detect_contender
-from eris import init_threshmap, init_tdp_map
+from analyze.analyzer import Analyzer
 
 
-def get_quartile(args, mdf, is_upper):
-    """
-    Get turkey fense based on quartile statistics.
-        args - arguments from command line input
-        mdf - platform metrics dataframe
-        is_upper - True if upper fense is needed,
-                   False if lower fense is needed
-    """
-    mdf = mdf.sort_values()
-    quar1 = mdf.iloc[int(mdf.size / 4)]
-    quar3 = mdf.iloc[int(mdf.size * 3 / 4)]
-    iqr = quar3 - quar1
-
-    if args.verbose:
-        print('min: ', mdf.iloc[0], ' q1: ', quar1, ' q3: ',
-              quar3, ' max: ', mdf.iloc[mdf.size - 1])
-
-    val = iqr * (args.thresh * 3 / 4 - 2 / 3)
-    if is_upper:
-        return quar3 + val
-
-    return quar1 - val
-
-
-def get_normal(args, mdf, is_upper):
-    """
-    Get fense based on three-sigma statistics.
-        args - arguments from command line input
-        mdf - platform metrics dataframe
-        is_upper - True if upper fense is needed,
-                   False if lower fense is needed
-    """
-    mean = mdf.mean()
-    std = mdf.std()
-    if args.verbose:
-        print('mean: ', mean, ' std: ', std)
-    if is_upper:
-        return mean + args.thresh * std
-
-    return mean - args.thresh * std
-
-
-def get_fense(args, mdf, is_upper):
-    """
-    Get fense based on predefined fense type.
-        args - arguments from command line input
-        mdf - platform metrics dataframe
-        is_upper - True if upper fense is needed,
-                   False if lower fense is needed
-    """
-    fense = args.fense_type
-    if fense == 'quartile':
-        return get_quartile(args, mdf, is_upper)
-    elif fense == 'normal':
-        return get_normal(args, mdf, is_upper)
-    elif fense == 'gmm-strict':
-        gmm_fense = GmmFense(mdf.values.reshape(-1, 1), verbose=args.verbose)
-        return gmm_fense.get_strict_fense(is_upper)
-    elif fense == 'gmm-normal':
-        gmm_fense = GmmFense(mdf.values.reshape(-1, 1), verbose=args.verbose)
-        return gmm_fense.get_normal_fense(is_upper)
-    else:
-        print('unsupported fence type ', fense)
-
-
-def partition_utilization(cpu_number, step=50):
-    """
-    Partition utilizaton bins based on requested CPU number and step count
-        cpu_number - processor count assigned to workload
-        step - bin range of one partition, default value is half processor
-    """
-    utilization_upper = (cpu_number + 1) * 100
-    utilization_lower = cpu_number * 50
-
-    utilization_bar = np.arange(utilization_lower, utilization_upper, step)
-
-    return utilization_bar
-
-
-def init_wl(args):
-    """
-    Initialize and return workload information from configuration file
-        args - arguments from command line input
-    """
-    wl_df = pd.read_csv(args.workload_conf_file)
-    workloadinfo = {}
-    for row_turple in wl_df.iterrows():
-        row = row_turple[1]
-        workload_name = row['CNAME']
-        workloadinfo[workload_name] = row['CPUS']
-    return workloadinfo
-
-
-def process_by_partition(args, workloadinfo):
-    """
-    Process single bin and generate anomaly threshold data
-        args - arguments from command line input
-        workloadinfo - workload information of LC workload
-    """
-    with open('./thresh.csv', 'w') as threshf:
-        threshf.write('CID,CNAME,UTIL_START,UTIL_END,' +
-                      'CPI_THRESH,MPKI_THRESH,MB_THRESH,' +
-                      'L2SPKI_THRESH,MSPKI_THRESH\n')
-
-    with open('./tdp_thresh.csv', 'w') as tdpf:
-        tdpf.write('CID,CNAME,UTIL,MEAN,STD,BAR\n')
-
-    mdf = pd.read_csv(args.metric_file)
-    cids = mdf['CID'].unique()
-
-    for cid in cids:
-        jdata = mdf[mdf['CID'] == cid]
-        job = jdata['CNAME'].values[0]
-        cpu_no = workloadinfo[job]
-
-        # TODO: make step configurable
-        utilization_partition = partition_utilization(cpu_no, 50)
-        length = len(utilization_partition)
-
-        utilization_threshold = cpu_no * 100 * 0.95
-        tdp_data = jdata[jdata['UTIL'] >= utilization_threshold]
-
-        util = tdp_data['UTIL']
-        freq = tdp_data['NF']
-
-        if not util.empty:
-            mean, std = stats.norm.fit(freq)
-
-            min_freq = min(freq)
-            fbar = mean - 3 * std
-            if min_freq < fbar:
-                fbar = min_freq
-
-            with open('./tdp_thresh.csv', 'a') as tdpf:
-                tdpf.write(cid + ',' + job + ',' + str(utilization_threshold) +
-                           ',' + str(mean) + ',' + str(std) +
-                           ',' + str(fbar) + '\n')
-
-        for index, util in enumerate(utilization_partition):
-            lower_bound = util
-            if index != length - 1:
-                higher_bound = utilization_partition[index + 1]
-            else:
-                higher_bound = lower_bound + 50
-            try:
-                jdataf = jdata[(jdata['UTIL'] >= lower_bound) &
-                               (jdata['UTIL'] <= higher_bound)]
-
-                cpi = jdataf['CPI']
-                cpi_thresh = get_fense(args, cpi, True)
-
-                mpki = jdataf['L3MPKI']
-                mpki_thresh = get_fense(args, mpki, True)
-
-                memb = jdataf['MBL'] + jdataf['MBR']
-                mb_thresh = get_fense(args, memb, False)
-
-                l2spki = jdataf['L2SPKI']
-                l2spki_thresh = get_fense(args, l2spki, True)
-
-                mspki = jdataf['MSPKI']
-                mspki_thresh = get_fense(args, mspki, True)
-            except:
-                continue
-
-            print('Job: {job}, UTIL: [{util_lower}, {util_higher}], \
-CPI Threshold: {cpi_thres}, MKPI Threshold: {mkpi_thres}, \
-MB Threshold: {mb_thresh}, L2SPKI Threshold: {l2spki_thresh}, \
-MSPKI Threshold: {mspki_thresh}'.format(job=job,
-                                        util_lower=lower_bound,
-                                        util_higher=higher_bound,
-                                        cpi_thres=cpi_thresh,
-                                        mkpi_thres=mpki_thresh,
-                                        mb_thresh=mb_thresh,
-                                        l2spki_thresh=l2spki_thresh,
-                                        mspki_thresh=mspki_thresh))
-
-            with open('./thresh.csv', 'a') as threshf:
-                threshf.write(cid + ',' + job + ',' + str(lower_bound) + ',' +
-                              str(higher_bound) + ',' + str(cpi_thresh) + ',' +
-                              str(mpki_thresh) + ',' + str(mb_thresh) + ',' +
-                              str(l2spki_thresh) + ',' + str(mspki_thresh) +
-                              '\n')
-
-
-def process_lc_max():
-    """ Record maximal CPU utilization of all LC workloads """
-    udf = pd.read_csv('util.csv')
-    lcu = udf[udf['CNAME'] == 'lcs']
-    lcu = lcu['UTIL']
-    maxulc = int(lcu.max())
-    print('Maxmium LC utilization: ', maxulc)
-    with open('./lcmax.txt', 'w') as lcmaxf:
-        lcmaxf.write(str(maxulc) + '\n')
-
-
-def process_offline_data(args):
+def process_offline_data(args, analyzer):
     """
     General procedure of offline analysis
         args - arguments from command line input
     """
-    thresh_map = init_threshmap(args)
-    tdp_thresh_map = init_tdp_map(args)
     metric_cons = dict()
 
     mdf = pd.read_csv(args.metric_file)
-    key = 'CID' if args.key_cid else 'CNAME'
-    times = mdf['TIME'].unique()
+    key = 'cid' if args.key_cid else 'name'
+    times = mdf['time'].unique()
     for time in times:
-        pdata = mdf[mdf['TIME'] == time]
+        pdata = mdf[mdf['time'] == time]
         cids = pdata[key].unique()
         remove_finished_containers(cids, metric_cons)
         for cid in cids:
             jdata = pdata[pdata[key] == cid]
-            thresh = thresh_map.get(cid, [])
-            tdp_thresh = tdp_thresh_map.get(cid, [])
+            thresh = analyzer.get_thresh(cid)
+            tdp_thresh = analyzer.get_tdp_thresh(cid)
             if cid in metric_cons:
                 con = metric_cons[cid]
             else:
@@ -271,12 +70,13 @@ def process(args):
     General procedure of analysis
         args - arguments from command line input
     """
+    analyzer = Analyzer(args.workload_conf_file)
     if args.offline:
-        process_offline_data(args)
+        process_offline_data(args, analyzer)
     else:
-        workloadinfo = init_wl(args)
-        process_by_partition(args, workloadinfo)
-        process_lc_max()
+        strict = True if args.fense_type == 'gmm-strict' else False
+        analyzer.build_model(args.util_file, args.metric_file,
+                             args.thresh, strict, args.verbose)
 
 
 def main():
@@ -287,19 +87,22 @@ def main():
                                      model for contention detect and resource\
                                      regulation.')
     parser.add_argument('workload_conf_file', help='workload configuration\
-                        file describes each task name, type, id, request cpu\
-                        count', type=argparse.FileType('rt'), default='wl.csv')
+                        file describes each task name, type, request cpu\
+                        count', type=argparse.FileType('rt'),
+                        default='workload.json')
     parser.add_argument('-v', '--verbose', help='increase output verbosity',
                         action='store_true')
     parser.add_argument('-t', '--thresh', help='threshold used in outlier\
                         detection', type=int, default=4)
     parser.add_argument('-f', '--fense-type', help='fense type used in outlier\
-                        detection', choices=['quartile', 'normal',
-                                             'gmm-strict', 'gmm-normal'],
+                        detection', choices=['gmm-strict', 'gmm-normal'],
                         default='gmm-strict')
     parser.add_argument('-m', '--metric-file', help='metrics file collected\
                         from eris agent', type=argparse.FileType('rt'),
-                        default='metrics.csv')
+                        default=Analyzer.METRIC_FILE)
+    parser.add_argument('-u', '--util-file', help='Utilization file collected\
+                        from eris agent', type=argparse.FileType('rt'),
+                        default=Analyzer.UTIL_FILE)
     parser.add_argument('-o', '--offline', help='do offline analysis based on\
                         given metrics file', action='store_true')
     parser.add_argument('-i', '--key-cid', help='use container id in workload\

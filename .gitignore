@@ -2,6 +2,7 @@
 .DS_Store
 *.egg-info
 *.pyc
+*.csv
 __pycache__
 .vscode
 *.o
@@ -19,3 +20,4 @@ eris/metrics.csv
 eris/util.csv
 eris/tdp_thresh.csv
 eris/thresh.csv
+eris/threshold.json
