@@ -1,10 +1,24 @@
-# It is alpha version for evaluation.
-
 # Platform Resource Manager
 
-Platform Resource Manager is a suite of software packages to help you to co-locate best-efforts jobs with latency-critical jobs on a node and in a cluster.    
-The suite provides an analysis tool [analyze] to build a model for platform resource contention detection. 
-The suite also provides an agent to monitor and control platform resources (CPU Cycle, Last Level Cache, Memory Bandwidth, etc.. ) on each node.    
+*Note: This is Alpha code for evaluation purposes.*
+
+Platform Resource Manager is a suite of software packages to help you to co-locate best-efforts jobs with latency-critical jobs on a node and in a cluster. The suite contains the following:
+
+- Agent [eris agent](#eris-agent) to monitor and control platform resources
+  (CPU Cycle, Last Level Cache, Memory Bandwidth, etc.) on each node.
+- Analysis tool [analyze tool](#analyze-tool) to build a model for platform
+  resource contention detection.
+
+
+## Table of Contents
+
+- [Requirements](#requirements)
+- [Environment setup](#environment-setup)
+- [Command line arguments](#command-line-arguments)
+    - [eris agent](#eris-agent)
+    - [analyze tool](#analyze-tool)
+- [Typical usage](#typical-usage)
+- [Contribution](#contribution)
 
 ## Requirements
 
@@ -15,26 +29,34 @@ The suite also provides an agent to monitor and control platform resources (CPU 
  - git
  - Docker
 
-## Environment Setup
-Assuming all requirements are installed and configured properly, follow the steps below to setup a working environment.
+## Environment setup
+Assuming all requirements are installed and configured properly, follow the steps below to set up a working environment.
 
-**Install intel-cmt-cat tool**
+1.  Install `intel-cmt-cat` tool with the commands:
 
+     ```
      git clone https://github.com/intel/intel-cmt-cat
      cd intel-cmt-cat
      make
      sudo make install
+     ```
 
-**Build Platform Resource Manager**
+2.  Build Platform Resource Manager with the commands:
 
+     ```
      git clone https://github.com/intel/platform-resource-manager
      cd platform-resource-manager
      ./setup.sh
      cd eris
+     ```
 
-**Prepare workload configuration file**
+3.  Prepare workload configuration file.
 
-In order to use resource manager tool, you will need to provide a workload configuration json file in advance. Each row in file describes name, id, type (Best-Effort, Latency-Critical), request CPU count of one task (Container).  The following is an example file demonstrating the file format.  
+    To use the resource manager tool, you must provide a workload configuration
+    `json` file in advance. Each row in the file describes name, id, type (Best-Effort, Latency-Critical), request CPU count of one task (Container).
+
+The following is an example file demonstrating the file format.
+
 ```json
 {
     "cassandra_workload": {
@@ -67,23 +89,25 @@ In order to use resource manager tool, you will need to provide a workload confi
     }
 }
 ```
- 
-## Command Line Arguments
 
-**eris agent command line arguments summary**
- 
+## Command line arguments
+
+This section lists command line arguments for the eris agent and the analyze tool.
+
+### eris agent
+
     usage: eris.py [-h] [-v] [-g] [-d] [-c] [-r] [-i] [-e] [-n] [-p]
                    [-u UTIL_INTERVAL] [-m METRIC_INTERVAL] [-l LLC_CYCLES]
                    [-q QUOTA_CYCLES] [-k MARGIN_RATIO] [-t THRESH_FILE]
                    workload_conf_file
-    
+
     eris agent monitor container CPU utilization and platform metrics, detect
     potential resource contention and regulate task resource usages
-    
+
     positional arguments:
       workload_conf_file    workload configuration file describes each task name,
                             type, id, request cpu count
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       -v, --verbose         increase output verbosity
@@ -117,20 +141,20 @@ In order to use resource manager tool, you will need to provide a workload confi
                             threshold model file build from analyze.py tool
 
 
-**analyze tool command line arguments**
+### analyze tool
 
     usage: analyze.py [-h] [-v] [-t THRESH]
                       [-f {quartile,normal,gmm-strict,gmm-normal}]
                       [-m METRIC_FILE]
                       workload_conf_file
-    
+
     This tool analyzes CPU utilization and platform metrics collected from eris
     agent and build data model for contention detect and resource regulation.
-    
+
     positional arguments:
       workload_conf_file    workload configuration file describes each task name,
                             type, id, request cpu count
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       -v, --verbose         increase output verbosity
@@ -147,21 +171,49 @@ In order to use resource manager tool, you will need to provide a workload confi
                             id
 
 
-## Typical Usage
+## Typical usage
 
 
-Step 1 - Run latency critical tasks and stress workloads on one node, the CPU utilization will be recorded in util.csv and platform metrics will be recorded in metrics.csv
+1.  Run latency critical tasks and stress workloads on one node. The CPU
+    utilization will be recorded in `util.csv` and platform metrics will be recorded in `metrics.csv`.
 
-    sudo python eris.py --collect-metrics --record workload.json
+      ```
+      sudo python eris.py --collect-metrics --record workload.json
+      ```
 
-Step 2 - Analyze data collected from eris agent, build data model for resource contention detection and regulation. Model file threshold.json will be generated.
+2.  Analyze data collected from eris agent and build the data model for
+    resource contention detection and regulation. This step generates a model file `threshold.json`.
 
-    sudo python analyze.py workload.json
+      ```
+      sudo python analyze.py workload.json
+      ```
 
-Step 3 - Add best-efforts task to node, restart monitor and detect potential resource contention
+3.  Add best-efforts task to node, restart monitor and detect potential
+    resource contention.
 
-    sudo python eris.py --collect-metrics --record --detect workload.json
+      ```
+      sudo python eris.py --collect-metrics --record --detect workload.json
+      ```
 
-optionally, user can enable resource regulation on best-efforts tasks as well
+Optionally, you can enable resource regulation on best-efforts tasks with the
+following command:
 
     sudo python eris.py --collect-metrics --record --detect --control workload.json
+
+## Contribution
+
+Platform Resource Manager is an open source project licensed under the [Apache v2 License](http://www.apache.org/licenses/LICENSE-2.0).
+
+**Coding style**
+
+Platform Resource Manager follows the standard formatting recommendations and
+language idioms set out in C, Go, and Python.
+
+**Pull requests**
+
+We accept [github pull requests](https://github.com/intel/platform-resource-manager/pulls).
+
+**Issue tracking**
+
+If you have a problem, please let us know. If you find a bug not already
+documented, please [file a new issue in github](https://github.com/intel/platform-resource-manager/issues) so we can work toward resolution.
