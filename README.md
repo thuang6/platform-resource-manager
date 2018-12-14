@@ -35,7 +35,7 @@ Assuming all requirements are installed and configured properly, follow the step
 **Prepare workload configuration file**
 
 In order to use resource manager tool, you will need to provide a workload configuration json file in advance. Each row in file describes name, id, type (Best-Effort, Latency-Critical), request CPU count of one task (Container).  The following is an example file demonstrating the file format.  
-
+```json
 {
     "cassandra_workload": {
         "cpus": 10,
@@ -66,7 +66,7 @@ In order to use resource manager tool, you will need to provide a workload confi
         "type": "best_efforts"
     }
 }
-
+```
  
 ## Command Line Arguments
 
