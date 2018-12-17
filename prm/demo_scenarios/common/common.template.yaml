@@ -1,0 +1,23 @@
+# Fill needed IPs
+
+application_hosts:
+  hosts:
+    192.0.2.13:
+      env_uniq_id: 13
+      load_generator_host_ip: 192.0.2.21
+    192.0.2.14:
+      env_uniq_id: 14
+      load_generator_host_ip: 192.0.2.22
+    192.0.2.15:
+      env_uniq_id: 15
+      load_generator_host_ip: 192.0.2.23
+  vars:
+    ansible_connection: local
+    ansible_ssh_user: root
+    ansible_user: root
+    # ---
+    cluster: example
+    role: root
+    image_tag: 5d63eb76795a227c0985618c918669f02a30c7ed
+    wrapper_kafka_brokers: 192.0.2.12
+    docker_registry: 192.0.2.12:80
