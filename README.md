@@ -1,18 +1,20 @@
-# Platform Resource Manager
+# Intel® Platform Resource Manager
 
 *Note: This is Alpha code for evaluation purposes.*
 
-Platform Resource Manager is a suite of software packages to help you to co-locate best-efforts jobs with latency-critical jobs on a node and in a cluster. The suite contains the following:
+Intel® Platform Resource Manager (Intel® PRM) is a suite of software packages
+to help you to co-locate best-efforts jobs with latency-critical jobs on a node
+and in a cluster. The suite contains the following:
 
-- Agent [eris agent](#eris-agent) to monitor and control platform resources
+- Agent ([eris agent](#eris-agent)) to monitor and control platform resources
   (CPU Cycle, Last Level Cache, Memory Bandwidth, etc.) on each node.
-- Analysis tool [analyze tool](#analyze-tool) to build a model for platform
+- Analysis tool ([analyze tool](#analyze-tool)) to build a model for platform
   resource contention detection.
 
 
 ## Table of Contents
 
-- [Requirements](#requirements)
+- [Prerequisites](#prerequisites)
 - [Environment setup](#environment-setup)
 - [Command line arguments](#command-line-arguments)
     - [eris agent](#eris-agent)
@@ -20,7 +22,7 @@ Platform Resource Manager is a suite of software packages to help you to co-loca
 - [Typical usage](#typical-usage)
 - [Contribution](#contribution)
 
-## Requirements
+## Prerequisites
 
  - Python 3.6.x
  - Python lib: numpy, pandas, scipy, scikit-learn, docker, prometheus-client
@@ -32,7 +34,7 @@ Platform Resource Manager is a suite of software packages to help you to co-loca
 ## Environment setup
 Assuming all requirements are installed and configured properly, follow the steps below to set up a working environment.
 
-1.  Install `intel-cmt-cat` tool with the commands:
+1.  Install the `intel-cmt-cat` tool with the commands:
 
      ```
      git clone https://github.com/intel/intel-cmt-cat
@@ -41,7 +43,7 @@ Assuming all requirements are installed and configured properly, follow the step
      sudo make install
      ```
 
-2.  Build Platform Resource Manager with the commands:
+2.  Build the Intel® Platform Resource Manager with the commands:
 
      ```
      git clone https://github.com/intel/platform-resource-manager
@@ -50,9 +52,9 @@ Assuming all requirements are installed and configured properly, follow the step
      cd eris
      ```
 
-3.  Prepare workload configuration file.
+3.  Prepare the workload configuration file.
 
-    To use the resource manager tool, you must provide a workload configuration
+    To use the Intel® PRM tool, you must provide a workload configuration
     `json` file in advance. Each row in the file describes name, id, type (Best-Effort, Latency-Critical), request CPU count of one task (Container).
 
 The following is an example file demonstrating the file format.
@@ -181,14 +183,14 @@ This section lists command line arguments for the eris agent and the analyze too
       sudo python eris.py --collect-metrics --record workload.json
       ```
 
-2.  Analyze data collected from eris agent and build the data model for
+2.  Analyze data collected from the eris agent and build the data model for
     resource contention detection and regulation. This step generates a model file `threshold.json`.
 
       ```
       sudo python analyze.py workload.json
       ```
 
-3.  Add best-efforts task to node, restart monitor and detect potential
+3.  Add best-efforts task to node, restart monitor, and detect potential
     resource contention.
 
       ```
@@ -202,12 +204,12 @@ following command:
 
 ## Contribution
 
-Platform Resource Manager is an open source project licensed under the [Apache v2 License](http://www.apache.org/licenses/LICENSE-2.0).
+Intel® PRM is an open source project licensed under the [Apache v2 License](http://www.apache.org/licenses/LICENSE-2.0).
 
 **Coding style**
 
-Platform Resource Manager follows the standard formatting recommendations and
-language idioms set out in C, Go, and Python.
+Intel® PRM follows the standard formatting recommendations and language idioms
+set out in C, Go, and Python.
 
 **Pull requests**
 
