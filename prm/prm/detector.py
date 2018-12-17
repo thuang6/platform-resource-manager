@@ -127,8 +127,14 @@ class ContentionDetector(detectors.AnomalyDetector):
                 del self.container_map[cid]
 
     def _cid_to_app(self, cid, tasks_labels: TasksLabels):
-        if 'application' in tasks_labels[cid]:
-            return tasks_labels[cid]['application']
+        """
+        Maps container id to a string key identifying statistical model instance.
+        """
+        if 'application' in tasks_labels[cid] and 'application_version_name' in tasks_labels[cid]:
+            return tasks_labels[cid]['application'] + '.' + tasks_labels[cid]['application_version_name']
+        else:
+            log.debug('no label "application" or "application_version_name" '
+                      'passed to detect function by owca for container: {}'.format(cid))
 
         return None
 
