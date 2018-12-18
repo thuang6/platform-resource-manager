@@ -15,13 +15,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+CFLAGS = -fstack-protector-strong -fPIE -fPIC -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security
+
 libpgos.so: perf.o helper.o pgos.o
-	go build -a -buildmode=c-shared -o libpgos.so *.go
+	CGO_LDFLAGS_ALLOW="-Wl,-z,now" go build -a -buildmode=c-shared -o libpgos.so *.go
 perf.o:
-	gcc -c -o perf.o perf.c
+	gcc $(CFLAGS) -c -o perf.o perf.c
 helper.o:
-	gcc -c -o helper.o helper.c
+	gcc $(CFLAGS) -c -o helper.o helper.c
 pgos.o:
-	gcc -c -o pgos.o pgos.c
+	gcc $(CFLAGS) -c -o pgos.o pgos.c
 clean:
 	rm ./libpgos.so ./*.o

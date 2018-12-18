@@ -20,7 +20,15 @@ package main
 // #include <stdint.h>
 // #include <sys/types.h>
 // #include <linux/perf_event.h>
+
+// #cgo CFLAGS: -fstack-protector-strong
+// #cgo CFLAGS: -fPIE -fPIC
+// #cgo CFLAGS: -O2 -D_FORTIFY_SOURCE=2
+// #cgo CFLAGS: -Wformat -Wformat-security
 // #cgo LDFLAGS: -lpqos -lm ./perf.o ./pgos.o ./helper.o
+// #cgo LDFLAGS: -Wl,-z,noexecstack
+// #cgo LDFLAGS: -Wl,-z,relro
+// #cgo LDFLAGS: -Wl,-z,now
 // #include <pqos.h>
 // #include "pgos.h"
 // #include "helper.h"
@@ -42,7 +50,7 @@ const (
 )
 
 const (
-	ErrorCannotOpenPqosLog   C.int = 1 << iota
+	ErrorPqosInitFailure     C.int = 1 << iota
 	ErrorCannotOpenCgroup    C.int = 1 << iota
 	ErrorCannotOpenTasks     C.int = 1 << iota
 	ErrorCannotPerfomSyscall C.int = 1 << iota
@@ -75,23 +83,37 @@ type Cgroup struct {
 	PgosHandler C.int
 }
 
-//export collect
-func collect(ctx C.struct_context) C.struct_context {
-	ctx.ret = 0
-	coreCount = int(ctx.core)
+var pqosLog *os.File
+
+//export pgos_init
+func pgos_init() C.int {
 	pqosLog, err := os.OpenFile("/tmp/pqos.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
-		ctx.ret = ErrorCannotOpenPqosLog
-		return ctx
+		return ErrorPqosInitFailure
 	}
-	defer pqosLog.Close()
 
 	config := C.struct_pqos_config{
 		fd_log:     C.int(pqosLog.Fd()),
 		verbose:    2,
 		_interface: C.PQOS_INTER_OS,
 	}
-	C.pqos_init(&config)
+	if C.pqos_init(&config) != C.PQOS_RETVAL_OK {
+		return ErrorPqosInitFailure
+	}
+	return 0
+}
+
+//export pgos_finalize
+func pgos_finalize() {
+	pqosLog.Close()
+	C.pqos_fini()
+}
+
+//export collect
+func collect(ctx C.struct_context) C.struct_context {
+	ctx.ret = 0
+	coreCount = int(ctx.core)
+
 	cgroups := make([]*Cgroup, 0, int(ctx.cgroup_count))
 
 	for i := 0; i < int(ctx.cgroup_count); i++ {
@@ -145,6 +167,7 @@ func collect(ctx C.struct_context) C.struct_context {
 		cg.mbm_remote = C.double(float64(pgosValue.mbm_remote_delta) / 1024.0 / 1024.0 / (float64(ctx.period) / 1000.0))
 		cgroups[j].Close()
 	}
+	C.pgos_mon_stop()
 	return ctx
 }
 

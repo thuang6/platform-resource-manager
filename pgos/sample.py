@@ -46,11 +46,11 @@ lib.collect.restype = context
 
 
 cg0 = cgroup()
-cg0.path = '/sys/fs/cgroup/perf_event/docker/40b7acdd5dc69e10b2dd1bfcdc30b7565115d272d6826060da79d15fc6174f2e/'.encode()
+cg0.path = '/sys/fs/cgroup/perf_event/docker/20a0d36eb400bf1590c129bc62c94f45794d9057e6a5074fa66c6277bc45b658/'.encode()
 cg0.cid = 'cassandra'.encode()
 
 cg1 = cgroup()
-cg1.path = '/sys/fs/cgroup/perf_event/docker/8b8d842b8bdbf9764b9efdaa2311c47869cfc2e7d87d6a15ca263ea10a3d1c2b/'.encode()
+cg1.path = '/sys/fs/cgroup/perf_event/docker/ced2f4992c4ca36ace9161cd061707125847e97e72c6bc692ffd431989d29e28/'.encode()
 cg1.cid = 'memcache'.encode()
 ctx = context()
 ctx.core = 22
@@ -58,12 +58,16 @@ ctx.period = 20000
 ctx.cgroup_count = 2
 ctx.cgroups = (cgroup * 2)(cg0, cg1)
 
-ret = lib.collect(ctx)
+ret = lib.pgos_init()
+print(ret)
 
-print(ret.ret)
-cg = ret.cgroups[0]
-print(cg.ret, cg.instructions, cg.cycles, cg.llc_misses, cg.stall_l2_misses,
-      cg.stalls_memory_load, cg.llc_occupancy, cg.mbm_local, cg.mbm_remote)
-cg = ret.cgroups[1]
-print(cg.ret, cg.instructions, cg.cycles, cg.llc_misses, cg.stall_l2_misses,
-      cg.stalls_memory_load, cg.llc_occupancy, cg.mbm_local, cg.mbm_remote)
+for i in range(5):
+      ret = lib.collect(ctx)
+      cg = ret.cgroups[0]
+      print(cg.ret, cg.instructions, cg.cycles, cg.llc_misses, cg.stall_l2_misses,
+            cg.stalls_memory_load, cg.llc_occupancy, cg.mbm_local, cg.mbm_remote)
+      cg = ret.cgroups[1]
+      print(cg.ret, cg.instructions, cg.cycles, cg.llc_misses, cg.stall_l2_misses,
+            cg.stalls_memory_load, cg.llc_occupancy, cg.mbm_local, cg.mbm_remote)
+
+lib.pgos_finalize()

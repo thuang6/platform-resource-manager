@@ -47,4 +47,5 @@ void pgos_mon_stop() {
     for (i = 0;i < idx;i ++) {
         pqos_mon_stop(&data[i]);
     }
+    idx = 0;
 }
