@@ -17,25 +17,26 @@
 
 """ This module contains the parameters """
 
+
 class ConfigConstants:
-  verbose = 2
+    verbose = 2
 
-  min_data_points = 20
-  lower_util_bound = 0.5
-  step = 50
-  use_ratio = True
-  step_ratio = 0.3
+    min_data_points = 20
+    lower_util_bound = 0.5
+    step = 50
+    use_ratio = True
+    step_ratio = 0.3
 
-  rand_seed = 1
-  max_components = 10
+    rand_seed = 1
+    max_components = 10
 
-  outlier_span = 3
-  check_strict = False
+    outlier_span = 3
+    check_strict = False
 
-  check_chi_square_test = False
-  chi_square_test_threshold = 0.95
-  check_f_measure = True
-  f_measure_threshold = 0.6
-  check_accuracy = False
-  accuracy_threshold = 0.5
-  information_gain_threshold = 0.2
+    check_chi_square_test = False
+    chi_square_test_threshold = 0.95
+    check_f_measure = True
+    f_measure_threshold = 0.6
+    check_accuracy = False
+    accuracy_threshold = 0.5
+    information_gain_threshold = 0.2
