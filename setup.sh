@@ -20,4 +20,4 @@
 
 cd pgos
 make
-cp pgos ../eris
+cp libpgos.so ../eris

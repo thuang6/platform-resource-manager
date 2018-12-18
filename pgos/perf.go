@@ -29,27 +29,26 @@ import "C"
 import (
 	"bytes"
 	"encoding/binary"
-	"log"
 	"syscall"
 	"unsafe"
 )
 
 func perfEventOpen(attr C.struct_perf_event_attr,
-	pid, cpu, groupFd, flags uintptr) uintptr {
+	pid, cpu, groupFd, flags uintptr) (uintptr, C.int) {
 	fd, _, err := syscall.Syscall6(syscall.SYS_PERF_EVENT_OPEN, uintptr(unsafe.Pointer(&attr)),
 		pid, cpu, groupFd, flags, 0)
 	if err != 0 {
-		log.Fatalf("syscall failed with error code %+v", err)
+		return 0, ErrorCannotPerfomSyscall
 	}
-	return fd
+	return fd, 0
 }
 
-func ioctl(fd, req, arg uintptr) {
+func ioctl(fd, req, arg uintptr) C.int {
 	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, req, arg)
 	if err != 0 {
-		log.Fatalf("syscall failed with error code %+v", err)
+		return ErrorCannotPerfomSyscall
 	}
-	return
+	return 0
 }
 
 type PerfStruct struct {
@@ -62,7 +61,7 @@ type PerfStruct struct {
 	}
 }
 
-func OpenLeader(cgroupFd uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t) uintptr {
+func OpenLeader(cgroupFd uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t) (uintptr, C.int) {
 	leaderAttr := C.struct_perf_event_attr{
 		_type:       C.__u32(perfType),
 		size:        C.__u32(C.def_PERF_ATTR_SIZE_VER5),
@@ -77,7 +76,7 @@ func OpenLeader(cgroupFd uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C
 	return perfEventOpen(leaderAttr, cgroupFd, cpu, ^uintptr(0), C.PERF_FLAG_PID_CGROUP|C.PERF_FLAG_FD_CLOEXEC)
 }
 
-func OpenFollower(leader uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t) uintptr {
+func OpenFollower(leader uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t) (uintptr, C.int) {
 	followerAttr := C.struct_perf_event_attr{
 		_type:       C.__u32(perfType),
 		size:        C.__u32(C.def_PERF_ATTR_SIZE_VER5),
@@ -92,20 +91,22 @@ func OpenFollower(leader uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C
 	return perfEventOpen(followerAttr, ^uintptr(0), cpu, leader, C.PERF_FLAG_FD_CLOEXEC)
 }
 
-func StartLeader(leader uintptr) {
-	ioctl(leader, C.PERF_EVENT_IOC_RESET, 0)
-	ioctl(leader, C.PERF_EVENT_IOC_ENABLE, 0)
+func StartLeader(leader uintptr) C.int {
+	var code C.int = 0
+	code |= ioctl(leader, C.PERF_EVENT_IOC_RESET, 0)
+	code |= ioctl(leader, C.PERF_EVENT_IOC_ENABLE, 0)
+	return code
 }
 
-func StopLeader(leader uintptr) {
-	ioctl(leader, C.PERF_EVENT_IOC_DISABLE, 0)
+func StopLeader(leader uintptr) C.int {
+	return ioctl(leader, C.PERF_EVENT_IOC_DISABLE, 0)
 }
 
-func ReadLeader(leader uintptr) PerfStruct {
+func ReadLeader(leader uintptr) (PerfStruct, C.int) {
 	b := make([]byte, 1000)
 	_, err := syscall.Read(int(leader), b)
 	if err != nil {
-		log.Fatal(err)
+		return PerfStruct{}, ErrorCannotPerfomSyscall
 	}
 	var result PerfStruct
 	binary.Read(bytes.NewBuffer(b), binary.LittleEndian, &result)
@@ -116,5 +117,5 @@ func ReadLeader(leader uintptr) PerfStruct {
 			result.Data[i].Value = uint64(float64(result.Data[i].Value) / float64(result.TimeRunning) * float64(result.TimeEnabled))
 		}
 	}
-	return result
+	return result, 0
 }

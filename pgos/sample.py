@@ -20,7 +20,8 @@
 from ctypes import *
 
 class cgroup(Structure):
-    _fields_ = [("path", c_char_p), 
+    _fields_ = [("ret", c_int),
+                ("path", c_char_p), 
                 ("cid", c_char_p), 
                 ("instructions", c_ulonglong),
                 ("cycles", c_ulonglong),
@@ -32,26 +33,37 @@ class cgroup(Structure):
                 ("mbm_remote", c_double)]
 
 class context(Structure):
-    _fields_ = [("core", c_int),
-               ("period", c_int),
-               ("cgroup_count", c_int),
-               ("timestamp", c_ulonglong),
-               ("cgroups", POINTER(cgroup))]
+    _fields_ = [("ret", c_int),
+                ("core", c_int),
+                ("period", c_int),
+                ("cgroup_count", c_int),
+                ("timestamp", c_ulonglong),
+                ("cgroups", POINTER(cgroup))]
 
 lib = cdll.LoadLibrary('./libpgos.so')
 lib.collect.argtypes = [context]
 lib.collect.restype = context
 
-cg = cgroup()
-cg.path = '/sys/fs/cgroup/perf_event/docker/d144c76a22b3000278a42c516f374a65d759bf03226dda1c8f93ff05ee528f63/'.encode()
-cg.cid = 'stressng'.encode()
 
+cg0 = cgroup()
+cg0.path = '/sys/fs/cgroup/perf_event/docker/40b7acdd5dc69e10b2dd1bfcdc30b7565115d272d6826060da79d15fc6174f2e/'.encode()
+cg0.cid = 'cassandra'.encode()
+
+cg1 = cgroup()
+cg1.path = '/sys/fs/cgroup/perf_event/docker/8b8d842b8bdbf9764b9efdaa2311c47869cfc2e7d87d6a15ca263ea10a3d1c2b/'.encode()
+cg1.cid = 'memcache'.encode()
 ctx = context()
 ctx.core = 22
-ctx.period = 20
-ctx.cgroup_count = 1
-ctx.cgroups = (cgroup * 1)(cg)
+ctx.period = 20000
+ctx.cgroup_count = 2
+ctx.cgroups = (cgroup * 2)(cg0, cg1)
 
 ret = lib.collect(ctx)
-print(ret.cgroups[0].instructions, ret.cgroups[0].cycles, ret.cgroups[0].llc_misses, ret.cgroups[0].stall_l2_misses,
-      ret.cgroups[0].stalls_memory_load, ret.cgroups[0].llc_occupancy, ret.cgroups[0].mbm_local, ret.cgroups[0].mbm_remote)
+
+print(ret.ret)
+cg = ret.cgroups[0]
+print(cg.ret, cg.instructions, cg.cycles, cg.llc_misses, cg.stall_l2_misses,
+      cg.stalls_memory_load, cg.llc_occupancy, cg.mbm_local, cg.mbm_remote)
+cg = ret.cgroups[1]
+print(cg.ret, cg.instructions, cg.cycles, cg.llc_misses, cg.stall_l2_misses,
+      cg.stalls_memory_load, cg.llc_occupancy, cg.mbm_local, cg.mbm_remote)

@@ -97,11 +97,7 @@ uint64_t get_config_of_event(uint32_t type,uint64_t event) {
 				/* Broadwell */
 				spec = brw_spec[event];
 				break;
-			default:
-				printf("unsupport CPU model %x\n", cpu_info.display_model);
 		}
-	}else{
-		printf("unsupport CPU family %x\n", cpu_info.display_family);
 	}
 	return  ((uint32_t) spec.event) | (((uint32_t) spec.umask) << 8) | (((uint32_t) spec.edge) << 18) 
 		| (((uint32_t) spec.inv) << 23) | (((uint32_t) spec.cmask) << 24);	

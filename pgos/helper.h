@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 struct cgroup {
+    int ret;
     char* path;
     char* cid;
     uint64_t instructions, cycles, llc_misses, stalls_l2_misses, stalls_memory_load, llc_occupancy;
@@ -28,6 +29,7 @@ struct cgroup {
 };
 
 struct context {
+    int ret;
     int core;
     int period;
     int cgroup_count;
