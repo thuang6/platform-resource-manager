@@ -22,12 +22,10 @@ This module implements resource contention detection on one workload
 from __future__ import print_function
 from __future__ import division
 
-import subprocess
 import time
 
 from collections import deque
 from itertools import islice
-from datetime import datetime
 from enum import Enum
 from os.path import join as path_join
 from analyze.analyzer import Metric
@@ -74,7 +72,7 @@ class Container(object):
     def __str__(self):
         metrics = self.metrics
         cols = [
-            metrics['time'],
+            time.ctime(int(metrics['time'])),
             self.cid,
             self.name,
             metrics[Metric.INST],

@@ -23,7 +23,6 @@ from __future__ import division
 import os
 import sys
 
-import subprocess
 import time
 import traceback
 
@@ -44,6 +43,7 @@ from llcoccup import LlcOccup
 from mresource import Resource
 from naivectrl import NaiveController
 from prometheus import PrometheusClient
+from pgos import Pgos
 from analyze.analyzer import Metric, Analyzer
 
 __version__ = 0.8
@@ -55,7 +55,7 @@ class Context(object):
     def __init__(self):
         self._docker_client = None
         self._prometheus = None
-
+        self.pgos = None
         self.shutdown = False
         self.args = None
         self.sysmax_util = 0
@@ -82,28 +82,6 @@ class Context(object):
         return self._prometheus
 
 
-def each_container_pgos_metric(lines, delim='\t'):
-    metric_mappings = {
-        'cycles': (Metric.CYC, int),
-        'instructions': (Metric.INST, int),
-        'LLC misses': (Metric.L3MISS, int),
-        'stalls L2 miss': (Metric.L2STALL, int),
-        'stalls memory load': (Metric.MEMSTALL, int),
-        'LLC occupancy': (Metric.L3OCC, int),
-        'Memory bandwidth local': (Metric.MBL, float),
-        'Memory bandwidth remote': (Metric.MBR, float),
-    }
-
-    for line in lines:
-        items = line.split(delim)
-        if len(items) < 4:
-            continue
-        cid, metric_name, timestamp, val = items[:4]
-        if metric_name in metric_mappings:
-            name, converter = metric_mappings[metric_name]
-            yield cid, {name: converter(val)}, int(timestamp)
-
-
 def detect_contender(metric_cons, contention_type, container_contended):
     resource_delta_max = -np.Inf
     suspect = "unknown"
@@ -127,16 +105,14 @@ def detect_contender(metric_cons, contention_type, container_contended):
           (contention_type, container_contended.name, suspect))
 
 
-def set_metrics(ctx, data):
+def set_metrics(ctx, timestamp, data):
     """
     This function collect metrics from pgos tool and trigger resource
     contention detection and control
         ctx - agent context
         data - metrics data collected from pgos
     """
-    timestamp = datetime.now()
-
-    for cid, metric, _ in each_container_pgos_metric(data):
+    for cid, metric in data:
         container = ctx.metric_cons[cid]
         container.metrics.update(metric)
 
@@ -314,7 +290,6 @@ def mon_metric_cycle(ctx):
     """
     containers = ctx.docker_client.containers.list()
     cgroups = []
-    cids = []
     bes = []
     lcs = []
     newcon = False
@@ -345,34 +320,15 @@ def mon_metric_cycle(ctx):
                 lcs.append(con)
         if key in ctx.be_set:
             bes.append(con)
-
-        cids.append(cid)
-        cgroups.append('/sys/fs/cgroup/perf_event/' +
-                       con.parent_path + con.con_path)
+        cgroups.append((cid, '/sys/fs/cgroup/perf_event/' +
+                        con.parent_path + con.con_path))
     if newbe or newcon and bes and ctx.args.exclusive_cat:
         ctx.llc.budgeting(bes, lcs)
 
     if cgroups:
-        period = str(ctx.args.metric_interval - 2)
-        args = [
-            './pgos',
-            '-cids', ','.join(cids),
-            '-cgroup', ','.join(cgroups),
-            '-period', period,
-            '-frequency', period,
-            '-cycle', '1',
-            '-core', str(cpu_count()),
-        ]
-        if ctx.args.verbose:
-            print(' '.join(args))
-        try:
-            output = subprocess.check_output(args, stderr=subprocess.STDOUT)
-            data = output.decode('utf-8').splitlines()
-            if ctx.args.verbose:
-                print(output.decode('utf-8'))
-            set_metrics(ctx, data)
-        except Exception:
-            traceback.print_exc(file=sys.stdout)
+        timestamp, data = ctx.pgos.collect(cgroups)
+        if data:
+            set_metrics(ctx, timestamp, data)
 
 
 def monitor(func, ctx, interval):
@@ -471,9 +427,9 @@ def parse_arguments():
     parser.add_argument('-p', '--enable-prometheus', help='allow eris send\
                         metrics to Prometheus', action='store_true')
     parser.add_argument('-u', '--util-interval', help='CPU utilization monitor\
-                        interval', type=int, choices=range(1, 10), default=2)
+                        interval', type=int, choices=range(1, 11), default=2)
     parser.add_argument('-m', '--metric-interval', help='platform metrics\
-                        monitor interval', type=int, choices=range(1, 60),
+                        monitor interval', type=int, choices=range(2, 61),
                         default=20)
     parser.add_argument('-l', '--llc-cycles', help='cycle number in LLC\
                         controller', type=int, default=6)
@@ -533,9 +489,14 @@ def main():
                     Metric.MSPKI]
             with open(Analyzer.METRIC_FILE, 'w') as metricf:
                 metricf.write(','.join(cols) + '\n')
-        threads.append(Thread(target=monitor,
-                              args=(mon_metric_cycle,
-                                    ctx, ctx.args.metric_interval)))
+        ctx.pgos = Pgos(cpu_count(), ctx.args.metric_interval * 1000 - 500)
+        ret = ctx.pgos.init_pgos()
+        if ret == 0:
+            threads.append(Thread(target=monitor,
+                                  args=(mon_metric_cycle,
+                                        ctx, ctx.args.metric_interval)))
+        else:
+            print('error in libpgos init, error code: ' + str(ret))
 
     for thread in threads:
         thread.start()
@@ -547,6 +508,7 @@ def main():
             thread.join()
     except KeyboardInterrupt:
         print('Shutdown eris agent ...exiting')
+        ctx.pgos.fin_pgos()
         ctx.shutdown = True
     except Exception:
         traceback.print_exc(file=sys.stdout)

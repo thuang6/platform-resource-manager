@@ -128,7 +128,7 @@ This section lists command line arguments for the eris agent and the analyze too
                             allow eris send metrics to prometheus
       -u UTIL_INTERVAL, --util-interval UTIL_INTERVAL
                             CPU utilization monitor interval (1, 10)
-      -m METRIC_INTERVAL, --metric-interval METRIC_INTERVAL (1, 60)
+      -m METRIC_INTERVAL, --metric-interval METRIC_INTERVAL (2, 60)
                             platform metrics monitor interval
       -l LLC_CYCLES, --llc-cycles LLC_CYCLES
                             cycle number in LLC controller
