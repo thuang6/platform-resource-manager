@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <errno.h>
+#include "perf.h"
 
 struct perf_event_spec{
 	uint8_t event;
@@ -73,7 +74,7 @@ struct x86_cpu_info get_x86_cpu_info(void) {
 	};
 }
 
-static uint64_t get_config_of_event(uint32_t type,uint64_t event) {
+uint64_t get_config_of_event(uint32_t type,uint64_t event) {
 	if (type == PERF_TYPE_HARDWARE) {
 		return event;
 	}
@@ -96,12 +97,9 @@ static uint64_t get_config_of_event(uint32_t type,uint64_t event) {
 				/* Broadwell */
 				spec = brw_spec[event];
 				break;
-			default:
-				printf("unsupport CPU model %x\n", cpu_info.display_model);
 		}
-	}else{
-		printf("unsupport CPU family %x\n", cpu_info.display_family);
 	}
 	return  ((uint32_t) spec.event) | (((uint32_t) spec.umask) << 8) | (((uint32_t) spec.edge) << 18) 
 		| (((uint32_t) spec.inv) << 23) | (((uint32_t) spec.cmask) << 24);	
 }
+

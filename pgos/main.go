@@ -20,16 +20,24 @@ package main
 // #include <stdint.h>
 // #include <sys/types.h>
 // #include <linux/perf_event.h>
-// #cgo LDFLAGS: -lpqos -lm
+
+// #cgo CFLAGS: -fstack-protector-strong
+// #cgo CFLAGS: -fPIE -fPIC
+// #cgo CFLAGS: -O2 -D_FORTIFY_SOURCE=2
+// #cgo CFLAGS: -Wformat -Wformat-security
+// #cgo LDFLAGS: -lpqos -lm ./perf.o ./pgos.o ./helper.o
+// #cgo LDFLAGS: -Wl,-z,noexecstack
+// #cgo LDFLAGS: -Wl,-z,relro
+// #cgo LDFLAGS: -Wl,-z,now
 // #include <pqos.h>
-// #include "pgos.c"
-// int LOG_VER_SUPER_VERBOSE = 2;
+// #include "pgos.h"
+// #include "helper.h"
 import "C"
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 	"unsafe"
 )
@@ -41,12 +49,14 @@ const (
 	CYCLE_ACTIVITY_STALLS_MEM_ANY ModelSpecificEvent = 1
 )
 
-var coreCount = flag.Int("core", 1, "core count")
-var cycle = flag.Int("cycle", 1, "monitor time")
-var frequency = flag.Int64("frequency", 5, "sample frequency")
-var period = flag.Int64("period", 1, "sample period")
-var cgroupPath = flag.String("cgroup", "", "cgroups to be monitored")
-var containerIds = flag.String("cids", "", "container id list")
+const (
+	ErrorPqosInitFailure     C.int = 1 << iota
+	ErrorCannotOpenCgroup    C.int = 1 << iota
+	ErrorCannotOpenTasks     C.int = 1 << iota
+	ErrorCannotPerfomSyscall C.int = 1 << iota
+)
+
+var coreCount int
 var metricsDescription = []string{"instructions", "cycles", "LLC misses", "stalls L2 miss", "stalls memory load"}
 
 type PerfCounter struct {
@@ -63,6 +73,7 @@ var counters = []PerfCounter{
 }
 
 type Cgroup struct {
+	Index       int
 	Path        string
 	Name        string
 	Pid         uint32
@@ -72,11 +83,98 @@ type Cgroup struct {
 	PgosHandler C.int
 }
 
-func NewCgroup(path string, cid string) (*Cgroup, error) {
+var pqosLog *os.File
+
+//export pgos_init
+func pgos_init() C.int {
+	pqosLog, err := os.OpenFile("/tmp/pqos.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+	if err != nil {
+		return ErrorPqosInitFailure
+	}
+
+	config := C.struct_pqos_config{
+		fd_log:     C.int(pqosLog.Fd()),
+		verbose:    2,
+		_interface: C.PQOS_INTER_OS,
+	}
+	if C.pqos_init(&config) != C.PQOS_RETVAL_OK {
+		return ErrorPqosInitFailure
+	}
+	return 0
+}
+
+//export pgos_finalize
+func pgos_finalize() {
+	pqosLog.Close()
+	C.pqos_fini()
+}
+
+//export collect
+func collect(ctx C.struct_context) C.struct_context {
+	ctx.ret = 0
+	coreCount = int(ctx.core)
+
+	cgroups := make([]*Cgroup, 0, int(ctx.cgroup_count))
+
+	for i := 0; i < int(ctx.cgroup_count); i++ {
+		cg := C.get_cgroup(ctx.cgroups, C.int(i))
+		cg.ret = 0
+		path, cid := C.GoString(cg.path), C.GoString(cg.cid)
+		c, code := NewCgroup(path, cid, i)
+		cg.ret |= code
+		if c != nil {
+			cg.ret |= c.GetPgosHandler()
+		}
+		if cg.ret == 0 {
+			cgroups = append(cgroups, c)
+		}
+	}
+	now := time.Now().Unix()
+	ctx.timestamp = C.uint64_t(now)
+	for j := 0; j < len(cgroups); j++ {
+		for k := 0; k < len(cgroups[j].Leaders); k++ {
+			cg := C.get_cgroup(ctx.cgroups, C.int(cgroups[j].Index))
+			code := StartLeader(cgroups[j].Leaders[k])
+			cg.ret |= code
+		}
+	}
+	time.Sleep(time.Duration(ctx.period) * time.Millisecond)
+	for j := 0; j < len(cgroups); j++ {
+		cg := C.get_cgroup(ctx.cgroups, C.int(cgroups[j].Index))
+		res := make([]uint64, len(counters))
+		for k := 0; k < coreCount; k++ {
+			code := StopLeader(cgroups[j].Leaders[k])
+			cg.ret |= code
+			result, code := ReadLeader(cgroups[j].Leaders[k])
+			cg.ret |= code
+			for l := 0; l < len(counters); l++ {
+				res[l] += result.Data[l].Value
+			}
+		}
+		if cg.ret != 0 {
+			continue
+		}
+		pgosValue := C.pgos_mon_poll(cgroups[j].PgosHandler)
+
+		cg.instructions = C.uint64_t(res[0])
+		cg.cycles = C.uint64_t(res[1])
+		cg.llc_misses = C.uint64_t(res[2])
+		cg.stalls_l2_misses = C.uint64_t(res[3])
+		cg.stalls_memory_load = C.uint64_t(res[4])
+
+		cg.llc_occupancy = pgosValue.llc / 1024
+		cg.mbm_local = C.double(float64(pgosValue.mbm_local_delta) / 1024.0 / 1024.0 / (float64(ctx.period) / 1000.0))
+		cg.mbm_remote = C.double(float64(pgosValue.mbm_remote_delta) / 1024.0 / 1024.0 / (float64(ctx.period) / 1000.0))
+		cgroups[j].Close()
+	}
+	C.pgos_mon_stop()
+	return ctx
+}
+
+func NewCgroup(path string, cid string, index int) (*Cgroup, C.int) {
 	cgroupFile, err := os.Open(path)
 	if err != nil {
-		println(path)
-		return nil, err
+		return nil, ErrorCannotOpenCgroup
 	}
 	cgroupName := cid
 	if cid == "" {
@@ -85,30 +183,37 @@ func NewCgroup(path string, cid string) (*Cgroup, error) {
 	} else {
 		cgroupName = cid
 	}
-	leaders := make([]uintptr, 0, *coreCount)
-	followers := make([]uintptr, 0, *coreCount*(len(counters)-1))
+	leaders := make([]uintptr, 0, coreCount)
+	followers := make([]uintptr, 0, coreCount*(len(counters)-1))
 
-	for i := 0; i < *coreCount; i++ {
-		l := OpenLeader(cgroupFile.Fd(), uintptr(i), counters[0].Type, counters[0].Config)
+	for i := 0; i < coreCount; i++ {
+		l, code := OpenLeader(cgroupFile.Fd(), uintptr(i), counters[0].Type, counters[0].Config)
+		if code != 0 {
+			return nil, code
+		}
 		leaders = append(leaders, l)
 		for j := 1; j < len(counters); j++ {
-			f := OpenFollower(l, uintptr(i), counters[j].Type, counters[j].Config)
+			f, code := OpenFollower(l, uintptr(i), counters[j].Type, counters[j].Config)
+			if code != 0 {
+				return nil, code
+			}
 			followers = append(followers, f)
 		}
 	}
 	return &Cgroup{
+		Index:     index,
 		Path:      path,
 		Name:      cgroupName,
 		File:      cgroupFile,
 		Leaders:   leaders,
 		Followers: followers,
-	}, nil
+	}, 0
 }
 
-func (this *Cgroup) GetPgosHandler() {
+func (this *Cgroup) GetPgosHandler() (code C.int) {
 	f, err := os.OpenFile(this.Path+"/tasks", os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		println(err.Error())
+		code = ErrorCannotOpenTasks
 		return
 	}
 	defer f.Close()
@@ -126,90 +231,17 @@ func (this *Cgroup) GetPgosHandler() {
 	return
 }
 
-func (this *Cgroup) Close() error {
-	err := this.File.Close()
-	if err != nil {
-		return err
+func (this *Cgroup) Close() {
+	for i := 0; i < len(this.Followers); i++ {
+		syscall.Close(int(this.Followers[i]))
 	}
-	return nil
+	for i := 0; i < len(this.Leaders); i++ {
+		syscall.Close(int(this.Leaders[i]))
+	}
+	this.File.Close()
+	return
 }
 
 func main() {
-	pqosLog, err := os.OpenFile("/tmp/pqos.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	defer pqosLog.Close()
 
-	config := C.pqos_config{
-		fd_log:     C.int(pqosLog.Fd()),
-		verbose:    C.LOG_VER_SUPER_VERBOSE,
-		_interface: C.PQOS_INTER_OS,
-	}
-	C.pqos_init(&config)
-
-	flag.Parse()
-	cgroupsPath := strings.Split(*cgroupPath, ",")
-	var conIds = []string{}
-	if *containerIds != "" {
-		conIds = strings.Split(*containerIds, ",")
-	}
-	cgroups := make([]*Cgroup, 0, len(cgroupsPath))
-	fds := make([]int32, 0, len(cgroupsPath))
-	for i := 0; i < len(cgroupsPath); i++ {
-		cid := ""
-		if *containerIds != "" {
-			cid = conIds[i]
-		}
-		c, err := NewCgroup(cgroupsPath[i], cid)
-		if err != nil {
-			println(err.Error())
-			continue
-		}
-		c.GetPgosHandler()
-		cgroups = append(cgroups, c)
-		fds = append(fds, int32(c.File.Fd()))
-	}
-
-	frequencyDuration := fmt.Sprintf("%ds", *frequency-(*period))
-	monitorDuration := fmt.Sprintf("%ds", *period)
-	fd, err := time.ParseDuration(frequencyDuration)
-	md, err := time.ParseDuration(monitorDuration)
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	for i := 0; i < *cycle; i++ {
-		now := time.Now().Unix()
-		for j := 0; j < len(cgroups); j++ {
-			for k := 0; k < len(cgroups[j].Leaders); k++ {
-				StartLeader(cgroups[j].Leaders[k])
-			}
-		}
-		time.Sleep(md)
-		for j := 0; j < len(cgroups); j++ {
-			res := make([]uint64, len(counters))
-			for k := 0; k < *coreCount; k++ {
-				StopLeader(cgroups[j].Leaders[k])
-				result := ReadLeader(cgroups[j].Leaders[k])
-				for l := 0; l < len(counters); l++ {
-					res[l] += result.Data[l].Value
-				}
-			}
-			for k := 0; k < len(counters); k++ {
-				fmt.Printf("%s\t%s\t%d\t%+v\n", cgroups[j].Name, metricsDescription[k], now, res[k])
-			}
-		}
-		for j := 0; j < len(cgroups); j++ {
-			pgosValue := C.pgos_mon_poll(cgroups[j].PgosHandler)
-			fmt.Printf("%s\t%s\t%d\t%+v\n", cgroups[j].Name, "LLC occupancy", now, pgosValue.llc/1024)
-			fmt.Printf("%s\t%s\t%d\t%+v\n", cgroups[j].Name, "Memory bandwidth local", now, float64(pgosValue.mbm_local_delta)/1024.0/1024.0/float64(*period))
-			fmt.Printf("%s\t%s\t%d\t%+v\n", cgroups[j].Name, "Memory bandwidth remote", now, float64(pgosValue.mbm_remote_delta)/1024.0/1024.0/float64(*period))
-		}
-		time.Sleep(fd)
-	}
-	C.pgos_mon_stop()
-	C.pqos_fini()
-	return
 }
