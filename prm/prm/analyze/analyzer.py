@@ -105,9 +105,9 @@ class Analyzer:
                 fbar = min_freq
             self.threshold[job]['tdp'] = {
                 'util': utilization_threshold,
-                'mean': mean,
-                'std': std,
-                'bar': fbar}
+                'mean': mean.item(),
+                'std': std.item(),
+                'bar': fbar.item()}
 
     def _get_fense(self, mdf, is_upper, strict, span, verbose):
         gmm_fense = GmmFense(mdf.values.reshape(-1, 1), verbose)
@@ -207,6 +207,6 @@ class Analyzer:
             self._build_thresh(jdata, span, strict, verbose)
 
         if verbose:
-            log.info(self.threshold)
+            log.warn(self.threshold)
         with open(self.thresh_file, 'w') as threshf:
             threshf.write(json.dumps(self.threshold))

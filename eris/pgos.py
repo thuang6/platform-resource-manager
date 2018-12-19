@@ -26,7 +26,8 @@ from analyze.analyzer import Metric
 
 
 class cgroup(Structure):
-    _fields_ = [("path", c_char_p),
+    _fields_ = [("ret", c_int),
+                ("path", c_char_p),
                 ("cid", c_char_p),
                 ("instructions", c_ulonglong),
                 ("cycles", c_ulonglong),
@@ -39,7 +40,8 @@ class cgroup(Structure):
 
 
 class context(Structure):
-    _fields_ = [("core", c_int),
+    _fields_ = [("ret", c_int),
+                ("core", c_int),
                 ("period", c_int),
                 ("cgroup_count", c_int),
                 ("timestamp", c_ulonglong),
@@ -59,6 +61,12 @@ class Pgos(object):
         ctx.period = period
         self.ctx = ctx
 
+    def init_pgos(self):
+        return self.lib.pgos_init()
+
+    def fin_pgos(self):
+        self.lib.pgos_finalize()
+
     def collect(self, cgps):
         ctx = self.ctx
         ctx.cgroup_count = len(cgps)
@@ -69,23 +77,31 @@ class Pgos(object):
             cg.path = cgp[1].encode()
             cg_array.append(cg)
         ctx.cgroups = (cgroup * len(cgps))(* cg_array)
+        metrics = []
         try:
             res = self.lib.collect(ctx)
         except Exception:
             traceback.print_exc(file=sys.stdout)
-        # TODO: check return code before return result
-        metrics = []
-        for i in range(len(cgps)):
-            cg = res.cgroups[i]
-            metrics.append((cg.cid.decode("utf-8"),
-                            {
-                                Metric.INST: cg.instructions,
-                                Metric.CYC: cg.cycles,
-                                Metric.L3MISS: cg.llc_misses,
-                                Metric.L2STALL: cg.stalls_l2_misses,
-                                Metric.MEMSTALL: cg.stalls_memory_load,
-                                Metric.L3OCC: cg.llc_occupancy,
-                                Metric.MBL: cg.mbm_local,
-                                Metric.MBR: cg.mbm_remote,
-                            }))
+        if res.ret == 0:
+            for i in range(len(cgps)):
+                cg = res.cgroups[i]
+                if cg.ret != 0:
+                    print('error in metrics collect for container: ' +
+                          cg.cid.decode('utf-8') +
+                          ', error code: ' + str(cg.ret))
+                    continue
+                metrics.append((cg.cid.decode('utf-8'),
+                                {
+                                    Metric.INST: cg.instructions,
+                                    Metric.CYC: cg.cycles,
+                                    Metric.L3MISS: cg.llc_misses,
+                                    Metric.L2STALL: cg.stalls_l2_misses,
+                                    Metric.MEMSTALL: cg.stalls_memory_load,
+                                    Metric.L3OCC: cg.llc_occupancy,
+                                    Metric.MBL: cg.mbm_local,
+                                    Metric.MBR: cg.mbm_remote,
+                                }))
+        else:
+            print('error in libpgos collect, error code:' + str(res.ret))
+
         return res.timestamp, metrics
