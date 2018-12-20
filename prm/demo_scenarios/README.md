@@ -20,13 +20,16 @@ Before you run the demo scenarios, you must have completed the following:
 
 ## Run demo scenarios
 
-1. Export the required environment variables with the commands:
+1. Export required environment variables. The variable `REMOTE_IP` should be set to
+   one entry of the hosts defined in `demo_scenarios/common/common.yaml.`.
 
     ```
-    export REMOTE_USER=<user>
-    export REMOTE_IP=<remote_ip>
-    export cinventory=demo_scenarios/common/common.template.yaml     # inventory with list of hosts; please copy template file and fill hosts
-    export playbook=owca/workloads/run_workloads.yaml
+    export cinventory=demo_scenarios/common/common.template.yaml # inventory with list of hosts
+                                                                 #  please copy template file and fill hosts
+    export REMOTE_IP=<remote_ip> # one of the hosts defined in common/common.yaml
+    export REMOTE_USER=<user>    # the ad-hoc ansible commands on $REMOTE_IP machine will be run
+                                 #  by the user $REMOTE_USER
+    export playbook=owca/workloads/run_workloads.yaml # path to owca run_workloads playbook
     ```
 
 2. Kill all jobs, stop agent, and remove temporary model data:
