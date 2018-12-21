@@ -3,8 +3,7 @@
 This readme describes how to run demo scenarios for the Intel® Platform
 Resource Manager (Intel® PRM) on an Apache Mesos/Aurora cluster.
 
-Refer to the [Intel® PRM plugin readme](https://github.com/intel/platform-
-resource-manager/blob/master/prm/README.md)
+Refer to the [Intel® PRM plugin readme](https://github.com/intel/platform-resource-manager/blob/master/prm/README.md)
 for details on how the plugin interfaces with the
 [Orchestration-aware Workload Collocation Agent](https://github.com/intel/owca) (OWCA).
 
@@ -15,7 +14,7 @@ Before you run the demo scenarios, you must have completed the following:
 *   Set the working directory to the Intel® PRM project top-level directory.
 *   Copy the template file from `demo_scenarios/common/common.template.yaml`
     to `demo_scenarios/common/common.yaml` and fill it in.
-*   Add the `owca.pex` file with the Intel® PRM module included to the nodes
+*   Copy the `owca.pex` file with the Intel® PRM module included to the nodes
     in your cluster.
 
 ## Run demo scenarios
