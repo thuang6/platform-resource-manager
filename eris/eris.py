@@ -141,10 +141,13 @@ def set_metrics(ctx, timestamp, data):
                                                 metrics[Metric.CYC],
                                                 metrics[Metric.L3MISS],
                                                 metrics[Metric.INST],
+                                                metrics[Metric.CPI],
+                                                metrics[Metric.L3MPKI],
+                                                metrics[Metric.MSPKI],
                                                 metrics[Metric.NF],
                                                 metrics[Metric.MBR] +
                                                 metrics[Metric.MBL],
-                                                metrics[Metric.L3OCC], 0)
+                                                metrics[Metric.L3OCC])
 
         if key in ctx.lc_set:
             if ctx.args.exclusive_cat:
