@@ -62,13 +62,10 @@ class CpuQuota(Resource):
 
     @staticmethod
     def __get_cfs_period(container):
-        result = subprocess.run(['cat', CpuQuota.PREFIX +
-                                 container.parent_path +
-                                 container.con_path +
-                                 '/cpu.cfs_period_us'],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
-        res = result.stdout.decode('utf-8').strip()
+        path = CpuQuota.PREFIX + container.parent_path + container.con_path +\
+                '/cpu.cfs_period_us'
+        with open(path) as perdf:
+            res = perdf.readline()
         try:
             period = int(res)
             return period
@@ -82,10 +79,11 @@ class CpuQuota(Resource):
             rquota = int(quota * period / CpuQuota.CPU_QUOTA_CORE)
         else:
             rquota = quota
-        subprocess.Popen('echo ' + str(rquota) + ' > ' +
-                         CpuQuota.PREFIX + container.parent_path +
-                         container.con_path + '/cpu.cfs_quota_us',
-                         shell=True)
+
+        path = CpuQuota.PREFIX + container.parent_path +\
+            container.con_path + '/cpu.cfs_quota_us'
+        with open(path, 'w') as shrf:
+            shrf.write(str(rquota))
         print(datetime.now().isoformat(' ') + ' set container ' +
               container.name + ' cpu quota to ' + str(rquota))
 
@@ -95,10 +93,11 @@ class CpuQuota(Resource):
         Set CPU share in container
             share - given CPU share value
         """
-        subprocess.Popen('echo ' + str(share) + ' > ' +
-                         CpuQuota.PREFIX + container.parent_path +
-                         container.con_path + '/cpu.shares',
-                         shell=True)
+        path = CpuQuota.PREFIX + container.parent_path +\
+            container.con_path + '/cpu.shares'
+        with open(path, 'w') as shrf:
+            shrf.write(str(share))
+
         print(datetime.now().isoformat(' ') + ' set container ' +
               container.name + ' cpu share to ' + str(share))
 

@@ -30,9 +30,9 @@ class LlcOccup(Resource):
     def __init__(self, init_level, exclusive):
         bitcnt = LlcOccup._get_cbm_bit_count()
         self.be_bmp = [hex(((1 << (i + 1)) - 1) << (bitcnt - 1 - i))
-                       for i in range(bitcnt)]
+                       for i in range(1, bitcnt)]
         self.lc_bmp = [hex((1 << (bitcnt - 1 - i)) - 1)
-                       for i in range(bitcnt)]
+                       for i in range(1, bitcnt)]
         if exclusive:
             self.be_bmp = self.be_bmp[0:int(bitcnt / 2)]
             self.lc_bmp = self.lc_bmp[0:int(bitcnt / 2)]
