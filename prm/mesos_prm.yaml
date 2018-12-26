@@ -2,14 +2,14 @@ loggers:
   prm: debug
   
 runner: !DetectionRunner
+  action_delay: &action_delay 1.
   node: !MesosNode
-  action_delay: 1.
   metrics_storage: !LogStorage
     output_filename: /tmp/metrics.log
   anomalies_storage: !LogStorage
     output_filename: /tmp/anomalies.log
   detector: !ContentionDetector
-    action_delay: &action_delay
+    action_delay: *action_delay
     mode_config: 'collect' 
     agg_period: 20.
   rdt_enabled: True

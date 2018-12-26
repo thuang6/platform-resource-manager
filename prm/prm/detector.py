@@ -19,12 +19,14 @@ class ContentionDetector(detectors.AnomalyDetector):
     DETECT_MODE = 'detect'
     WL_META_FILE = 'workload.json'
 
-    def __init__(self, action_delay, mode_config: str = 'collect',
-        agg_period: int = 20):
-        log.debug('Mode config: %s, agg_period: %i', mode_config, agg_period)
+   def __init__(self, action_delay, mode_config: str = 'collect',
+        agg_period: float = 20):
+        log.debug('action_delay: %i, mode config: %s, agg_period: %i',
+                  action_delay, mode_config, agg_period)
         self.mode_config = mode_config
-        self.agg_cnt = agg_period / action_delay \
-            if agg_period % action_delay == 0 else 1 
+        self.agg_cnt = int(agg_period) / int(action_delay) \
+            if int(agg_period) % int(action_delay) == 0 else 1
+
         self.counter = 0
         self.container_map = dict()
         self.ucols = ['time', 'cid', 'name', Metric.UTIL]
