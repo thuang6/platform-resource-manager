@@ -111,7 +111,7 @@ func ReadLeader(leader uintptr) (PerfStruct, C.int) {
 	var result PerfStruct
 	binary.Read(bytes.NewBuffer(b), binary.LittleEndian, &result)
 	for i := 0; i < len(result.Data); i++ {
-		if result.TimeEnabled == 0 {
+		if result.TimeRunning == 0 {
 			result.Data[i].Value = 0
 		} else {
 			result.Data[i].Value = uint64(float64(result.Data[i].Value) / float64(result.TimeRunning) * float64(result.TimeEnabled))
