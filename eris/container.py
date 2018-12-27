@@ -72,7 +72,7 @@ class Container(object):
     def __str__(self):
         metrics = self.metrics
         cols = [
-            time.ctime(int(metrics['time'])),
+            metrics['time'],
             self.cid,
             self.name,
             metrics[Metric.INST],
