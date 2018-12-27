@@ -23,6 +23,7 @@ from __future__ import print_function
 from __future__ import division
 
 import time
+import docker 
 
 from collections import deque
 from itertools import islice
@@ -53,6 +54,7 @@ class Container(object):
         self.name = name
         self.pids = pids
         self.cpu_usage = 0
+        self.system_usage = 0
         self.utils = 0
         self.timestamp = 0.0
         self.thresh = thresh
@@ -73,6 +75,7 @@ class Container(object):
         metrics = self.metrics
         cols = [
             time.ctime(int(metrics['time'])),
+            int(metrics['time']),
             self.cid,
             self.name,
             metrics[Metric.INST],
@@ -162,20 +165,21 @@ class Container(object):
             pids - pid list of Container
         """
         self.pids = pids
-
+    
     def update_cpu_usage(self):
-        """ calculate cpu usage of container """
         try:
-            cur = time.time() * 1e9
-            filename = path_join('/sys/fs/cgroup/cpu/docker',
-                                 self.cid, 'cpuacct.usage')
-            with open(filename, 'r') as f:
-                usage = int(f.read().strip())
-                if self.cpu_usage != 0:
-                    self.utils = (usage - self.cpu_usage) * 100 /\
-                        (cur - self.timestamp)
-                self.cpu_usage = usage
-                self.timestamp = cur
+            client = docker.from_env()
+            container = client.get(self.cid)
+            container_stats = container.stats()['cpu_stats']
+            total_usage = container_stats['cpu_usage']['total_usage']
+            system_usage = container_stats['system_cpu_usage']
+            cpus = container_stats['precpu_stats']['online_cpus']
+            cpu_delta = total_usage - self.cpu_usage
+            system_delta = system_usage - self.system_usage
+            if system_usage != 0:
+                self.utils = (float(cpu_delta) / system_delta) * cpus
+            self.cpu_usage = total_usage
+            self.system_usage = system_usage
         except (ValueError, IOError):
             pass
 

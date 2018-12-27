@@ -45,6 +45,7 @@ from naivectrl import NaiveController
 from prometheus import PrometheusClient
 from pgos import Pgos
 from analyze.analyzer import Metric, Analyzer
+from kafka import KafkaProducer
 
 __version__ = 0.8
 
@@ -68,6 +69,7 @@ class Context(object):
         self.metric_cons = dict()
         self.analyzer = None
         self.cgroup_driver = 'cgroupfs'
+        self._kafka_producer = None
 
     @property
     def docker_client(self):
@@ -80,6 +82,12 @@ class Context(object):
         if self._prometheus is None:
             self._prometheus = PrometheusClient()
         return self._prometheus
+    
+    @property
+    def producer(self):
+	    if self._kafka_producer is None:
+	        self._kafka_producer = KafkaProducer(bootstrap_servers='10.3.88.117:9092')
+	    return self._kafka_producer
 
 
 def detect_contender(metric_cons, contention_type, container_contended):
@@ -135,6 +143,8 @@ def set_metrics(ctx, timestamp, data):
             if ctx.args.record:
                 with open(Analyzer.METRIC_FILE, 'a') as metricf:
                     metricf.write(str(con))
+                    message = "prm," + str(int(time.time())) + "," + str(con)
+                    ctx.producer.send("lightsaber_metrics", str.encode(message))
 
                 if ctx.args.enable_prometheus:
                     ctx.prometheus.send_metrics(con.name, con.utils,

@@ -40,6 +40,7 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+	"sync"
 )
 
 type ModelSpecificEvent uint64
@@ -109,12 +110,45 @@ func pgos_finalize() {
 	C.pqos_fini()
 }
 
+type RDTResult struct {
+	llc uint64
+	mbl uint64
+	mbr uint64
+	now   int64
+	index  int
+}
+
+func collectRDTData(handler C.int, now int64, index int, c chan RDTResult, done chan struct{},  wg *sync.WaitGroup ) {
+	tick := time.NewTicker(time.Second)
+	var llcOccupancySum, mblDeltaSum, mbrDeltaSum, count uint64 = 0, 0, 0, 0	
+	defer tick.Stop()
+	defer wg.Done()
+
+	for {
+		select {
+		case <- done:
+			c <- RDTResult{llcOccupancySum / count, mblDeltaSum / count, mbrDeltaSum / count, now, index}
+			return
+		case <- tick.C:
+			pqosResult := C.pgos_mon_poll(handler)
+			llcOccupancySum += uint64(pqosResult.llc)
+			mblDeltaSum += uint64(pqosResult.mbm_local_delta)
+			mbrDeltaSum += uint64(pqosResult.mbm_remote_delta)
+			count ++
+		}
+	}
+
+}
+
 //export collect
 func collect(ctx C.struct_context) C.struct_context {
 	ctx.ret = 0
 	coreCount = int(ctx.core)
 
 	cgroups := make([]*Cgroup, 0, int(ctx.cgroup_count))
+	rdtChan := make(chan RDTResult, int(ctx.cgroup_count))
+	done := make(chan struct{})
+	wg := sync.WaitGroup{}
 
 	for i := 0; i < int(ctx.cgroup_count); i++ {
 		cg := C.get_cgroup(ctx.cgroups, C.int(i))
@@ -127,8 +161,12 @@ func collect(ctx C.struct_context) C.struct_context {
 		}
 		if cg.ret == 0 {
 			cgroups = append(cgroups, c)
+			wg.Add(1)
+			go collectRDTData(cgroups[j].PgosHandler, now, i, rdtChan, done, &wg)
 		}
 	}
+	
+
 	now := time.Now().Unix()
 	ctx.timestamp = C.uint64_t(now)
 	for j := 0; j < len(cgroups); j++ {
@@ -139,6 +177,10 @@ func collect(ctx C.struct_context) C.struct_context {
 		}
 	}
 	time.Sleep(time.Duration(ctx.period) * time.Millisecond)
+	close(done)
+	wg.Wait()
+	close(rdtChan)
+
 	for j := 0; j < len(cgroups); j++ {
 		cg := C.get_cgroup(ctx.cgroups, C.int(cgroups[j].Index))
 		res := make([]uint64, len(counters))
@@ -154,19 +196,23 @@ func collect(ctx C.struct_context) C.struct_context {
 		if cg.ret != 0 {
 			continue
 		}
-		pgosValue := C.pgos_mon_poll(cgroups[j].PgosHandler)
 
 		cg.instructions = C.uint64_t(res[0])
 		cg.cycles = C.uint64_t(res[1])
 		cg.llc_misses = C.uint64_t(res[2])
 		cg.stalls_l2_misses = C.uint64_t(res[3])
 		cg.stalls_memory_load = C.uint64_t(res[4])
-
-		cg.llc_occupancy = pgosValue.llc / 1024
-		cg.mbm_local = C.double(float64(pgosValue.mbm_local_delta) / 1024.0 / 1024.0 / (float64(ctx.period) / 1000.0))
-		cg.mbm_remote = C.double(float64(pgosValue.mbm_remote_delta) / 1024.0 / 1024.0 / (float64(ctx.period) / 1000.0))
-		cgroups[j].Close()
 	}
+
+	for j := 0; j < len(cgroups); j++ {
+		res := <-rdtChan
+		cg := C.get_cgroup(ctx.cgroups, C.int(res.index))
+		cg.llc_occupancy = res.llc / 1024
+		cg.mbm_local = C.double(float64(res.mbl) / 1024.0 / 1024.0 )
+		cg.mbm_remote = C.double(float64(res.mbr) / 1024.0 / 1024.0 )
+		cgroups[res.index].Close()
+	}
+
 	C.pgos_mon_stop()
 	return ctx
 }
