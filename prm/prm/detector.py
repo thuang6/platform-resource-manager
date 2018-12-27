@@ -19,8 +19,8 @@ class ContentionDetector(detectors.AnomalyDetector):
     DETECT_MODE = 'detect'
     WL_META_FILE = 'workload.json'
 
-   def __init__(self, action_delay, mode_config: str = 'collect',
-        agg_period: float = 20):
+    def __init__(self, action_delay, mode_config: str = 'collect',
+                 agg_period: float = 20):
         log.debug('action_delay: %i, mode config: %s, agg_period: %i',
                   action_delay, mode_config, agg_period)
         self.mode_config = mode_config
@@ -136,8 +136,10 @@ class ContentionDetector(detectors.AnomalyDetector):
         """
         Maps container id to a string key identifying statistical model instance.
         """
-        if 'application' in tasks_labels[cid] and 'application_version_name' in tasks_labels[cid]:
-            return tasks_labels[cid]['application'] + '.' + tasks_labels[cid]['application_version_name']
+        if 'application' in tasks_labels[cid] and\
+           'application_version_name' in tasks_labels[cid]:
+            return tasks_labels[cid]['application'] + '.' +\
+                    tasks_labels[cid]['application_version_name']
         else:
             log.debug('no label "application" or "application_version_name" '
                       'passed to detect function by owca for container: {}'.format(cid))
@@ -240,7 +242,7 @@ class ContentionDetector(detectors.AnomalyDetector):
         agg = False
         if self.counter == self.agg_cnt:
             self.counter = 0
-            agg = True 
+            agg = True
         assigned_cpus = 0
         for cid, resources in tasks_resources.items():
             if not self._is_be_app(cid, tasks_labels):

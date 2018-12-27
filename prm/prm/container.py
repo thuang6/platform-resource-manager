@@ -106,8 +106,8 @@ class Container:
                 metrics.append(metric)
         return metrics
 
-    def update_measurement(self, timestamp: float, 
-        measurements: Measurements, agg: bool):
+    def update_measurement(self, timestamp: float,
+                           measurements: Measurements, agg: bool):
         """
         update measurements in current cycle and calculate metrics
         """
@@ -146,7 +146,7 @@ class Container:
                 metrics[Metric.NF] = metrics[Metric.CYC] / delta_t / 10000 /\
                     metrics[Metric.UTIL]
             self._update_metrics_history()
-        
+
         if not self.measurements or agg:
             self.measurements = measurements
             self.timestamp = timestamp
