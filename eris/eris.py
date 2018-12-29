@@ -143,7 +143,7 @@ def set_metrics(ctx, timestamp, data):
             if ctx.args.record:
                 with open(Analyzer.METRIC_FILE, 'a') as metricf:
                     metricf.write(str(con))
-                    message = "prm," + str(int(time.time())) + "," + str(con)
+                    message = "prm," + str(con)
                     ctx.producer.send("lightsaber_metrics", str.encode(message))
 
                 if ctx.args.enable_prometheus:

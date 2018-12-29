@@ -119,7 +119,7 @@ type RDTResult struct {
 }
 
 func collectRDTData(handler C.int, now int64, index int, c chan RDTResult, done chan struct{},  wg *sync.WaitGroup ) {
-	tick := time.NewTicker(time.Second)
+	tick := time.NewTicker(time.Millisecond * 500)
 	var llcOccupancySum, mblDeltaSum, mbrDeltaSum, count uint64 = 0, 0, 0, 0	
 	defer tick.Stop()
 	defer wg.Done()
@@ -149,6 +149,7 @@ func collect(ctx C.struct_context) C.struct_context {
 	rdtChan := make(chan RDTResult, int(ctx.cgroup_count))
 	done := make(chan struct{})
 	wg := sync.WaitGroup{}
+	now := time.Now().Unix()
 
 	for i := 0; i < int(ctx.cgroup_count); i++ {
 		cg := C.get_cgroup(ctx.cgroups, C.int(i))
@@ -162,12 +163,11 @@ func collect(ctx C.struct_context) C.struct_context {
 		if cg.ret == 0 {
 			cgroups = append(cgroups, c)
 			wg.Add(1)
-			go collectRDTData(cgroups[j].PgosHandler, now, i, rdtChan, done, &wg)
+			go collectRDTData(c.PgosHandler, now, i, rdtChan, done, &wg)
 		}
 	}
 	
 
-	now := time.Now().Unix()
 	ctx.timestamp = C.uint64_t(now)
 	for j := 0; j < len(cgroups); j++ {
 		for k := 0; k < len(cgroups[j].Leaders); k++ {
@@ -207,7 +207,7 @@ func collect(ctx C.struct_context) C.struct_context {
 	for j := 0; j < len(cgroups); j++ {
 		res := <-rdtChan
 		cg := C.get_cgroup(ctx.cgroups, C.int(res.index))
-		cg.llc_occupancy = res.llc / 1024
+		cg.llc_occupancy = C.uint64_t(float64(res.llc) / 1024)
 		cg.mbm_local = C.double(float64(res.mbl) / 1024.0 / 1024.0 )
 		cg.mbm_remote = C.double(float64(res.mbr) / 1024.0 / 1024.0 )
 		cgroups[res.index].Close()

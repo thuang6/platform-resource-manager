@@ -24,6 +24,7 @@ from __future__ import division
 
 import time
 import docker 
+import os
 
 from collections import deque
 from itertools import islice
@@ -74,7 +75,6 @@ class Container(object):
     def __str__(self):
         metrics = self.metrics
         cols = [
-            time.ctime(int(metrics['time'])),
             int(metrics['time']),
             self.cid,
             self.name,
@@ -165,24 +165,58 @@ class Container(object):
             pids - pid list of Container
         """
         self.pids = pids
-    
+        
     def update_cpu_usage(self):
         try:
-            client = docker.from_env()
-            container = client.get(self.cid)
-            container_stats = container.stats()['cpu_stats']
-            total_usage = container_stats['cpu_usage']['total_usage']
-            system_usage = container_stats['system_cpu_usage']
-            cpus = container_stats['precpu_stats']['online_cpus']
+            total_usage = 0
+            system_usage = 0
+            #ticks_per_second = os.sysconf_names['SC_CLK_TCK']
+            filename = path_join('/sys/fs/cgroup/cpu/docker',self.cid, 'cpuacct.usage')
+            with open("/proc/stat") as f:
+                stats = [int(e) for e in f.readline().split()[1:]]
+                system_usage = sum(stats) * 1e9 / 100
+                #print(system_usage)
+
+            with open(filename, 'r') as fi:
+                total_usage = int(fi.read().strip())
+                #print(total_usage)
+
+            #client = docker.from_env()
+            #container = client.containers.get(self.cid)
+            #container_stats = container.stats(decode=True, stream=False)
+            #print("docker stats")
+            #print(container_stats['cpu_stats']['cpu_usage']['total_usage'])
+            #print(container_stats['cpu_stats']['system_cpu_usage'])
+            
+            cpus = 28
             cpu_delta = total_usage - self.cpu_usage
             system_delta = system_usage - self.system_usage
             if system_usage != 0:
-                self.utils = (float(cpu_delta) / system_delta) * cpus
+                self.utils = (float(cpu_delta) / system_delta) * cpus * 100
+
             self.cpu_usage = total_usage
             self.system_usage = system_usage
+            #print("util")
+            #print(self.utils) 
         except (ValueError, IOError):
             pass
-
+    """
+    def update_cpu_usage(self):
+        
+        try:
+            cur = time.time() * 1e9
+            filename = path_join('/sys/fs/cgroup/cpu/docker',
+                                 self.cid, 'cpuacct.usage')
+            with open(filename, 'r') as f:
+                usage = int(f.read().strip())
+                if self.cpu_usage != 0:
+                    self.utils = (usage - self.cpu_usage) * 100 /\
+                        (cur - self.timestamp)
+                self.cpu_usage = usage
+                self.timestamp = cur
+        except (ValueError, IOError):
+            pass
+    """
     def update_metrics_history(self):
         '''
         add metric data to metrics history
