@@ -107,7 +107,7 @@ class Analyzer:
                 'util': utilization_threshold,
                 'mean': mean.item(),
                 'std': std.item(),
-                'bar': fbar.item()}
+                'bar': np.float64(fbar).item()}
 
     def _get_fense(self, mdf, is_upper, strict, span, verbose):
         gmm_fense = GmmFense(mdf.values.reshape(-1, 1), verbose)
