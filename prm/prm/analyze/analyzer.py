@@ -109,8 +109,8 @@ class Analyzer:
                 'std': std.item(),
                 'bar': np.float64(fbar).item()}
 
-    def _get_fense(self, mdf, is_upper, strict, span, verbose):
-        gmm_fense = GmmFense(mdf.values.reshape(-1, 1), verbose)
+    def _get_fense(self, mdf, is_upper, strict, span):
+        gmm_fense = GmmFense(mdf.values.reshape(-1, 1))
         if strict:
             return gmm_fense.get_strict_fense(is_upper, span)
 
@@ -134,16 +134,16 @@ class Analyzer:
                                (jdata[Metric.UTIL] <= higher_bound)]
                 cpi = jdataf[Metric.CPI]
                 cpi_thresh = self._get_fense(cpi, True, strict,
-                                             span, verbose)
+                                             span)
                 mpki = jdataf[Metric.L3MPKI]
                 mpki_thresh = self._get_fense(mpki, True, strict,
-                                              span, verbose)
+                                              span)
                 if Metric.MB in jdataf.columns:
                     memb = jdataf[Metric.MB]
                 else:
                     memb = jdataf[Metric.MBL] + jdataf[Metric.MBR]
                 mb_thresh = self._get_fense(memb, False, strict,
-                                            span, verbose)
+                                            span)
                 thresh = {
                     'util_start': lower_bound.item(),
                     'util_end': higher_bound.item(),
@@ -154,12 +154,12 @@ class Analyzer:
                 if Metric.L2SPKI in jdataf.columns:
                     l2spki = jdataf[Metric.L2SPKI]
                     l2spki_thresh = self._get_fense(l2spki, True, strict,
-                                                    span, verbose)
+                                                    span)
                     thresh['l2spki'] = l2spki_thresh.item()
                 if Metric.MSPKI in jdataf.columns:
                     mspki = jdataf[Metric.MSPKI]
                     mspki_thresh = self._get_fense(mspki, True, strict,
-                                                   span, verbose)
+                                                   span)
                     thresh['mspki'] = mspki_thresh.item()
                 self.threshold[job]['thresh'].append(thresh)
             except Exception:
