@@ -29,7 +29,9 @@ different for each of the `twemcache` instances.
 Use the commands:
 
 ```
-git submodule update --init owca
+cd ..
+git submodule update --init
+cd prm
 tox
 ```
 
@@ -42,17 +44,21 @@ loggers:
   prm: debug
 
 runner: !DetectionRunner
+  action_delay: &action_delay 1.
   node: !MesosNode
-  action_delay: 20.
   metrics_storage: !LogStorage
     output_filename: /tmp/metrics.log
   anomalies_storage: !LogStorage
     output_filename: /tmp/anomalies.log
   detector: !ContentionDetector
+    action_delay: *action_delay
   # Available value: 'collect'/'detect'
   # prm collects data of mesos container and writes the data into a csv file under 'collect' mode.
   # prm will build the model based on the data collected and detect the contention under 'detect' mode.
     mode_config: 'collect'
+  # if agg_period value is multiple times of action_delay, prm will aggregate metrics based on agg_period
+  # or it will record metrics based on action_delay
+    agg_period: 20.
   # prm will detect contention base on the rdt. This configuration must be enabled.
   rdt_enabled: True
   # key value pairs to tag the data

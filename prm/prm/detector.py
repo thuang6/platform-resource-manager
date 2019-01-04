@@ -1,3 +1,19 @@
+# Copyright (C) 2018 Intel Corporation
+#  
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#  
+# http://www.apache.org/licenses/LICENSE-2.0
+#  
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#  
+#
+# SPDX-License-Identifier: Apache-2.0
 import logging
 import json
 import numpy as np
@@ -19,9 +35,15 @@ class ContentionDetector(detectors.AnomalyDetector):
     DETECT_MODE = 'detect'
     WL_META_FILE = 'workload.json'
 
-    def __init__(self, mode_config: str = 'collect'):
-        log.debug('Mode config: %s', mode_config)
+    def __init__(self, action_delay, mode_config: str = 'collect',
+                 agg_period: float = 20):
+        log.debug('action_delay: %i, mode config: %s, agg_period: %i',
+                  action_delay, mode_config, agg_period)
         self.mode_config = mode_config
+        self.agg_cnt = int(agg_period) / int(action_delay) \
+            if int(agg_period) % int(action_delay) == 0 else 1
+
+        self.counter = 0
         self.container_map = dict()
         self.ucols = ['time', 'cid', 'name', Metric.UTIL]
         self.mcols = ['time', 'cid', 'name', Metric.CYC, Metric.INST,
@@ -130,8 +152,10 @@ class ContentionDetector(detectors.AnomalyDetector):
         """
         Maps container id to a string key identifying statistical model instance.
         """
-        if 'application' in tasks_labels[cid] and 'application_version_name' in tasks_labels[cid]:
-            return tasks_labels[cid]['application'] + '.' + tasks_labels[cid]['application_version_name']
+        if 'application' in tasks_labels[cid] and\
+           'application_version_name' in tasks_labels[cid]:
+            return tasks_labels[cid]['application'] + '.' +\
+                    tasks_labels[cid]['application_version_name']
         else:
             log.debug('no label "application" or "application_version_name" '
                       'passed to detect function by owca for container: {}'.format(cid))
@@ -230,6 +254,11 @@ class ContentionDetector(detectors.AnomalyDetector):
             tasks_labels: TasksLabels):
         log.debug('prm detect called...')
         log.debug('task_labels=%r', tasks_labels)
+        self.counter += 1
+        agg = False
+        if self.counter == self.agg_cnt:
+            self.counter = 0
+            agg = True
         assigned_cpus = 0
         for cid, resources in tasks_resources.items():
             if not self._is_be_app(cid, tasks_labels):
@@ -251,39 +280,41 @@ class ContentionDetector(detectors.AnomalyDetector):
             app = self._cid_to_app(cid, tasks_labels)
             cidset.add(cid)
             container = self._get_container_from_taskid(cid)
-            container.update_measurement(platform.timestamp, measurements)
-            metrics = container.get_metrics()
-            log.debug('cid=%r container metrics=%r', cid, metrics)
-            if metrics:
-                if not self._is_be_app(cid, tasks_labels):
-                    lcutil += metrics[Metric.UTIL]
-                sysutil += metrics[Metric.UTIL]
-                owca_metrics = container.get_owca_metrics(app)
-                metric_list.extend(owca_metrics)
+            container.update_measurement(platform.timestamp, measurements, agg)
+            if agg:
+                metrics = container.get_metrics()
+                log.debug('cid=%r container metrics=%r', cid, metrics)
+                if metrics:
+                    if not self._is_be_app(cid, tasks_labels):
+                        lcutil += metrics[Metric.UTIL]
+                    sysutil += metrics[Metric.UTIL]
+                    owca_metrics = container.get_owca_metrics(app)
+                    metric_list.extend(owca_metrics)
 
-                if self.mode_config == ContentionDetector.COLLECT_MODE:
-                    name = tasks_labels[cid].get('name', '')
-                    app = self._cid_to_app(cid, tasks_labels)
-                    if app:
-                        self._record_metrics(
-                            platform.timestamp,
-                            app, name, metrics)
+                    if self.mode_config == ContentionDetector.COLLECT_MODE:
+                        name = tasks_labels[cid].get('name', '')
+                        app = self._cid_to_app(cid, tasks_labels)
+                        if app:
+                            self._record_metrics(
+                                platform.timestamp,
+                                app, name, metrics)
 
         self._remove_finished_tasks(cidset)
 
         anomaly_list = []
-        if self.mode_config == ContentionDetector.DETECT_MODE:
-            metric_list.extend(self._get_headroom_metrics(
-                assigned_cpus, lcutil, sysutil))
-            for container in self.container_map.values():
-                app = self._cid_to_app(container.cid, tasks_labels)
-                if app:
-                    anomalies = self._detect_one_task(container, app)
-                    anomaly_list.extend(anomalies)
-        elif self.mode_config == ContentionDetector.COLLECT_MODE:
-            self._record_utils(platform.timestamp, lcutil)
-        if anomaly_list:
-            log.debug('anomalies: %r', anomaly_list)
-        if metric_list:
-            log.debug('metrics: %r', metric_list)
+        if agg:
+            if self.mode_config == ContentionDetector.DETECT_MODE:
+                metric_list.extend(self._get_headroom_metrics(
+                    assigned_cpus, lcutil, sysutil))
+                for container in self.container_map.values():
+                    app = self._cid_to_app(container.cid, tasks_labels)
+                    if app:
+                        anomalies = self._detect_one_task(container, app)
+                        anomaly_list.extend(anomalies)
+            elif self.mode_config == ContentionDetector.COLLECT_MODE:
+                self._record_utils(platform.timestamp, lcutil)
+            if anomaly_list:
+                log.debug('anomalies: %r', anomaly_list)
+            if metric_list:
+                log.debug('metrics: %r', metric_list)
         return anomaly_list, metric_list
