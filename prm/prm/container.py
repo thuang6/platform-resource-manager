@@ -41,6 +41,9 @@ class Container:
         self.metrics = dict()
         self.measurements = None
         self.timestamp = 0
+        self.cpu_usage = 0
+        self.util = 0
+        self.usg_tt = 0
         self.total_llc_occu = 0
         self.llc_cnt = 0
         self.history_depth = history_depth + 1
@@ -111,6 +114,12 @@ class Container:
         """
         update measurements in current cycle and calculate metrics
         """
+        if self.cpu_usage != 0:
+           self.util = (measurements[MetricName.CPU_USAGE_PER_TASK] -\
+           self.cpu_usage) * 100 / ((timestamp - self.usg_tt) * 1e9)
+        self.cpu_usage = measurements[MetricName.CPU_USAGE_PER_TASK]
+        self.usg_tt = timestamp
+
         if measurements[MetricName.LLC_OCCUPANCY] > 0:
             self.total_llc_occu += measurements[MetricName.LLC_OCCUPANCY]
             self.llc_cnt += 1
@@ -123,7 +132,10 @@ class Container:
                 self.measurements[MetricName.INSTRUCTIONS]
             metrics[Metric.L3MISS] = measurements[MetricName.CACHE_MISSES] -\
                 self.measurements[MetricName.CACHE_MISSES]
-            metrics[Metric.L3OCC] = self.total_llc_occu / self.llc_cnt / 1024
+            if self.llc_cnt == 0:
+                metrics[Metric.L3OCC] = 0
+            else:
+                metrics[Metric.L3OCC] = self.total_llc_occu / self.llc_cnt / 1024
             self.total_llc_occu = 0
             self.llc_cnt = 0
             if metrics[Metric.INST] == 0:

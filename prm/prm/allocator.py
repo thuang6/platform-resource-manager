@@ -25,46 +25,63 @@ from owca.detectors import ContentionAnomaly, TasksMeasurements
 from owca.detectors import TasksResources, TasksLabels
 from owca.detectors import ContendedResource
 from owca.metrics import Metric as OwcaMetric
+from owca.allocators import AllocationType, RDTAllocation, AllocationConfiguration
+from owca.allocators import Allocator, TaskAllocations, TasksAllocations, 
 
 from prm.container import Container
+from prm.resource import Resource
+from prm.naivectl import NaiveController
+from prm.cpucycle import CpuCycle 
+from prm.llcoccup import LlcOccup
+
 from prm.analyze.analyzer import Metric, Analyzer
+
 
 log = logging.getLogger(__name__)
 
 
-class ContentionDetector(detectors.AnomalyDetector):
+class ResourceAllocator(Allocator):
     COLLECT_MODE = 'collect'
     DETECT_MODE = 'detect'
     WL_META_FILE = 'workload.json'
 
     def __init__(self, action_delay, mode_config: str = 'collect',
-                 agg_period: float = 20):
+                 agg_period: float = 20, exclusive_cat: bool = False):
         log.debug('action_delay: %i, mode config: %s, agg_period: %i',
                   action_delay, mode_config, agg_period)
         self.mode_config = mode_config
+        self.exclusive_cat = exclusive_cat
         self.agg_cnt = int(agg_period) / int(action_delay) \
             if int(agg_period) % int(action_delay) == 0 else 1
 
         self.counter = 0
         self.agg = False
         self.container_map = dict()
+        self.bes = set()
+        self.lcs = set()
         self.ucols = ['time', 'cid', 'name', Metric.UTIL]
         self.mcols = ['time', 'cid', 'name', Metric.CYC, Metric.INST,
                       Metric.L3MISS, Metric.L3OCC, Metric.MB, Metric.CPI,
                       Metric.L3MPKI, Metric.NF, Metric.UTIL]
-        if mode_config == ContentionDetector.COLLECT_MODE:
+        if mode_config == ResourceAllocator.COLLECT_MODE:
             self.analyzer = Analyzer()
             self.workload_meta = {}
             self._init_data_file(Analyzer.UTIL_FILE, self.ucols)
             self._init_data_file(Analyzer.METRIC_FILE, self.mcols)
         else:
             try:
-                with open(ContentionDetector.WL_META_FILE, 'r') as wlf:
+                with open(ResourceAllocator.WL_META_FILE, 'r') as wlf:
                     self.analyzer = Analyzer(wlf)
             except Exception as e:
                 log.exception('cannot read workload file - stopped')
                 raise e
             self.analyzer.build_model()
+            self.cpuc = CpuCycle(self.analyzer.get_lcutilmax(), 0.5, False)
+            self.l3c = LlcOccup(self.exclusive_cat)
+            cpuc_controller = NaiveController(self.cpuc, 10)
+            llc_controller = NaiveController(self.l3c, 6)
+            self.controllers = {ContendedResource.CPUS: cpuc_controller,
+                ContendedResource.LLC: llc_controller}
 
     def _init_data_file(self, data_file, cols):
         headline = None
@@ -138,14 +155,6 @@ class ContentionDetector(detectors.AnomalyDetector):
 
         return anomalies
 
-    def _get_container_from_taskid(self, cid):
-        if cid in self.container_map:
-            container = self.container_map[cid]
-        else:
-            container = Container(cid)
-            self.container_map[cid] = container
-        return container
-
     def _remove_finished_tasks(self, cidset: set):
         for cid in self.container_map.copy():
             if cid not in cidset:
@@ -175,6 +184,7 @@ class ContentionDetector(detectors.AnomalyDetector):
         util_max = self.analyzer.get_lcutilmax()
         if util_max < lcutil:
             self.analyzer.update_lcutilmax(lcutil)
+            self.cpuc.update_max_sys_util(lcutil)
             util_max = lcutil
         capacity = assign_cpus * 100
         return [OwcaMetric(name=Metric.LCCAPACITY, value=capacity),
@@ -238,15 +248,15 @@ class ContentionDetector(detectors.AnomalyDetector):
         with open(Analyzer.UTIL_FILE, 'a') as utilf:
             utilf.write(','.join(row) + '\n')
 
-    def _record_metrics(self, time, cid, name, metrics):
-        row = [str(time), cid, name]
+    def _record_metrics(self, time, name, cid, metrics):
+        row = [str(time), cid, name if name else '']
         for i in range(3, len(self.mcols)):
             row.append(str(metrics[self.mcols[i]]))
         with open(Analyzer.METRIC_FILE, 'a') as metricf:
             metricf.write(','.join(row) + '\n')
 
     def _update_workload_meta(self):
-        with open(ContentionDetector.WL_META_FILE, 'w') as wlf:
+        with open(ResourceAllocator.WL_META_FILE, 'w') as wlf:
             wlf.write(json.dumps(self.workload_meta))
 
     def _get_task_resources(self, tasks_resources: TasksResources,
@@ -257,12 +267,16 @@ class ContentionDetector(detectors.AnomalyDetector):
             cidset.add(cid)
             if not self._is_be_app(cid, tasks_labels):
                 assigned_cpus += resources['cpus']
-            if self.mode_config == ContentionDetector.COLLECT_MODE:
+                if self.exclusive_cat:
+                    self.lcs.add(cid)
+            else:
+                self.bes.add(cid)
+            if self.mode_config == ResourceAllocator.COLLECT_MODE:
                 app = self._cid_to_app(cid, tasks_labels)
                 if app:
                     self.workload_meta[app] = resources
 
-        if self.mode_config == ContentionDetector.COLLECT_MODE:
+        if self.mode_config == ResourceAllocator.COLLECT_MODE:
             self._update_workload_meta()
         
         self._remove_finished_tasks(cidset)
@@ -274,12 +288,28 @@ class ContentionDetector(detectors.AnomalyDetector):
 
         sysutil = 0
         lcutil = 0
+        beutil = 0
         for cid, measurements in tasks_measurements.items():
             app = self._cid_to_app(cid, tasks_labels)
-            container = self._get_container_from_taskid(cid)
+            if cid in self.container_map:
+                container = self.container_map[cid]
+            else:
+                container = Container(cid)
+                self.container_map[cid] = container
+                if self.mode_config == ResourceAllocator.DETECT_MODE:
+                    if cid in self.bes:
+                        self.cpuc.set_share(cid, AllocationConfiguration.cpu_share_min)
+                        self.l3c.budgeting([cid], [])
+                    else:
+                        self.cpuc.set_share(cid, AllocationConfiguration.cpu_share_max)
+                        if self.exclusive_cat:
+                            self.l3c.budgeting([], [cid])
+                    
             container.update_measurement(timestamp, measurements, self.agg)
-            if not self._is_be_app(cid, tasks_labels):
+            if cid not in self.bes:
                 lcutil += container.util
+            else:
+                beutil += container.util
             sysutil += container.util
             if self.agg:
                 metrics = container.get_metrics()
@@ -287,49 +317,74 @@ class ContentionDetector(detectors.AnomalyDetector):
                 if metrics:
                     owca_metrics = container.get_owca_metrics(app)
                     metric_list.extend(owca_metrics)
-                    if self.mode_config == ContentionDetector.COLLECT_MODE:
+                    if self.mode_config == ResourceAllocator.COLLECT_MODE:
                         app = self._cid_to_app(cid, tasks_labels)
                         if app:
                             self._record_metrics(timestamp, cid, app, metrics)
 
-        if self.mode_config == ContentionDetector.COLLECT_MODE:
+        if self.mode_config == ResourceAllocator.COLLECT_MODE:
             self._record_utils(timestamp, lcutil)
-        elif self.mode_config == ContentionDetector.DETECT_MODE:
+        elif self.mode_config == ResourceAllocator.DETECT_MODE:
             metric_list.extend(self._get_headroom_metrics(
                 assigned_cpus, lcutil, sysutil))
+            if self.bes:
+                exceed, hold = self.cpuc.detect_margin_exceed(lcutil, beutil)
+                self.controllers[ContendedResource.CPUS].update(self.bes, [],
+                    exceed, hold)
 
-    def detect(
+    def _allocate_resources(self, anomalies: List[ContentionAnomaly]):
+        contentions = {
+            ContendedResource.LLC : False,
+            ContendedResource.MEMORY_BW: False,
+            ContendedResource.UNKN: False
+        }
+        for anomaly in anomalies:
+            contentions[anomaly.resource] = True
+        for contention, flag in contentions:
+            if contention in self.controllers:
+                self.controllers[contention].update(self.bes, self.lcs, flag, False)
+
+    def allocate(
             self,
             platform: Platform,
             tasks_measurements: TasksMeasurements,
             tasks_resources: TasksResources,
-            tasks_labels: TasksLabels):
+            tasks_labels: TasksLabels,
+            tasks_allocs: TasksAllocations):
         log.debug('prm detect called...')
-        log.debug('task_labels=%r', tasks_labels)
+        log.debug('tasks_labels=%r', tasks_labels)
+        log.debug('current tasks_allocations=%r', tasks_allocs)
+
         self.counter += 1
         if self.counter == self.agg_cnt:
             self.counter = 0
             self.agg = True
         else:
             self.agg = False
-       
+ 
+        self.bes.clear()
+        self.lcs.clear()
         assigned_cpus = self._get_task_resources(tasks_resources, tasks_labels)
 
+        allocs: TasksAllocations = dict()
+        self.cpuc.update_allocs(tasks_allocs, allocs, platform.ncpu)
+        self.l3c.update_allocs(tasks_allocs, allocs, platform.cbm_mask, platform.sockets)
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
         self._process_measurements(tasks_measurements, tasks_labels, metric_list,
             platform.timestamp, assigned_cpus)
-
+        
         anomaly_list = []
         if self.agg:
-            if self.mode_config == ContentionDetector.DETECT_MODE:
+            if self.mode_config == ResourceAllocator.DETECT_MODE:
                 for container in self.container_map.values():
                     app = self._cid_to_app(container.cid, tasks_labels)
-                    if app:
+                    if app and container.cid not in self.bes:
                         anomalies = self._detect_one_task(container, app)
                         anomaly_list.extend(anomalies)
             if anomaly_list:
+                self._allocate_resources()
                 log.debug('anomalies: %r', anomaly_list)
         if metric_list:
             log.debug('metrics: %r', metric_list)
-        return anomaly_list, metric_list
+        return allocs, anomaly_list, metric_list
