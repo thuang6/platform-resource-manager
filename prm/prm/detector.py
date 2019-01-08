@@ -250,7 +250,7 @@ class ContentionDetector(detectors.AnomalyDetector):
             wlf.write(json.dumps(self.workload_meta))
 
     def _get_task_resources(self, tasks_resources: TasksResources,
-        tasks_labels: TasksLabels): 
+                            tasks_labels: TasksLabels):
         assigned_cpus = 0
         cidset = set()
         for cid, resources in tasks_resources.items():
@@ -264,13 +264,13 @@ class ContentionDetector(detectors.AnomalyDetector):
 
         if self.mode_config == ContentionDetector.COLLECT_MODE:
             self._update_workload_meta()
-        
+
         self._remove_finished_tasks(cidset)
         return assigned_cpus
 
     def _process_measurements(self, tasks_measurements: TasksMeasurements,
-        tasks_labels: TasksLabels, metric_list: List[OwcaMetric],
-        timestamp: float, assigned_cpus: float):
+                              tasks_labels: TasksLabels, metric_list: List[OwcaMetric],
+                              timestamp: float, assigned_cpus: float):
 
         sysutil = 0
         lcutil = 0
@@ -312,13 +312,13 @@ class ContentionDetector(detectors.AnomalyDetector):
             self.agg = True
         else:
             self.agg = False
-       
+
         assigned_cpus = self._get_task_resources(tasks_resources, tasks_labels)
 
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
         self._process_measurements(tasks_measurements, tasks_labels, metric_list,
-            platform.timestamp, assigned_cpus)
+                                   platform.timestamp, assigned_cpus)
 
         anomaly_list = []
         if self.agg:

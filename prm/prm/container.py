@@ -115,8 +115,8 @@ class Container:
         update measurements in current cycle and calculate metrics
         """
         if self.cpu_usage != 0:
-           self.util = (measurements[MetricName.CPU_USAGE_PER_TASK] -\
-           self.cpu_usage) * 100 / ((timestamp - self.usg_tt) * 1e9)
+            self.util = (measurements[MetricName.CPU_USAGE_PER_TASK] -
+                         self.cpu_usage) * 100 / ((timestamp - self.usg_tt) * 1e9)
         self.cpu_usage = measurements[MetricName.CPU_USAGE_PER_TASK]
         self.usg_tt = timestamp
 

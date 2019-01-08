@@ -21,14 +21,13 @@ from __future__ import print_function
 from __future__ import division
 
 import logging
-from typing import Union
 
-from datetime import datetime
 from prm.resource import Resource
 
 from owca.allocators import AllocationType
 
 log = logging.getLogger(__name__)
+
 
 class CpuCycle(Resource):
     """ This class is the resource class of CPU cycle """
@@ -63,24 +62,24 @@ class CpuCycle(Resource):
         monitored
             lc_max_util - maximal LC workloads utilization monitored
         """
-        self.quota_max = lc_max_util / 100 / self.ncpu 
+        self.quota_max = lc_max_util / 100 / self.ncpu
         self.quota_step = self.quota_max / Resource.BUGET_LEV_MAX
-        
+
     def __set_alloc(self, task_id, alloc_type: AllocationType, alloc: float):
         is_new = True
         if task_id in self.cur_allocs and\
             alloc_type in self.cur_allocs[task_id] and\
-            alloc == self.cur_allocs[task_id][alloc_type]:
+                alloc == self.cur_allocs[task_id][alloc_type]:
             is_new = False
-        
+
         if is_new:
             if task_id in self.new_allocs:
                 task_allocs = self.new_allocs[task_id]
             else:
-                task_allocs= dict()
+                task_allocs = dict()
                 self.new_allocs[task_id] = task_allocs
             task_allocs[alloc_type] = alloc
-            
+
     def set_share(self, cid, share: float):
         self.__set_alloc(cid, AllocationType.SHARES, share)
 
@@ -103,8 +102,8 @@ class CpuCycle(Resource):
 
         if self.verbose:
             log.debug('lcUtils: %i, beUtils: %i, margin: %i, quota max %i',
-                lc_utils, be_utils, margin * self.ncpu * 100,
-                self.quota_max * self.ncpu * 100)
+                      lc_utils, be_utils, margin * self.ncpu * 100,
+                      self.quota_max * self.ncpu * 100)
 
         exceed = lc_utils == 0 or lc_utils + be_utils + margin > self.quota_max
 

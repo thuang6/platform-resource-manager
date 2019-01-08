@@ -19,19 +19,17 @@ import json
 import numpy as np
 from tying import List
 
-from owca import detectors
 from owca.platforms import Platform
 from owca.detectors import ContentionAnomaly, TasksMeasurements
 from owca.detectors import TasksResources, TasksLabels
 from owca.detectors import ContendedResource
 from owca.metrics import Metric as OwcaMetric
-from owca.allocators import AllocationType, RDTAllocation, AllocationConfiguration
-from owca.allocators import Allocator, TaskAllocations, TasksAllocations, 
+from owca.allocators import AllocationConfiguration
+from owca.allocators import Allocator, TasksAllocations
 
 from prm.container import Container
-from prm.resource import Resource
 from prm.naivectl import NaiveController
-from prm.cpucycle import CpuCycle 
+from prm.cpucycle import CpuCycle
 from prm.llcoccup import LlcOccup
 
 from prm.analyze.analyzer import Metric, Analyzer
@@ -81,7 +79,7 @@ class ResourceAllocator(Allocator):
             cpuc_controller = NaiveController(self.cpuc, 10)
             llc_controller = NaiveController(self.l3c, 6)
             self.controllers = {ContendedResource.CPUS: cpuc_controller,
-                ContendedResource.LLC: llc_controller}
+                                ContendedResource.LLC: llc_controller}
 
     def _init_data_file(self, data_file, cols):
         headline = None
@@ -260,7 +258,7 @@ class ResourceAllocator(Allocator):
             wlf.write(json.dumps(self.workload_meta))
 
     def _get_task_resources(self, tasks_resources: TasksResources,
-        tasks_labels: TasksLabels): 
+                            tasks_labels: TasksLabels):
         assigned_cpus = 0
         cidset = set()
         for cid, resources in tasks_resources.items():
@@ -278,13 +276,13 @@ class ResourceAllocator(Allocator):
 
         if self.mode_config == ResourceAllocator.COLLECT_MODE:
             self._update_workload_meta()
-        
+
         self._remove_finished_tasks(cidset)
         return assigned_cpus
 
     def _process_measurements(self, tasks_measurements: TasksMeasurements,
-        tasks_labels: TasksLabels, metric_list: List[OwcaMetric],
-        timestamp: float, assigned_cpus: float):
+                              tasks_labels: TasksLabels, metric_list: List[OwcaMetric],
+                              timestamp: float, assigned_cpus: float):
 
         sysutil = 0
         lcutil = 0
@@ -304,7 +302,7 @@ class ResourceAllocator(Allocator):
                         self.cpuc.set_share(cid, AllocationConfiguration.cpu_share_max)
                         if self.exclusive_cat:
                             self.l3c.budgeting([], [cid])
-                    
+
             container.update_measurement(timestamp, measurements, self.agg)
             if cid not in self.bes:
                 lcutil += container.util
@@ -329,12 +327,11 @@ class ResourceAllocator(Allocator):
                 assigned_cpus, lcutil, sysutil))
             if self.bes:
                 exceed, hold = self.cpuc.detect_margin_exceed(lcutil, beutil)
-                self.controllers[ContendedResource.CPUS].update(self.bes, [],
-                    exceed, hold)
+                self.controllers[ContendedResource.CPUS].update(self.bes, [], exceed, hold)
 
     def _allocate_resources(self, anomalies: List[ContentionAnomaly]):
         contentions = {
-            ContendedResource.LLC : False,
+            ContendedResource.LLC: False,
             ContendedResource.MEMORY_BW: False,
             ContendedResource.UNKN: False
         }
@@ -361,7 +358,7 @@ class ResourceAllocator(Allocator):
             self.agg = True
         else:
             self.agg = False
- 
+
         self.bes.clear()
         self.lcs.clear()
         assigned_cpus = self._get_task_resources(tasks_resources, tasks_labels)
@@ -372,8 +369,8 @@ class ResourceAllocator(Allocator):
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
         self._process_measurements(tasks_measurements, tasks_labels, metric_list,
-            platform.timestamp, assigned_cpus)
-        
+                                   platform.timestamp, assigned_cpus)
+
         anomaly_list = []
         if self.agg:
             if self.mode_config == ResourceAllocator.DETECT_MODE:

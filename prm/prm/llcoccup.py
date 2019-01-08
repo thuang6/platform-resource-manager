@@ -20,12 +20,12 @@
 from __future__ import print_function
 
 import logging
-from datetime import datetime
 from prm.resource import Resource
 
 from owca.allocators import AllocationType, RDTAllocation
 
 log = logging.getLogger(__name__)
+
 
 class LlcOccup(Resource):
     """ This class is the resource class of LLC occupancy """
@@ -45,14 +45,13 @@ class LlcOccup(Resource):
         bitcnt = LlcOccup._get_cbm_bit_count(cbm_mask)
         if not self.be_bmp:
             self.be_bmp = [hex(((1 << (i + 1)) - 1) << (bitcnt - 1 - i))
-                            for i in range(1, bitcnt)]
+                           for i in range(1, bitcnt)]
             self.lc_bmp = [hex((1 << (bitcnt - 1 - i)) - 1)
-                            for i in range(1, bitcnt)]
+                           for i in range(1, bitcnt)]
             if self.exclusive:
                 self.be_bmp = self.be_bmp[0:int(bitcnt / 2)]
                 self.lc_bmp = self.lc_bmp[0:int(bitcnt / 2)]
-            super(LlcOccup, self).set_level_max(int(bitcnt / 2) if
-                                       self.exclusive else bitcnt)
+            super(LlcOccup, self).set_level_max(int(bitcnt / 2) if self.exclusive else bitcnt)
 
     @staticmethod
     def _get_cbm_bit_count(cbm_mask):
@@ -65,9 +64,9 @@ class LlcOccup(Resource):
         is_new = True
         if task_id in self.cur_allocs and\
             AllocationType.RDT in self.cur_allocs[task_id] and\
-            alloc == self.cur_allocs[task_id][AllocationType.RDT].l3:
+                alloc == self.cur_allocs[task_id][AllocationType.RDT].l3:
             is_new = False
-        
+
         if is_new:
             if task_id in self.new_allocs:
                 task_allocs = self.new_allocs[task_id]
@@ -90,17 +89,17 @@ class LlcOccup(Resource):
             bmp = self.lc_bmp
             name = 'LC_Group'
         l3s = [str(idx) + '=' + bmp[self.quota_level] for idx in range(self.nsocks)]
-        l3_allocs = 'L3:' + ';'.join(l3s) 
-        self._set_alloc(cid, name, l3_allocs)        
+        l3_allocs = 'L3:' + ';'.join(l3s)
+        self._set_alloc(cid, name, l3_allocs)
 
     def budgeting(self, bes, lcs):
         if bes:
             for cid in bes:
                 self._budgeting(cid, True)
-            log.info('set container ' + ','.join(bes) + ' llc occupancy to ' + 
-                self.be_bmp[self.quota_level])
+            log.info('set container ' + ','.join(bes) + ' llc occupancy to ' +
+                     self.be_bmp[self.quota_level])
         if lcs:
             for cid in lcs:
                 self._budgeting(cid, False)
-            log.info('set container ' + ','.join(lcs) + ' llc occupancy to ' + 
-                self.lc_bmp[self.quota_level])
+            log.info('set container ' + ','.join(lcs) + ' llc occupancy to ' +
+                     self.lc_bmp[self.quota_level])
