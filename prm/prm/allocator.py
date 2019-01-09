@@ -45,8 +45,8 @@ class ResourceAllocator(Allocator):
 
     def __init__(self, action_delay, mode_config: str = 'collect',
                  agg_period: float = 20, exclusive_cat: bool = False):
-        log.debug('action_delay: %i, mode config: %s, agg_period: %i',
-                  action_delay, mode_config, agg_period)
+        log.debug('action_delay: %i, mode config: %s, agg_period: %i, exclusive: %s',
+                  action_delay, mode_config, agg_period, exclusive_cat)
         self.mode_config = mode_config
         self.exclusive_cat = exclusive_cat
         self.agg_cnt = int(agg_period) / int(action_delay) \
@@ -246,8 +246,8 @@ class ResourceAllocator(Allocator):
         with open(Analyzer.UTIL_FILE, 'a') as utilf:
             utilf.write(','.join(row) + '\n')
 
-    def _record_metrics(self, time, name, cid, metrics):
-        row = [str(time), cid, name if name else '']
+    def _record_metrics(self, time, cid, name, metrics):
+        row = [str(time), cid, name]
         for i in range(3, len(self.mcols)):
             row.append(str(metrics[self.mcols[i]]))
         with open(Analyzer.METRIC_FILE, 'a') as metricf:
@@ -367,7 +367,7 @@ class ResourceAllocator(Allocator):
 
         allocs: TasksAllocations = dict()
         if self.mode_config == ResourceAllocator.DETECT_MODE:
-            self.cpuc.update_allocs(tasks_allocs, allocs, platform.ncpu)
+            self.cpuc.update_allocs(tasks_allocs, allocs, platform.cpus)
             self.l3c.update_allocs(tasks_allocs, allocs, platform.cbm_mask, platform.sockets)
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())

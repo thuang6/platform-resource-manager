@@ -36,11 +36,10 @@ class CpuCycle(Resource):
     CPU_QUOTA_PERCENT = CPU_QUOTA_CORE / 100
     CPU_QUOTA_HALF_CORE = CPU_QUOTA_CORE * 0.5
 
-    def __init__(self, sysMaxUtil, minMarginRatio, verbose):
+    def __init__(self, lc_max, min_margin_ratio, verbose):
         super(CpuCycle, self).__init__()
-        self.min_margin_ratio = minMarginRatio
-        self.update_max_sys_util(sysMaxUtil)
-        self.update()
+        self.min_margin_ratio = min_margin_ratio
+        self.lc_max = lc_max
         self.verbose = verbose
         self.cur_allocs = None
         self.new_allocs = None
@@ -49,6 +48,8 @@ class CpuCycle(Resource):
         self.cur_allocs = cur_allocs
         self.new_allocs = new_allocs
         self.ncpu = ncpu
+        self.update_max_sys_util(self.lc_max)
+        self.update()
 
     def update(self):
         if self.is_min_level():
@@ -62,6 +63,7 @@ class CpuCycle(Resource):
         monitored
             lc_max_util - maximal LC workloads utilization monitored
         """
+        self.lc_max = lc_max_util
         self.quota_max = lc_max_util / 100 / self.ncpu
         self.quota_step = self.quota_max / Resource.BUGET_LEV_MAX
 
