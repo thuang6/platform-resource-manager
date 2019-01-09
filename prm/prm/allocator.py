@@ -17,7 +17,7 @@
 import logging
 import json
 import numpy as np
-from tying import List
+from typing import List
 
 from owca.platforms import Platform
 from owca.detectors import ContentionAnomaly, TasksMeasurements
@@ -348,7 +348,9 @@ class ResourceAllocator(Allocator):
             tasks_resources: TasksResources,
             tasks_labels: TasksLabels,
             tasks_allocs: TasksAllocations):
-        log.debug('prm detect called...')
+        log.debug('prm allocate called...')
+        log.debug('platform=%r', platform)
+        log.debug('tasks_resources=%r', tasks_resources)
         log.debug('tasks_labels=%r', tasks_labels)
         log.debug('current tasks_allocations=%r', tasks_allocs)
 
@@ -364,8 +366,9 @@ class ResourceAllocator(Allocator):
         assigned_cpus = self._get_task_resources(tasks_resources, tasks_labels)
 
         allocs: TasksAllocations = dict()
-        self.cpuc.update_allocs(tasks_allocs, allocs, platform.ncpu)
-        self.l3c.update_allocs(tasks_allocs, allocs, platform.cbm_mask, platform.sockets)
+        if self.mode_config == ResourceAllocator.DETECT_MODE:
+            self.cpuc.update_allocs(tasks_allocs, allocs, platform.ncpu)
+            self.l3c.update_allocs(tasks_allocs, allocs, platform.cbm_mask, platform.sockets)
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
         self._process_measurements(tasks_measurements, tasks_labels, metric_list,
@@ -384,4 +387,6 @@ class ResourceAllocator(Allocator):
                 log.debug('anomalies: %r', anomaly_list)
         if metric_list:
             log.debug('metrics: %r', metric_list)
+        if allocs:
+            log.debug('allocs: %r', allocs)
         return allocs, anomaly_list, metric_list
