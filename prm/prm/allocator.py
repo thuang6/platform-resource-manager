@@ -296,10 +296,10 @@ class ResourceAllocator(Allocator):
                 self.container_map[cid] = container
                 if self.mode_config == ResourceAllocator.DETECT_MODE:
                     if cid in self.bes:
-                        self.cpuc.set_share(cid, AllocationConfiguration.cpu_share_min)
+                        self.cpuc.set_share(cid, AllocationConfiguration.cpu_shares_min)
                         self.l3c.budgeting([cid], [])
                     else:
-                        self.cpuc.set_share(cid, AllocationConfiguration.cpu_share_max)
+                        self.cpuc.set_share(cid, AllocationConfiguration.cpu_shares_max)
                         if self.exclusive_cat:
                             self.l3c.budgeting([], [cid])
 
@@ -368,7 +368,7 @@ class ResourceAllocator(Allocator):
         allocs: TasksAllocations = dict()
         if self.mode_config == ResourceAllocator.DETECT_MODE:
             self.cpuc.update_allocs(tasks_allocs, allocs, platform.cpus)
-            self.l3c.update_allocs(tasks_allocs, allocs, platform.cbm_mask, platform.sockets)
+            self.l3c.update_allocs(tasks_allocs, allocs, platform.rdt_cbm_mask, platform.sockets)
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
         self._process_measurements(tasks_measurements, tasks_labels, metric_list,
