@@ -494,12 +494,11 @@ def main():
                 metricf.write(','.join(cols) + '\n')
         ctx.pgos = Pgos(cpu_count(), ctx.args.metric_interval * 1000 - 500)
         ret = ctx.pgos.init_pgos()
-        if ret == 0:
-            threads.append(Thread(target=monitor,
-                                  args=(mon_metric_cycle,
-                                        ctx, ctx.args.metric_interval)))
-        else:
+        if ret != 0:
             print('error in libpgos init, error code: ' + str(ret))
+        threads.append(Thread(target=monitor,
+                              args=(mon_metric_cycle,
+                                    ctx, ctx.args.metric_interval)))
 
     for thread in threads:
         thread.start()
