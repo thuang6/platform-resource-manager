@@ -90,6 +90,7 @@ var pqosLog *os.File
 func pgos_init() C.int {
 	pqosLog, err := os.OpenFile("/tmp/pqos.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
+		pqosEnabled = false
 		return ErrorPqosInitFailure
 	}
 
