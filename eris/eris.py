@@ -489,7 +489,7 @@ def main():
                     Metric.MSPKI]
             with open(Analyzer.METRIC_FILE, 'w') as metricf:
                 metricf.write(','.join(cols) + '\n')
-        ctx.pgos = Pgos(cpu_count(), ctx.args.metric_interval * 1000 - 500)
+        ctx.pgos = Pgos(cpu_count(), ctx.args.metric_interval * 1000 - 1500)
         ret = ctx.pgos.init_pgos()
         if ret != 0:
             print('error in libpgos init, error code: ' + str(ret))
