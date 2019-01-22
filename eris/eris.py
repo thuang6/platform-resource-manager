@@ -389,8 +389,6 @@ def detect_cgroup_driver():
     client = docker.from_env()
     dockinfo = client.info()
     cgroup_driver = dockinfo['CgroupDriver']
-    if cgroup_driver != 'cgroupfs':
-        print('Unknown cgroup driver: ' + cgroup_driver)
 
     return cgroup_driver
 
