@@ -24,7 +24,6 @@ from owca.detectors import ContentionAnomaly, TasksMeasurements
 from owca.detectors import TasksResources, TasksLabels
 from owca.detectors import ContendedResource
 from owca.metrics import Metric as OwcaMetric
-from owca.allocators import AllocationConfiguration
 from owca.allocators import Allocator, TasksAllocations
 
 from prm.container import Container
@@ -296,10 +295,10 @@ class ResourceAllocator(Allocator):
                 self.container_map[cid] = container
                 if self.mode_config == ResourceAllocator.DETECT_MODE:
                     if cid in self.bes:
-                        self.cpuc.set_share(cid, AllocationConfiguration.cpu_shares_min)
+                        self.cpuc.set_share(cid, 0.0)
                         self.l3c.budgeting([cid], [])
                     else:
-                        self.cpuc.set_share(cid, AllocationConfiguration.cpu_shares_max)
+                        self.cpuc.set_share(cid, 1.0)
                         if self.exclusive_cat:
                             self.l3c.budgeting([], [cid])
 
