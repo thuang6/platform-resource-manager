@@ -446,6 +446,17 @@ def parse_arguments():
         print(args)
     return args
 
+def init_data_file(data_file, cols):
+    headline = None
+    try:
+        with open(data_file, 'r') as dtf:
+            headline = dtf.readline()
+    except Exception:
+            print('cannot open' + data_file + 'for reading - ignore')
+    if headline != ','.join(cols) + '\n':
+        with open(data_file, 'w') as dtf:
+            dtf.write(','.join(cols) + '\n')
+
 
 def main():
     """ Script entry point. """
@@ -474,9 +485,7 @@ def main():
                                Contention.LLC: llc_controller}
     if ctx.args.record:
         cols = ['time', 'cid', 'name', Metric.UTIL]
-        with open(Analyzer.UTIL_FILE, 'w') as utilf:
-            utilf.write(','.join(cols) + '\n')
-
+        init_data_file(Analyzer.UTIL_FILE, cols)
     threads = [Thread(target=monitor, args=(mon_util_cycle,
                                             ctx, ctx.args.util_interval))]
 
@@ -487,8 +496,7 @@ def main():
                     Metric.UTIL, Metric.L3OCC, Metric.MBL, Metric.MBR,
                     Metric.L2STALL, Metric.MEMSTALL, Metric.L2SPKI,
                     Metric.MSPKI]
-            with open(Analyzer.METRIC_FILE, 'w') as metricf:
-                metricf.write(','.join(cols) + '\n')
+            init_data_file(Analyzer.METRIC_FILE, cols)
         ctx.pgos = Pgos(cpu_count(), ctx.args.metric_interval * 1000 - 1500)
         ret = ctx.pgos.init_pgos()
         if ret != 0:
