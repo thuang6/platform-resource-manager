@@ -123,7 +123,10 @@ class Container:
                 self.measurements[MetricName.INSTRUCTIONS]
             metrics[Metric.L3MISS] = measurements[MetricName.CACHE_MISSES] -\
                 self.measurements[MetricName.CACHE_MISSES]
-            metrics[Metric.L3OCC] = self.total_llc_occu / self.llc_cnt / 1024
+            if self.llc_cnt == 0:
+                metrics[Metric.L3OCC] = 0
+            else:
+                metrics[Metric.L3OCC] = self.total_llc_occu / self.llc_cnt / 1024
             self.total_llc_occu = 0
             self.llc_cnt = 0
             if metrics[Metric.INST] == 0:
