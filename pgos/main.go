@@ -83,12 +83,14 @@ type Cgroup struct {
 	PgosHandler C.int
 }
 
+var pqosEnabled bool = false
 var pqosLog *os.File
 
 //export pgos_init
 func pgos_init() C.int {
 	pqosLog, err := os.OpenFile("/tmp/pqos.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
+		pqosEnabled = false
 		return ErrorPqosInitFailure
 	}
 
@@ -98,15 +100,19 @@ func pgos_init() C.int {
 		_interface: C.PQOS_INTER_OS,
 	}
 	if C.pqos_init(&config) != C.PQOS_RETVAL_OK {
+		pqosEnabled = false
 		return ErrorPqosInitFailure
 	}
+	pqosEnabled = true
 	return 0
 }
 
 //export pgos_finalize
 func pgos_finalize() {
-	pqosLog.Close()
-	C.pqos_fini()
+	if pqosEnabled {
+		pqosLog.Close()
+		C.pqos_fini()
+	}
 }
 
 //export collect
@@ -122,7 +128,7 @@ func collect(ctx C.struct_context) C.struct_context {
 		path, cid := C.GoString(cg.path), C.GoString(cg.cid)
 		c, code := NewCgroup(path, cid, i)
 		cg.ret |= code
-		if c != nil {
+		if c != nil && pqosEnabled {
 			cg.ret |= c.GetPgosHandler()
 		}
 		if cg.ret == 0 {
@@ -154,7 +160,6 @@ func collect(ctx C.struct_context) C.struct_context {
 		if cg.ret != 0 {
 			continue
 		}
-		pgosValue := C.pgos_mon_poll(cgroups[j].PgosHandler)
 
 		cg.instructions = C.uint64_t(res[0])
 		cg.cycles = C.uint64_t(res[1])
@@ -162,12 +167,17 @@ func collect(ctx C.struct_context) C.struct_context {
 		cg.stalls_l2_misses = C.uint64_t(res[3])
 		cg.stalls_memory_load = C.uint64_t(res[4])
 
-		cg.llc_occupancy = pgosValue.llc / 1024
-		cg.mbm_local = C.double(float64(pgosValue.mbm_local_delta) / 1024.0 / 1024.0 / (float64(ctx.period) / 1000.0))
-		cg.mbm_remote = C.double(float64(pgosValue.mbm_remote_delta) / 1024.0 / 1024.0 / (float64(ctx.period) / 1000.0))
+		if pqosEnabled {
+			pgosValue := C.pgos_mon_poll(cgroups[j].PgosHandler)
+			cg.llc_occupancy = pgosValue.llc / 1024
+			cg.mbm_local = C.double(float64(pgosValue.mbm_local_delta) / 1024.0 / 1024.0 / (float64(ctx.period) / 1000.0))
+			cg.mbm_remote = C.double(float64(pgosValue.mbm_remote_delta) / 1024.0 / 1024.0 / (float64(ctx.period) / 1000.0))
+		}
 		cgroups[j].Close()
 	}
-	C.pgos_mon_stop()
+	if pqosEnabled {
+		C.pgos_mon_stop()
+	}
 	return ctx
 }
 
