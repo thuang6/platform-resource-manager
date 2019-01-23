@@ -40,7 +40,7 @@ Assuming all requirements are installed and configured properly, follow the step
      git clone https://github.com/intel/intel-cmt-cat
      cd intel-cmt-cat
      make
-     sudo make install
+     sudo make install PREFIX=/usr
      ```
 
 2.  Build the Intel® Platform Resource Manager with the commands:
