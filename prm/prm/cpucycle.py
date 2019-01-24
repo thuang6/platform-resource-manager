@@ -107,8 +107,10 @@ class CpuCycle(Resource):
                       lc_utils, be_utils, margin * self.ncpu * 100,
                       self.quota_max * self.ncpu * 100)
 
-        exceed = lc_utils == 0 or lc_utils + be_utils + margin > self.quota_max
+        exceed = lc_utils == 0 or lc_utils + be_utils + margin >\
+                                   self.quota_max * self.ncpu * 100
 
-        hold = lc_utils + be_utils + margin + self.quota_step >= self.quota_max
+        hold = lc_utils + be_utils + margin + self.quota_step >=\
+                self.quota_max * self.ncpu * 100
 
         return (exceed, hold)

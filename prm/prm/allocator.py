@@ -296,6 +296,7 @@ class ResourceAllocator(Allocator):
                 if self.mode_config == ResourceAllocator.DETECT_MODE:
                     if cid in self.bes:
                         self.cpuc.set_share(cid, 0.0)
+                        self.cpuc.budgeting([cid], [])
                         self.l3c.budgeting([cid], [])
                     else:
                         self.cpuc.set_share(cid, 1.0)
