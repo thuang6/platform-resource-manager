@@ -337,7 +337,7 @@ class ResourceAllocator(Allocator):
         }
         for anomaly in anomalies:
             contentions[anomaly.resource] = True
-        for contention, flag in contentions:
+        for contention, flag in contentions.items():
             if contention in self.controllers:
                 self.controllers[contention].update(self.bes, self.lcs, flag, False)
 
@@ -382,9 +382,9 @@ class ResourceAllocator(Allocator):
                     if app and container.cid not in self.bes:
                         anomalies = self._detect_one_task(container, app)
                         anomaly_list.extend(anomalies)
-            if anomaly_list:
-                self._allocate_resources()
-                log.debug('anomalies: %r', anomaly_list)
+                if anomaly_list:
+                    log.debug('anomalies: %r', anomaly_list)
+                self._allocate_resources(anomaly_list)
         if metric_list:
             log.debug('metrics: %r', metric_list)
         if allocs:
