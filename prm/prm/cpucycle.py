@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 
 class CpuCycle(Resource):
     """ This class is the resource class of CPU cycle """
-    CPU_QUOTA_MIN = 0.001
+    CPU_QUOTA_MIN = 0.02
     CPU_QUOTA_CORE = 100000
     CPU_QUOTA_PERCENT = CPU_QUOTA_CORE / 100
     CPU_QUOTA_HALF_CORE = CPU_QUOTA_CORE * 0.5
@@ -43,6 +43,7 @@ class CpuCycle(Resource):
         self.verbose = verbose
         self.cur_allocs = None
         self.new_allocs = None
+        self.update()
 
     def update_allocs(self, cur_allocs, new_allocs, ncpu):
         self.cur_allocs = cur_allocs
@@ -55,7 +56,7 @@ class CpuCycle(Resource):
         if self.is_min_level():
             self.cpu_quota = CpuCycle.CPU_QUOTA_MIN
         else:
-            self.cpu_quota = self.quota_level * int(self.quota_step)
+            self.cpu_quota = self.quota_level * self.quota_step
 
     def update_max_sys_util(self, lc_max_util):
         """
@@ -87,10 +88,10 @@ class CpuCycle(Resource):
 
     def __set_quota(self, cid, quota):
         self.__set_alloc(cid, AllocationType.QUOTA, quota)
-        log.info('set task %s cpu quota to %i', cid, quota)
 
     def budgeting(self, bes, lcs):
-        newq = int(self.cpu_quota / len(bes))
+        self.update()
+        newq = self.cpu_quota / len(bes)
         for cid in bes:
             self.__set_quota(cid, newq)
 

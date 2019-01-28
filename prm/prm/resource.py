@@ -19,7 +19,6 @@
 
 class Resource(object):
     """ Resource Class is abstraction of resource """
-    BUGET_LEV_FULL = -1
     BUGET_LEV_MIN = 0
     BUGET_LEV_MAX = 20
 
@@ -34,25 +33,18 @@ class Resource(object):
         """ is resource controled in lowest level """
         return self.quota_level == Resource.BUGET_LEV_MIN
 
-    def is_full_level(self):
+    def is_max_level(self):
         """ is resource controled in full level """
-        return self.quota_level == Resource.BUGET_LEV_FULL
+        return self.quota_level == Resource.BUGET_LEV_MAX
 
     def set_level(self, level):
         """ set resource in given level """
         self.quota_level = level
-        self.update()
 
     def increase_level(self):
         """ increase resource to next level """
-        self.quota_level = self.quota_level + 1
-        if self.quota_level == self.level_max:
-            self.quota_level = Resource.BUGET_LEV_FULL
-        self.update()
-
-    def update(self):
-        """ update resource level to real value of concrete resource class """
-        pass
+        if self.quota_level < self.level_max:
+            self.quota_level = self.quota_level + 1
 
     def budgeting(self, bes, lcs):
         """ control resouce based on current resource level """
