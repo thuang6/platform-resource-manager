@@ -42,8 +42,8 @@ class LlcOccup(Resource):
         self.cur_allocs = cur_allocs
         self.new_allocs = new_allocs
         self.nsocks = nsocks
-        bitcnt = LlcOccup._get_cbm_bit_count(cbm_mask)
         if not self.be_bmp:
+            bitcnt = LlcOccup._get_cbm_bit_count(cbm_mask)
             self.be_bmp = [hex(((1 << (i + 1)) - 1) << (bitcnt - 1 - i))
                            for i in range(1, bitcnt)]
             self.lc_bmp = [hex((1 << (bitcnt - 1 - i)) - 1)
@@ -51,7 +51,7 @@ class LlcOccup(Resource):
             if self.exclusive:
                 self.be_bmp = self.be_bmp[0:int(bitcnt / 2)]
                 self.lc_bmp = self.lc_bmp[0:int(bitcnt / 2)]
-            super(LlcOccup, self).set_level_max(int(bitcnt / 2) if self.exclusive else bitcnt)
+            self.level_max = int(bitcnt / 2) - 2 if self.exclusive else bitcnt - 2
 
     @staticmethod
     def _get_cbm_bit_count(cbm_mask):
