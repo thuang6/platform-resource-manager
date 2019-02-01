@@ -75,8 +75,8 @@ class ResourceAllocator(Allocator):
             self.analyzer.build_model()
             self.cpuc = CpuCycle(self.analyzer.get_lcutilmax(), 0.5, False)
             self.l3c = LlcOccup(self.exclusive_cat)
-            cpuc_controller = NaiveController(self.cpuc, 10)
-            llc_controller = NaiveController(self.l3c, 6)
+            cpuc_controller = NaiveController(self.cpuc, 15)
+            llc_controller = NaiveController(self.l3c, 3)
             self.controllers = {ContendedResource.CPUS: cpuc_controller,
                                 ContendedResource.LLC: llc_controller}
 

@@ -22,7 +22,8 @@ from __future__ import print_function
 import logging
 from prm.resource import Resource
 
-from owca.allocators import AllocationType, RDTAllocation
+from owca.allocators import AllocationType
+from owca.resctrl import RDTAllocation
 
 log = logging.getLogger(__name__)
 

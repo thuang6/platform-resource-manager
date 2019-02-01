@@ -16,6 +16,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """ This module defines general resource control methods """
 
+
 class Resource(object):
     """ Resource Class is abstraction of resource """
     BUGET_LEV_FULL = -1
