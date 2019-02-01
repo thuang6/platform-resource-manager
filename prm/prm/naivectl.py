@@ -48,7 +48,7 @@ class NaiveController:
                 self.res.set_level(Resource.BUGET_LEV_MIN)
                 self.res.budgeting(bes, lcs)
         else:
-            if hold or self.res.is_max_level():
+            if hold or self.res.is_full_level():
                 # no contention, pass
                 pass
             else:

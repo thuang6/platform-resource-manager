@@ -299,7 +299,7 @@ class ResourceAllocator(Allocator):
                         self.cpuc.budgeting([cid], [])
                         self.l3c.budgeting([cid], [])
                     else:
-                        self.cpuc.set_share(cid, 1.0)
+                        self.cpuc.set_share(cid, 1000)
                         if self.exclusive_cat:
                             self.l3c.budgeting([], [cid])
 

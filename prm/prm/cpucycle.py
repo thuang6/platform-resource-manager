@@ -31,7 +31,8 @@ log = logging.getLogger(__name__)
 
 class CpuCycle(Resource):
     """ This class is the resource class of CPU cycle """
-    CPU_QUOTA_MIN = 0.02
+    CPU_QUOTA_DEFAULT = 1.0
+    CPU_QUOTA_MIN = 0.0
     CPU_QUOTA_CORE = 100000
     CPU_QUOTA_PERCENT = CPU_QUOTA_CORE / 100
     CPU_QUOTA_HALF_CORE = CPU_QUOTA_CORE * 0.5
@@ -53,7 +54,9 @@ class CpuCycle(Resource):
         self.update()
 
     def update(self):
-        if self.is_min_level():
+        if self.is_full_level():
+            self.cpu_quota = CpuCycle.CPU_QUOTA_DEFAULT
+        elif self.is_min_level():
             self.cpu_quota = CpuCycle.CPU_QUOTA_MIN
         else:
             self.cpu_quota = self.quota_level * self.quota_step

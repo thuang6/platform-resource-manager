@@ -51,7 +51,7 @@ class LlcOccup(Resource):
             if self.exclusive:
                 self.be_bmp = self.be_bmp[0:int(bitcnt / 2)]
                 self.lc_bmp = self.lc_bmp[0:int(bitcnt / 2)]
-            self.level_max = int(bitcnt / 2) - 2 if self.exclusive else bitcnt - 2
+            self.level_max = int(bitcnt / 2) - 1 if self.exclusive else bitcnt - 1
 
     @staticmethod
     def _get_cbm_bit_count(cbm_mask):
