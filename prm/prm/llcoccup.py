@@ -74,13 +74,12 @@ class LlcOccup(Resource):
             else:
                 task_allocs = dict()
                 self.new_allocs[task_id] = task_allocs
-                       
             # merge with existing RDTAllocation with overwritten name and l3 alloc
             old_mb_value = task_allocs.get(AllocationType.RDT, RDTAllocation()).mb
             task_allocs[AllocationType.RDT] = RDTAllocation(
-                name = name,
-                l3 = alloc
-                mb = old_mb_value
+                name=name,
+                l3=alloc,
+                mb=old_mb_value
             )
 
     def _budgeting(self, cid, is_be):
