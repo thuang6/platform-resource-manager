@@ -48,7 +48,8 @@ class ContentionDetector(detectors.AnomalyDetector):
         self.ucols = ['time', 'cid', 'name', Metric.UTIL]
         self.mcols = ['time', 'cid', 'name', Metric.CYC, Metric.INST,
                       Metric.L3MISS, Metric.L3OCC, Metric.MB, Metric.CPI,
-                      Metric.L3MPKI, Metric.NF, Metric.UTIL]
+                      Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI]
+
         if mode_config == ContentionDetector.COLLECT_MODE:
             self.analyzer = Analyzer()
             self.workload_meta = {}
