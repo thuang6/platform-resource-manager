@@ -123,6 +123,8 @@ class Container:
                 self.measurements[MetricName.INSTRUCTIONS]
             metrics[Metric.L3MISS] = measurements[MetricName.CACHE_MISSES] -\
                 self.measurements[MetricName.CACHE_MISSES]
+            metrics[Metric.MEMSTALL] = measurements[MetricName.MEMSTALL] -\
+                self.measurements[MetricName.MEMSTALL]
             if self.llc_cnt == 0:
                 metrics[Metric.L3OCC] = 0
             else:
@@ -136,6 +138,8 @@ class Container:
                 metrics[Metric.CPI] = metrics[Metric.CYC] /\
                     metrics[Metric.INST]
                 metrics[Metric.L3MPKI] = metrics[Metric.L3MISS] * 1000 /\
+                    metrics[Metric.INST]
+                metrics[Metric.MSPKI] = metrics[Metric.MEMSTALL] * 1000 /\
                     metrics[Metric.INST]
             metrics[Metric.UTIL] = (measurements[MetricName.CPU_USAGE_PER_TASK]
                                     - self.measurements[MetricName.CPU_USAGE_PER_TASK])\
@@ -185,14 +189,14 @@ class Container:
                 cond_res.append(ContendedResource.LLC)
                 unknown_reason = False
 
-            if metrics[Metric.MB] < thresh['mb']:
+            if metrics[Metric.MSPKI] > thresh['mspki']:
                 log.info('Memory Bandwidth contention detected:')
-                log.info('Latency critical container %s CPI = %f MB = %f \n',
-                         self.cid, metrics[Metric.CPI], metrics[Metric.MB])
-                self._append_metrics(owca_metrics, Metric.MB,
-                                     metrics[Metric.MB])
-                self._append_metrics(owca_metrics, 'mb_threshold',
-                                     thresh['mb'])
+                log.info('Latency critical container %s CPI = %f MSPKI = %f \n',
+                         self.cid, metrics[Metric.CPI], metrics[Metric.MSPKI])
+                self._append_metrics(owca_metrics, Metric.MSPKI,
+                                     metrics[Metric.MSPKI])
+                self._append_metrics(owca_metrics, 'mspki_threshold',
+                                     thresh['mspki'])
                 cond_res.append(ContendedResource.MEMORY_BW)
                 unknown_reason = False
 
