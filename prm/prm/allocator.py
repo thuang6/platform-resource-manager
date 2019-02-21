@@ -81,7 +81,7 @@ class ResourceAllocator(Allocator):
             mb_controller = NaiveController(self.mbc, 3)
             self.controllers = {ContendedResource.CPUS: cpuc_controller,
                                 ContendedResource.LLC: llc_controller,
-                                ContendedResource.MB: mb_controller}
+                                ContendedResource.MEMORY_BW: mb_controller}
 
     def _init_data_file(self, data_file, cols):
         headline = None
@@ -373,7 +373,7 @@ class ResourceAllocator(Allocator):
         if self.mode_config == ResourceAllocator.DETECT_MODE:
             self.cpuc.update_allocs(tasks_allocs, allocs, platform.cpus)
             self.l3c.update_allocs(tasks_allocs, allocs, platform.rdt_cbm_mask, platform.sockets)
-            #TODO replace hardcode value after it is available in OWCA
+            # TODO replace hardcode value after it is available in OWCA
             self.mbc.update_allocs(tasks_allocs, allocs, '10', '10', platform.sockets)
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())

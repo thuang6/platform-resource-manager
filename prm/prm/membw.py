@@ -20,11 +20,11 @@
 from __future__ import print_function
 
 import logging
-from prm.resource import Resource
 from prm.resource import Resource, RDTResource
 from owca.allocators import AllocationType
 
 log = logging.getLogger(__name__)
+
 
 class MemoryBw(Resource):
     """ This class is the resource class of memory bandwidth """
@@ -33,7 +33,7 @@ class MemoryBw(Resource):
         super(MemoryBw, self).__init__()
         self.cur_allocs = None
         self.new_allocs = None
-    
+
     def update_allocs(self, cur_allocs, new_allocs, min_bandwidth, bandwidth_gran, nsocks):
         self.cur_allocs = cur_allocs
         self.new_allocs = new_allocs

@@ -20,9 +20,11 @@ from enum import Enum
 from typing import Union
 from owca.allocators import AllocationType, RDTAllocation, TasksAllocations
 
+
 class RDTResource(str, Enum):
     L3 = 'l3'
     MB = 'mb'
+
 
 class Resource(object):
     """ Resource Class is abstraction of resource """
@@ -36,8 +38,9 @@ class Resource(object):
         self.cur_allocs: TasksAllocations = dict()
         self.new_allocs: TasksAllocations = dict()
 
-    def set_alloc(self, task_id, alloc_type: AllocationType, alloc: Union[float, str], 
-        rdt_res: RDTResource = None, name: str = None):
+    def set_alloc(
+            self, task_id, alloc_type: AllocationType, alloc: Union[float, str],
+            rdt_res: RDTResource = None, name: str = None):
         is_new = True
         if task_id in self.cur_allocs and alloc_type in self.cur_allocs[task_id]:
             if alloc_type == AllocationType.RDT:
