@@ -21,10 +21,8 @@ from __future__ import print_function
 from __future__ import division
 
 import logging
-
-from prm.resource import Resource
-
 from owca.allocators import AllocationType
+from prm.resource import Resource
 
 log = logging.getLogger(__name__)
 
@@ -42,8 +40,6 @@ class CpuCycle(Resource):
         self.min_margin_ratio = min_margin_ratio
         self.lc_max = lc_max
         self.verbose = verbose
-        self.cur_allocs = None
-        self.new_allocs = None
         self.update()
 
     def update_allocs(self, cur_allocs, new_allocs, ncpu):
@@ -71,26 +67,11 @@ class CpuCycle(Resource):
         self.quota_max = lc_max_util / 100 / self.ncpu
         self.quota_step = self.quota_max / Resource.BUGET_LEV_MAX
 
-    def __set_alloc(self, task_id, alloc_type: AllocationType, alloc: float):
-        is_new = True
-        if task_id in self.cur_allocs and\
-            alloc_type in self.cur_allocs[task_id] and\
-                alloc == self.cur_allocs[task_id][alloc_type]:
-            is_new = False
-
-        if is_new:
-            if task_id in self.new_allocs:
-                task_allocs = self.new_allocs[task_id]
-            else:
-                task_allocs = dict()
-                self.new_allocs[task_id] = task_allocs
-            task_allocs[alloc_type] = alloc
-
     def set_share(self, cid, share: float):
-        self.__set_alloc(cid, AllocationType.SHARES, share)
+        self.set_alloc(cid, AllocationType.SHARES, share)
 
     def __set_quota(self, cid, quota):
-        self.__set_alloc(cid, AllocationType.QUOTA, quota)
+        self.set_alloc(cid, AllocationType.QUOTA, quota)
 
     def budgeting(self, bes, lcs):
         self.update()

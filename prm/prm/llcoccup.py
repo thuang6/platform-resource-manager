@@ -20,9 +20,8 @@
 from __future__ import print_function
 
 import logging
-from prm.resource import Resource
-
-from owca.allocators import AllocationType, RDTAllocation
+from prm.resource import Resource, RDTResource
+from owca.allocators import AllocationType
 
 log = logging.getLogger(__name__)
 
@@ -33,8 +32,6 @@ class LlcOccup(Resource):
     def __init__(self, exclusive):
         self.be_bmp = []
         self.lc_bmp = []
-        self.cur_allocs = None
-        self.new_allocs = None
         self.exclusive = exclusive
         super(LlcOccup, self).__init__()
 
@@ -60,27 +57,6 @@ class LlcOccup(Resource):
         setbits = [bit for bit in cbm_bin[2:] if bit == '1']
         return len(setbits)
 
-    def _set_alloc(self, task_id, name, alloc: str):
-        is_new = True
-        if task_id in self.cur_allocs and\
-            AllocationType.RDT in self.cur_allocs[task_id] and\
-                alloc == self.cur_allocs[task_id][AllocationType.RDT].l3:
-            is_new = False
-
-        if is_new:
-            if task_id in self.new_allocs:
-                task_allocs = self.new_allocs[task_id]
-            else:
-                task_allocs = dict()
-                self.new_allocs[task_id] = task_allocs
-            # merge with existing RDTAllocation with overwritten name and l3 alloc
-            old_mb_value = task_allocs.get(AllocationType.RDT, RDTAllocation()).mb
-            task_allocs[AllocationType.RDT] = RDTAllocation(
-                name=name,
-                l3=alloc,
-                mb=old_mb_value
-            )
-
     def _budgeting(self, cid, is_be):
         if is_be:
             bmp = self.be_bmp
@@ -90,7 +66,7 @@ class LlcOccup(Resource):
             name = 'LC_Group'
         l3s = [str(idx) + '=' + bmp[self.quota_level] for idx in range(self.nsocks)]
         l3_allocs = 'L3:' + ';'.join(l3s)
-        self._set_alloc(cid, name, l3_allocs)
+        self.set_alloc(cid, AllocationType.RDT, l3_allocs, RDTResource.L3, name)
 
     def budgeting(self, bes, lcs):
         if bes:

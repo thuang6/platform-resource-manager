@@ -30,7 +30,7 @@ from prm.container import Container
 from prm.naivectl import NaiveController
 from prm.cpucycle import CpuCycle
 from prm.llcoccup import LlcOccup
-
+from prm.membw import MemoryBw
 from prm.analyze.analyzer import Metric, Analyzer
 
 
@@ -75,10 +75,13 @@ class ResourceAllocator(Allocator):
             self.analyzer.build_model()
             self.cpuc = CpuCycle(self.analyzer.get_lcutilmax(), 0.5, False)
             self.l3c = LlcOccup(self.exclusive_cat)
+            self.mbc = MemoryBw()
             cpuc_controller = NaiveController(self.cpuc, 15)
             llc_controller = NaiveController(self.l3c, 3)
+            mb_controller = NaiveController(self.mbc, 3)
             self.controllers = {ContendedResource.CPUS: cpuc_controller,
-                                ContendedResource.LLC: llc_controller}
+                                ContendedResource.LLC: llc_controller,
+                                ContendedResource.MB: mb_controller}
 
     def _init_data_file(self, data_file, cols):
         headline = None
@@ -298,6 +301,7 @@ class ResourceAllocator(Allocator):
                         self.cpuc.set_share(cid, 0.0)
                         self.cpuc.budgeting([cid], [])
                         self.l3c.budgeting([cid], [])
+                        self.mbc.budgeting([cid], [])
                     else:
                         self.cpuc.set_share(cid, 1000)
                         if self.exclusive_cat:
@@ -369,6 +373,8 @@ class ResourceAllocator(Allocator):
         if self.mode_config == ResourceAllocator.DETECT_MODE:
             self.cpuc.update_allocs(tasks_allocs, allocs, platform.cpus)
             self.l3c.update_allocs(tasks_allocs, allocs, platform.rdt_cbm_mask, platform.sockets)
+            #TODO replace hardcode value after it is available in OWCA
+            self.mbc.update_allocs(tasks_allocs, allocs, '10', '10', platform.sockets)
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
         self._process_measurements(tasks_measurements, tasks_labels, metric_list,

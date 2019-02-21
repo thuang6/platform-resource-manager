@@ -16,6 +16,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """ This module defines general resource control methods """
 
+from enum import Enum
+from typing import Union
+from owca.allocators import AllocationType, RDTAllocation, TasksAllocations
+
+class RDTResource(str, Enum):
+    L3 = 'l3'
+    MB = 'mb'
 
 class Resource(object):
     """ Resource Class is abstraction of resource """
@@ -26,6 +33,43 @@ class Resource(object):
     def __init__(self, init_level=BUGET_LEV_MIN, level_max=BUGET_LEV_MAX):
         self.quota_level = init_level
         self.level_max = level_max
+        self.cur_allocs: TasksAllocations = dict()
+        self.new_allocs: TasksAllocations = dict()
+
+    def set_alloc(self, task_id, alloc_type: AllocationType, alloc: Union[float, str], 
+        rdt_res: RDTResource = None, name: str = None):
+        is_new = True
+        if task_id in self.cur_allocs and alloc_type in self.cur_allocs[task_id]:
+            if alloc_type == AllocationType.RDT:
+                val = getattr(self.cur_allocs[task_id][alloc_type], rdt_res)
+            else:
+                val = self.cur_allocs[task_id][alloc_type]
+            if val == alloc:
+                is_new = False
+
+        if is_new:
+            if task_id in self.new_allocs:
+                task_allocs = self.new_allocs[task_id]
+            else:
+                task_allocs = dict()
+                self.new_allocs[task_id] = task_allocs
+            if alloc_type == AllocationType.RDT:
+                if rdt_res == RDTResource.L3:
+                    old_mb = task_allocs.get(AllocationType.RDT, RDTAllocation()).mb
+                    task_allocs[alloc_type] = RDTAllocation(
+                        name=name,
+                        l3=alloc,
+                        mb=old_mb
+                    )
+                else:
+                    old_l3 = task_allocs.get(AllocationType.RDT, RDTAllocation()).l3
+                    task_allocs[alloc_type] = RDTAllocation(
+                        name=name,
+                        l3=old_l3,
+                        mb=alloc
+                    )
+            else:
+                task_allocs[alloc_type] = alloc
 
     def is_min_level(self):
         """ is resource controled in lowest level """
