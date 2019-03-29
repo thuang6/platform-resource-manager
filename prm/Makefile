@@ -24,7 +24,7 @@ package:
 
 check: flake8
 
-dist: package wrapper_package
+dist: package
 
 clean:
 	@echo Cleaning.
