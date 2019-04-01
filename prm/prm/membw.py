@@ -37,8 +37,8 @@ class MemoryBw(Resource):
     def update_allocs(self, cur_allocs, new_allocs, min_bandwidth, bandwidth_gran, nsocks):
         self.cur_allocs = cur_allocs
         self.new_allocs = new_allocs
-        self.min_bandwidth = int(min_bandwidth)
-        self.bandwidth_gran = int(bandwidth_gran)
+        self.min_bandwidth = min_bandwidth
+        self.bandwidth_gran = bandwidth_gran
         self.nsocks = nsocks
         self.level_max = int((100 - self.min_bandwidth) / self.bandwidth_gran)
 

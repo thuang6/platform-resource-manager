@@ -42,7 +42,7 @@ class ResourceAllocator(Allocator):
     DETECT_MODE = 'detect'
     WL_META_FILE = 'workload.json'
 
-    def __init__(self, action_delay, mode_config: str = 'collect',
+    def __init__(self, action_delay: float, mode_config: str = 'collect',
                  agg_period: float = 20, exclusive_cat: bool = False):
         log.debug('action_delay: %i, mode config: %s, agg_period: %i, exclusive: %s',
                   action_delay, mode_config, agg_period, exclusive_cat)
@@ -372,9 +372,14 @@ class ResourceAllocator(Allocator):
         allocs: TasksAllocations = dict()
         if self.mode_config == ResourceAllocator.DETECT_MODE:
             self.cpuc.update_allocs(tasks_allocs, allocs, platform.cpus)
-            self.l3c.update_allocs(tasks_allocs, allocs, platform.rdt_cbm_mask, platform.sockets)
-            # TODO replace hardcode value after it is available in OWCA
-            self.mbc.update_allocs(tasks_allocs, allocs, '10', '10', platform.sockets)
+            self.l3c.update_allocs(tasks_allocs, allocs, platform.rdt_information.cbm_mask, platform.sockets)
+
+            if platform.rdt_information.rdt_mb_control_enabled:
+                self.mbc.update_allocs(tasks_allocs, allocs, platform.rdt_information.mb_min_bandwidth,
+                                   	platform.rdt_information.mb_bandwidth_gran, platform.sockets)
+            else:
+                self.controllers[ContendedResource.MEMORY_BW] = self.cpuc
+                
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
         self._process_measurements(tasks_measurements, tasks_labels, metric_list,
