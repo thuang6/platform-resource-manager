@@ -23,6 +23,7 @@ from __future__ import print_function
 from __future__ import division
 
 import time
+import multiprocessing
 
 from collections import deque
 from itertools import islice
@@ -169,7 +170,6 @@ class Container(object):
         try:
             total_usage = 0
             system_usage = 0
-            cpu_no = 0
             cpu_util = 0.0
             cur = time.time() * 1e9
 
@@ -183,15 +183,9 @@ class Container(object):
             with open(cgroup_stat, 'r') as fi:
                 total_usage = int(fi.read().strip())
 
-            percpu_stat = path_join('/sys/fs/cgroup/cpu', self.parent_path,
-                                  self.cid, 'cpuacct.usage_percpu')
-            
-            with open(percpu_stat, 'r') as fi:
-                cpu_no = len(fi.read().strip(' \n').split(' '))
-
-            
             cpu_delta = total_usage - self.cpu_usage
             system_delta = system_usage - self.system_usage
+            cpu_no = multiprocessing.cpu_count()
 
             if cpu_delta > 0 and system_delta > 0:
                 cpu_util = (float(cpu_delta) / system_delta) * cpu_no * 100
