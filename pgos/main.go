@@ -236,6 +236,10 @@ func (this *Cgroup) GetPgosHandler() (code C.int) {
 		}
 		pids = append(pids, C.pid_t(pid))
 	}
+	if len(pids) == 0 {
+		code = ErrorCannotOpenTasks
+		return
+	}
 	this.PgosHandler = C.pgos_mon_start_pids(C.unsigned(len(pids)), (*C.pid_t)(unsafe.Pointer(&pids[0])))
 
 	return
