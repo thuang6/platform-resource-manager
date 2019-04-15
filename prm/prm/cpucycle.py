@@ -74,10 +74,11 @@ class CpuCycle(Resource):
         self.set_alloc(cid, AllocationType.QUOTA, quota)
 
     def budgeting(self, bes, lcs):
-        self.update()
-        newq = self.cpu_quota / len(bes)
-        for cid in bes:
-            self.__set_quota(cid, newq)
+        if bes:
+            self.update()
+            newq = self.cpu_quota / len(bes)
+            for cid in bes:
+                self.__set_quota(cid, newq)
 
     def detect_margin_exceed(self, lc_utils, be_utils):
         """
