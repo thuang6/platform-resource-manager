@@ -59,7 +59,7 @@ class ResourceAllocator(Allocator):
         self.ucols = ['time', 'cid', 'name', Metric.UTIL]
         self.mcols = ['time', 'cid', 'name', Metric.CYC, Metric.INST,
                       Metric.L3MISS, Metric.L3OCC, Metric.MB, Metric.CPI,
-                      Metric.L3MPKI, Metric.NF, Metric.UTIL]
+                      Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI]
         if mode_config == ResourceAllocator.COLLECT_MODE:
             self.analyzer = Analyzer()
             self.workload_meta = {}
@@ -78,8 +78,8 @@ class ResourceAllocator(Allocator):
             self.mbc_enabled = True
             self.mbc = MemoryBw()
             cpuc_controller = NaiveController(self.cpuc, 15)
-            llc_controller = NaiveController(self.l3c, 3)
-            mb_controller = NaiveController(self.mbc, 3)
+            llc_controller = NaiveController(self.l3c, 4)
+            mb_controller = NaiveController(self.mbc, 4)
             self.controllers = {ContendedResource.CPUS: cpuc_controller,
                                 ContendedResource.LLC: llc_controller,
                                 ContendedResource.MEMORY_BW: mb_controller}
