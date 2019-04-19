@@ -272,4 +272,4 @@ class Container:
             ',' + str(metrics[Metric.L3MISS]) + ',' +\
             str(metrics[Metric.NF]) + ',' + str(metrics[Metric.UTIL]) +\
             ',' + str(metrics[Metric.L3OCC]) + ',' +\
-            str(metrics[Metric.MB]) + ',' + '\n'
+            str(metrics[Metric.MB]) + ',' + str(metrics[Metric.MSPKI]) + '\n'

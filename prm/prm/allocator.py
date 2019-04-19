@@ -305,7 +305,7 @@ class ResourceAllocator(Allocator):
                         if self.mbc_enabled:
                             self.mbc.budgeting([cid], [])
                     else:
-                        self.cpuc.set_share(cid, 1000)
+                        self.cpuc.set_share(cid, 1.0)
                         if self.exclusive_cat:
                             self.l3c.budgeting([], [cid])
 
