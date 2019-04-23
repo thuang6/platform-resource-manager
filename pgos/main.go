@@ -84,12 +84,14 @@ type Cgroup struct {
 	PgosHandler C.int
 }
 
+var pqosEnabled bool = false
 var pqosLog *os.File
 
 //export pgos_init
 func pgos_init() C.int {
 	pqosLog, err := os.OpenFile("/tmp/pqos.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
+		pqosEnabled = false
 		return ErrorPqosInitFailure
 	}
 
@@ -99,15 +101,19 @@ func pgos_init() C.int {
 		_interface: C.PQOS_INTER_OS,
 	}
 	if C.pqos_init(&config) != C.PQOS_RETVAL_OK {
+		pqosEnabled = false
 		return ErrorPqosInitFailure
 	}
+	pqosEnabled = true
 	return 0
 }
 
 //export pgos_finalize
 func pgos_finalize() {
-	pqosLog.Close()
-	C.pqos_fini()
+	if pqosEnabled {
+		pqosLog.Close()
+		C.pqos_fini()
+	}
 }
 
 type RDTResult struct {
@@ -157,7 +163,7 @@ func collect(ctx C.struct_context) C.struct_context {
 		path, cid := C.GoString(cg.path), C.GoString(cg.cid)
 		c, code := NewCgroup(path, cid, i)
 		cg.ret |= code
-		if c != nil {
+		if c != nil && pqosEnabled {
 			cg.ret |= c.GetPgosHandler()
 		}
 		if cg.ret == 0 {
@@ -271,6 +277,10 @@ func (this *Cgroup) GetPgosHandler() (code C.int) {
 			break
 		}
 		pids = append(pids, C.pid_t(pid))
+	}
+	if len(pids) == 0 {
+		code = ErrorCannotOpenTasks
+		return
 	}
 	this.PgosHandler = C.pgos_mon_start_pids(C.unsigned(len(pids)), (*C.pid_t)(unsafe.Pointer(&pids[0])))
 

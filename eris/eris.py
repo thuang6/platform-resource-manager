@@ -57,6 +57,7 @@ class Context(object):
         self._docker_client = None
         self._prometheus = None
         self.pgos = None
+        self.pgos_inited = False
         self.shutdown = False
         self.args = None
         self.sysmax_util = 0
@@ -399,9 +400,6 @@ def detect_cgroup_driver():
     client = docker.from_env()
     dockinfo = client.info()
     cgroup_driver = dockinfo['CgroupDriver']
-    if cgroup_driver != 'cgroupfs':
-        print('Unknown cgroup driver: ' + cgroup_driver)
-
     return cgroup_driver
 
 
@@ -459,6 +457,17 @@ def parse_arguments():
         print(args)
     return args
 
+def init_data_file(ctx, data_file, cols):
+    headline = None
+    try:
+        with open(data_file, 'r') as dtf:
+            headline = dtf.readline()
+    except Exception:
+        if ctx.args.verbose:
+            traceback.print_exc(file=sys.stdout)
+    if headline != ','.join(cols) + '\n':
+        with open(data_file, 'w') as dtf:
+            dtf.write(','.join(cols) + '\n')
 
 def main():
     """ Script entry point. """
@@ -487,9 +496,7 @@ def main():
                                Contention.LLC: llc_controller}
     if ctx.args.record:
         cols = ['time', 'cid', 'name', Metric.UTIL]
-        with open(Analyzer.UTIL_FILE, 'w') as utilf:
-            utilf.write(','.join(cols) + '\n')
-
+        init_data_file(ctx, Analyzer.UTIL_FILE, cols)
     threads = [Thread(target=monitor, args=(mon_util_cycle,
                                             ctx, ctx.args.util_interval))]
 
@@ -500,16 +507,16 @@ def main():
                     Metric.UTIL, Metric.L3OCC, Metric.MBL, Metric.MBR,
                     Metric.L2STALL, Metric.MEMSTALL, Metric.L2SPKI,
                     Metric.MSPKI]
-            with open(Analyzer.METRIC_FILE, 'w') as metricf:
-                metricf.write(','.join(cols) + '\n')
-        ctx.pgos = Pgos(cpu_count(), ctx.args.metric_interval * 1000 - 500)
+            init_data_file(ctx, Analyzer.METRIC_FILE, cols)
+        ctx.pgos = Pgos(cpu_count(), ctx.args.metric_interval * 1000 - 1500)
         ret = ctx.pgos.init_pgos()
-        if ret == 0:
-            threads.append(Thread(target=monitor,
-                                  args=(mon_metric_cycle,
-                                        ctx, ctx.args.metric_interval)))
-        else:
+        if ret != 0:
             print('error in libpgos init, error code: ' + str(ret))
+        else:
+            ctx.pgos_inited = True
+        threads.append(Thread(target=monitor,
+                              args=(mon_metric_cycle,
+                                    ctx, ctx.args.metric_interval)))
 
     for thread in threads:
         thread.start()
@@ -521,7 +528,8 @@ def main():
             thread.join()
     except KeyboardInterrupt:
         print('Shutdown eris agent ...exiting')
-        ctx.pgos.fin_pgos()
+        if ctx.pgos_inited:
+            ctx.pgos.fin_pgos()
         ctx.shutdown = True
     except Exception:
         traceback.print_exc(file=sys.stdout)

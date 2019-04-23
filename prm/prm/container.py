@@ -40,6 +40,12 @@ class Container:
         self.cid = cid
         self.metrics = dict()
         self.measurements = None
+        self.timestamp = 0
+        self.cpu_usage = 0
+        self.util = 0
+        self.usg_tt = 0
+        self.total_llc_occu = 0
+        self.llc_cnt = 0
         self.history_depth = history_depth + 1
         self.metrics_history = deque([], self.history_depth)
 
@@ -103,11 +109,21 @@ class Container:
                 metrics.append(metric)
         return metrics
 
-    def update_measurement(self, timestamp: float, measurements: Measurements):
+    def update_measurement(self, timestamp: float,
+                           measurements: Measurements, agg: bool):
         """
         update measurements in current cycle and calculate metrics
         """
-        if self.measurements:
+        if self.cpu_usage != 0:
+            self.util = (measurements[MetricName.CPU_USAGE_PER_TASK] -
+                         self.cpu_usage) * 100 / ((timestamp - self.usg_tt) * 1e9)
+        self.cpu_usage = measurements[MetricName.CPU_USAGE_PER_TASK]
+        self.usg_tt = timestamp
+
+        if measurements[MetricName.LLC_OCCUPANCY] > 0:
+            self.total_llc_occu += measurements[MetricName.LLC_OCCUPANCY]
+            self.llc_cnt += 1
+        if self.measurements and agg:
             metrics = self.metrics
             delta_t = timestamp - self.timestamp
             metrics[Metric.CYC] = measurements[MetricName.CYCLES] -\
@@ -116,7 +132,14 @@ class Container:
                 self.measurements[MetricName.INSTRUCTIONS]
             metrics[Metric.L3MISS] = measurements[MetricName.CACHE_MISSES] -\
                 self.measurements[MetricName.CACHE_MISSES]
-            metrics[Metric.L3OCC] = measurements[MetricName.LLC_OCCUPANCY] / 1024
+            metrics[Metric.MEMSTALL] = measurements[MetricName.MEMSTALL] -\
+                self.measurements[MetricName.MEMSTALL]
+            if self.llc_cnt == 0:
+                metrics[Metric.L3OCC] = 0
+            else:
+                metrics[Metric.L3OCC] = self.total_llc_occu / self.llc_cnt / 1024
+            self.total_llc_occu = 0
+            self.llc_cnt = 0
             if metrics[Metric.INST] == 0:
                 metrics[Metric.CPI] = 0
                 metrics[Metric.L3MPKI] = 0
@@ -124,6 +147,8 @@ class Container:
                 metrics[Metric.CPI] = metrics[Metric.CYC] /\
                     metrics[Metric.INST]
                 metrics[Metric.L3MPKI] = metrics[Metric.L3MISS] * 1000 /\
+                    metrics[Metric.INST]
+                metrics[Metric.MSPKI] = metrics[Metric.MEMSTALL] * 1000 /\
                     metrics[Metric.INST]
             metrics[Metric.UTIL] = (measurements[MetricName.CPU_USAGE_PER_TASK]
                                     - self.measurements[MetricName.CPU_USAGE_PER_TASK])\
@@ -138,8 +163,9 @@ class Container:
                     metrics[Metric.UTIL]
             self._update_metrics_history()
 
-        self.measurements = measurements
-        self.timestamp = timestamp
+        if not self.measurements or agg:
+            self.measurements = measurements
+            self.timestamp = timestamp
 
     def _append_metrics(self, metrics, mname, mvalue):
         metric = OwcaMetric(
@@ -172,14 +198,14 @@ class Container:
                 cond_res.append(ContendedResource.LLC)
                 unknown_reason = False
 
-            if metrics[Metric.MB] < thresh['mb']:
+            if metrics[Metric.MSPKI] > thresh['mspki']:
                 log.info('Memory Bandwidth contention detected:')
-                log.info('Latency critical container %s CPI = %f MB = %f \n',
-                         self.cid, metrics[Metric.CPI], metrics[Metric.MB])
-                self._append_metrics(owca_metrics, Metric.MB,
-                                     metrics[Metric.MB])
-                self._append_metrics(owca_metrics, 'mb_threshold',
-                                     thresh['mb'])
+                log.info('Latency critical container %s CPI = %f MSPKI = %f \n',
+                         self.cid, metrics[Metric.CPI], metrics[Metric.MSPKI])
+                self._append_metrics(owca_metrics, Metric.MSPKI,
+                                     metrics[Metric.MSPKI])
+                self._append_metrics(owca_metrics, 'mspki_threshold',
+                                     thresh['mspki'])
                 cond_res.append(ContendedResource.MEMORY_BW)
                 unknown_reason = False
 
@@ -246,4 +272,4 @@ class Container:
             ',' + str(metrics[Metric.L3MISS]) + ',' +\
             str(metrics[Metric.NF]) + ',' + str(metrics[Metric.UTIL]) +\
             ',' + str(metrics[Metric.L3OCC]) + ',' +\
-            str(metrics[Metric.MB]) + ',' + '\n'
+            str(metrics[Metric.MB]) + ',' + str(metrics[Metric.MSPKI]) + '\n'
