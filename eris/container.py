@@ -23,8 +23,6 @@ from __future__ import print_function
 from __future__ import division
 
 import time
-import docker 
-import os
 import multiprocessing
 
 from collections import deque
@@ -56,7 +54,6 @@ class Container(object):
         self.name = name
         self.pids = pids
         self.cpu_usage = 0
-        self.system_usage = 0
         self.utils = 0
         self.timestamp = 0.0
         self.thresh = thresh
@@ -166,9 +163,8 @@ class Container(object):
             pids - pid list of Container
         """
         self.pids = pids
-    
+
     def update_cpu_usage(self):
-        
         try:
             total_usage = 0
             system_usage = 0
