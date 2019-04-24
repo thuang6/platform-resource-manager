@@ -194,6 +194,7 @@ class Container(object):
             self.system_usage = system_usage
         except (ValueError, IOError):
             pass
+
     def update_metrics_history(self):
         '''
         add metric data to metrics history
