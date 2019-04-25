@@ -37,7 +37,7 @@ class ContentionDetector(detectors.AnomalyDetector):
     DETECT_MODE = 'detect'
     WL_META_FILE = 'workload.json'
 
-    def __init__(self, action_delay, mode_config: str = 'collect',
+    def __init__(self, action_delay: int, mode_config: str = 'collect',
                  agg_period: float = 20):
         log.debug('action_delay: %i, mode config: %s, agg_period: %i',
                   action_delay, mode_config, agg_period)
