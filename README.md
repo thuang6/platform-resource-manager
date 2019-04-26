@@ -162,6 +162,8 @@ This section lists command line arguments for the eris agent and the analyze too
       -v, --verbose         increase output verbosity
       -t THRESH, --thresh THRESH
                             threshold used in outlier detection
+      -a {gmm-standard, gmm-origin}, --fense-method {gmm-standard, gmm-origin}
+                            fense method in outiler detection
       -f {gmm-strict,gmm-normal}, --fense-type {gmm-strict,gmm-normal}
                             fense type used in outlier detection
       -m METRIC_FILE, --metric-file METRIC_FILE
