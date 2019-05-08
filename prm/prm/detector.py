@@ -24,7 +24,7 @@ from wca.platforms import Platform
 from wca.detectors import ContentionAnomaly, TasksMeasurements
 from wca.detectors import TasksResources, TasksLabels
 from wca.detectors import ContendedResource
-from wca.metrics import Metric as WcaMetric
+from wca.metrics import Metric as WCAMetric
 
 from prm.container import Container
 from prm.analyze.analyzer import Metric, Analyzer
@@ -178,9 +178,9 @@ class ContentionDetector(detectors.AnomalyDetector):
             self.analyzer.update_lcutilmax(lcutil)
             util_max = lcutil
         capacity = assign_cpus * 100
-        return [WcaMetric(name=Metric.LCCAPACITY, value=capacity),
-                WcaMetric(name=Metric.LCMAX, value=util_max),
-                WcaMetric(name=Metric.SYSUTIL, value=sysutil)]
+        return [WCAMetric(name=Metric.LCCAPACITY, value=capacity),
+                WCAMetric(name=Metric.LCMAX, value=util_max),
+                WCAMetric(name=Metric.SYSUTIL, value=sysutil)]
 
     def _get_threshold_metrics(self):
         """Encode threshold objects as WCA metrics.
@@ -193,16 +193,16 @@ class ContentionDetector(detectors.AnomalyDetector):
             for cid, threshold in self.analyzer.threshold.items():
                 if cid == 'lcutilmax':
                     metrics.append(
-                        WcaMetric(name='threshold_lcutilmax', value=threshold)
+                        WCAMetric(name='threshold_lcutilmax', value=threshold)
                     )
                     continue
                 if 'tdp' in threshold and 'bar' in threshold['tdp']:
                     metrics.extend([
-                        WcaMetric(
+                        WCAMetric(
                             name='threshold_tdp_bar',
                             value=threshold['tdp']['bar'],
                             labels=dict(cid=cid)),
-                        WcaMetric(
+                        WCAMetric(
                             name='threshold_tdp_util',
                             value=threshold['tdp']['util'],
                             labels=dict(cid=cid)),
@@ -210,19 +210,19 @@ class ContentionDetector(detectors.AnomalyDetector):
                 if 'thresh' in threshold:
                     for d in threshold['thresh']:
                         metrics.extend([
-                            WcaMetric(
+                            WCAMetric(
                                 name='threshold_cpi',
                                 labels=dict(start=str(int(d['util_start'])),
                                             end=str(int(d['util_end'])),
                                             cid=cid),
                                 value=d['cpi']),
-                            WcaMetric(
+                            WCAMetric(
                                 name='threshold_mpki',
                                 labels=dict(start=str(int(d['util_start'])),
                                             end=str(int(d['util_end'])),
                                             cid=cid),
                                 value=(d['mpki'])),
-                            WcaMetric(
+                            WCAMetric(
                                 name='threshold_mb',
                                 labels=dict(start=str(int(d['util_start'])),
                                             end=str(int(d['util_end'])),

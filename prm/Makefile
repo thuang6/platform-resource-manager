@@ -18,7 +18,7 @@ package:
 	-rm .pex-build/wca*
 	-rm .pex-build/prm*
 	-rm -rf prm.egg-info/
-	pipenv run env PYTHONPATH=. pex . wca -v --cache-dir=.pex-build --output=dist/wca-prm.pex -m wca.main:main
+	pipenv run env PYTHONPATH=. pex . workload-collocation-agent -v --cache-dir=.pex-build --output=dist/wca-prm.pex -m wca.main:main
 	./dist/wca-prm.pex --version
 
 

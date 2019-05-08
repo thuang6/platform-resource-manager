@@ -22,7 +22,7 @@ This module implements resource contention detection on one workload
 import logging
 from datetime import datetime
 from collections import deque
-from wca.metrics import Metric as WcaMetric
+from wca.metrics import Metric as WCAMetric
 from wca.metrics import Measurements, MetricName
 from wca.detectors import ContendedResource
 from prm.analyze.analyzer import Metric
@@ -101,7 +101,7 @@ class Container:
                 if app:
                     label_dict['application'] = app
 
-                metric = WcaMetric(
+                metric = WCAMetric(
                     name=met,
                     value=val,
                     labels=label_dict
@@ -168,7 +168,7 @@ class Container:
             self.timestamp = timestamp
 
     def _append_metrics(self, metrics, mname, mvalue):
-        metric = WcaMetric(
+        metric = WCAMetric(
                 name=mname,
                 value=mvalue,
                 labels=dict(
