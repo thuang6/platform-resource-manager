@@ -22,9 +22,9 @@ This module implements resource contention detection on one workload
 import logging
 from datetime import datetime
 from collections import deque
-from owca.metrics import Metric as OwcaMetric
-from owca.metrics import Measurements, MetricName
-from owca.detectors import ContendedResource
+from wca.metrics import Metric as WcaMetric
+from wca.metrics import Measurements, MetricName
+from wca.detectors import ContendedResource
 from prm.analyze.analyzer import Metric
 
 log = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ class Container:
         """ retrieve container platform metrics """
         return self.metrics
 
-    def get_owca_metrics(self, app):
+    def get_wca_metrics(self, app):
         metrics = []
         if self.metrics:
             for met, val in self.metrics.items():
@@ -101,7 +101,7 @@ class Container:
                 if app:
                     label_dict['application'] = app
 
-                metric = OwcaMetric(
+                metric = WcaMetric(
                     name=met,
                     value=val,
                     labels=label_dict
@@ -168,7 +168,7 @@ class Container:
             self.timestamp = timestamp
 
     def _append_metrics(self, metrics, mname, mvalue):
-        metric = OwcaMetric(
+        metric = WcaMetric(
                 name=mname,
                 value=mvalue,
                 labels=dict(
@@ -178,22 +178,22 @@ class Container:
         metrics.append(metric)
 
     def _detect_in_bin(self, thresh):
-        owca_metrics = []
+        wca_metrics = []
         cond_res = []
         metrics = self.metrics
         unknown_reason = True
         if metrics[Metric.CPI] > thresh['cpi']:
-            self._append_metrics(owca_metrics, Metric.CPI,
+            self._append_metrics(wca_metrics, Metric.CPI,
                                  metrics[Metric.CPI])
-            self._append_metrics(owca_metrics, 'cpi_threshold', thresh['cpi'])
+            self._append_metrics(wca_metrics, 'cpi_threshold', thresh['cpi'])
 
             if metrics[Metric.L3MPKI] > thresh['mpki']:
                 log.info('Last Level Cache contention is detected:')
                 log.info('Latency critical container %s CPI = %f MPKI = %f \n',
                          self.cid, metrics[Metric.CPI], metrics[Metric.L3MPKI])
-                self._append_metrics(owca_metrics, Metric.L3MPKI,
+                self._append_metrics(wca_metrics, Metric.L3MPKI,
                                      metrics[Metric.L3MPKI])
-                self._append_metrics(owca_metrics, 'mpki_threshold',
+                self._append_metrics(wca_metrics, 'mpki_threshold',
                                      thresh['mpki'])
                 cond_res.append(ContendedResource.LLC)
                 unknown_reason = False
@@ -202,9 +202,9 @@ class Container:
                 log.info('Memory Bandwidth contention detected:')
                 log.info('Latency critical container %s CPI = %f MSPKI = %f \n',
                          self.cid, metrics[Metric.CPI], metrics[Metric.MSPKI])
-                self._append_metrics(owca_metrics, Metric.MSPKI,
+                self._append_metrics(wca_metrics, Metric.MSPKI,
                                      metrics[Metric.MSPKI])
-                self._append_metrics(owca_metrics, 'mspki_threshold',
+                self._append_metrics(wca_metrics, 'mspki_threshold',
                                      thresh['mspki'])
                 cond_res.append(ContendedResource.MEMORY_BW)
                 unknown_reason = False
@@ -215,15 +215,15 @@ class Container:
                          self.cid, metrics[Metric.CPI])
                 cond_res.append(ContendedResource.UNKN)
 
-            return cond_res, owca_metrics
+            return cond_res, wca_metrics
 
-        return [], owca_metrics
+        return [], wca_metrics
 
     def tdp_contention_detect(self, tdp_thresh):
         """ detect TDP contention in container """
-        owca_metrics = []
+        wca_metrics = []
         if not tdp_thresh:
-            return None, owca_metrics
+            return None, wca_metrics
 
         metrics = self.metrics
         log.debug('Current utilization = %f, frequency = %f, tdp utilization\
@@ -233,17 +233,17 @@ class Container:
         if metrics[Metric.UTIL] >= tdp_thresh['util'] and\
            self.metrics[Metric.NF] < tdp_thresh['bar']:
             log.info('TDP Contention Alert!')
-            self._append_metrics(owca_metrics, Metric.NF, metrics[Metric.NF])
-            self._append_metrics(owca_metrics, 'nf_threshold',
+            self._append_metrics(wca_metrics, Metric.NF, metrics[Metric.NF])
+            self._append_metrics(wca_metrics, 'nf_threshold',
                                  tdp_thresh['bar'])
-            self._append_metrics(owca_metrics, Metric.UTIL,
+            self._append_metrics(wca_metrics, Metric.UTIL,
                                  metrics[Metric.UTIL])
-            self._append_metrics(owca_metrics, 'util_threshold',
+            self._append_metrics(wca_metrics, 'util_threshold',
                                  tdp_thresh['util'])
 
-            return ContendedResource.TDP, owca_metrics
+            return ContendedResource.TDP, wca_metrics
 
-        return None, owca_metrics
+        return None, wca_metrics
 
     def contention_detect(self, threshs):
         """ detect resouce contention after find proper utilization bin """

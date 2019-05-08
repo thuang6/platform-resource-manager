@@ -1,16 +1,16 @@
 # Intel® PRM plugin
 
 This readme describes the Intel® Platform Resource Manager (Intel® PRM) plugin
-for the Orchestration-aware Workload Collocation Agent (OWCA).
+for the Workload Collocation Agent (WCA).
 
 ## Description
 
 The Intel® PRM plugin uses hardware and OS metrics to build a model and detect
 contention.
 
-For OWCA details, including an installation guide, refer to [OWCA](https://github.com/intel/owca).
+For WCA details, including an installation guide, refer to [WCA](https://github.com/intel/workload-collocation-agent).
 
-## Required OWCA labels
+## Required WCA labels
 
 You must pass the following labels to the `detect` API function:
 
@@ -78,6 +78,6 @@ sudo -s
 // Set an appropriate value.
 ulimit -n 65536
 
-./dist/owca-prm.pex -c mesos_prm.yaml -r prm.detector:ContentionDetector -l info
+./dist/wca-prm.pex -c mesos_prm.yaml -r prm.detector:ContentionDetector -l info
 ```
 

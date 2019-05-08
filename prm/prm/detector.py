@@ -17,14 +17,14 @@
 import logging
 import json
 import numpy as np
-from tying import List
+from typing import List
 
-from owca import detectors
-from owca.platforms import Platform
-from owca.detectors import ContentionAnomaly, TasksMeasurements
-from owca.detectors import TasksResources, TasksLabels
-from owca.detectors import ContendedResource
-from owca.metrics import Metric as OwcaMetric
+from wca import detectors
+from wca.platforms import Platform
+from wca.detectors import ContentionAnomaly, TasksMeasurements
+from wca.detectors import TasksResources, TasksLabels
+from wca.detectors import ContendedResource
+from wca.metrics import Metric as WcaMetric
 
 from prm.container import Container
 from prm.analyze.analyzer import Metric, Analyzer
@@ -105,12 +105,12 @@ class ContentionDetector(detectors.AnomalyDetector):
 
         return contenders
 
-    def _append_anomaly(self, anomalies, res, cid, contenders, owca_metrics):
+    def _append_anomaly(self, anomalies, res, cid, contenders, wca_metrics):
         anomaly = ContentionAnomaly(
                 resource=res,
                 contended_task_id=cid,
                 contending_task_ids=contenders,
-                metrics=owca_metrics
+                metrics=wca_metrics
             )
         anomalies.append(anomaly)
 
@@ -123,19 +123,19 @@ class ContentionDetector(detectors.AnomalyDetector):
         cid = con.cid
         if app in analyzer.threshold:
             thresh = analyzer.get_thresh(app)
-            contends, owca_metrics = con.contention_detect(thresh)
+            contends, wca_metrics = con.contention_detect(thresh)
             log.debug('cid=%r contends=%r', cid, contends)
-            log.debug('cid=%r threshold metrics=%r', cid, owca_metrics)
+            log.debug('cid=%r threshold metrics=%r', cid, wca_metrics)
             for contend in contends:
                 contenders = self._detect_contenders(con, contend)
                 self._append_anomaly(anomalies, contend, cid, contenders,
-                                     owca_metrics)
+                                     wca_metrics)
             thresh_tdp = analyzer.get_tdp_thresh(app)
-            tdp_contend, owca_metrics = con.tdp_contention_detect(thresh_tdp)
+            tdp_contend, wca_metrics = con.tdp_contention_detect(thresh_tdp)
             if tdp_contend:
                 contenders = self._detect_contenders(con, tdp_contend)
                 self._append_anomaly(anomalies, tdp_contend, cid, contenders,
-                                     owca_metrics)
+                                     wca_metrics)
 
         return anomalies
 
@@ -162,7 +162,7 @@ class ContentionDetector(detectors.AnomalyDetector):
                     tasks_labels[cid]['application_version_name']
         else:
             log.debug('no label "application" or "application_version_name" '
-                      'passed to detect function by owca for container: {}'.format(cid))
+                      'passed to detect function by wca for container: {}'.format(cid))
 
         return None
 
@@ -178,12 +178,12 @@ class ContentionDetector(detectors.AnomalyDetector):
             self.analyzer.update_lcutilmax(lcutil)
             util_max = lcutil
         capacity = assign_cpus * 100
-        return [OwcaMetric(name=Metric.LCCAPACITY, value=capacity),
-                OwcaMetric(name=Metric.LCMAX, value=util_max),
-                OwcaMetric(name=Metric.SYSUTIL, value=sysutil)]
+        return [WcaMetric(name=Metric.LCCAPACITY, value=capacity),
+                WcaMetric(name=Metric.LCMAX, value=util_max),
+                WcaMetric(name=Metric.SYSUTIL, value=sysutil)]
 
     def _get_threshold_metrics(self):
-        """Encode threshold objects as OWCA metrics.
+        """Encode threshold objects as WCA metrics.
         In contrast to *_threshold metrics from Container,
         all utilization partitions are exposed for all workloads.
         """
@@ -193,16 +193,16 @@ class ContentionDetector(detectors.AnomalyDetector):
             for cid, threshold in self.analyzer.threshold.items():
                 if cid == 'lcutilmax':
                     metrics.append(
-                        OwcaMetric(name='threshold_lcutilmax', value=threshold)
+                        WcaMetric(name='threshold_lcutilmax', value=threshold)
                     )
                     continue
                 if 'tdp' in threshold and 'bar' in threshold['tdp']:
                     metrics.extend([
-                        OwcaMetric(
+                        WcaMetric(
                             name='threshold_tdp_bar',
                             value=threshold['tdp']['bar'],
                             labels=dict(cid=cid)),
-                        OwcaMetric(
+                        WcaMetric(
                             name='threshold_tdp_util',
                             value=threshold['tdp']['util'],
                             labels=dict(cid=cid)),
@@ -210,19 +210,19 @@ class ContentionDetector(detectors.AnomalyDetector):
                 if 'thresh' in threshold:
                     for d in threshold['thresh']:
                         metrics.extend([
-                            OwcaMetric(
+                            WcaMetric(
                                 name='threshold_cpi',
                                 labels=dict(start=str(int(d['util_start'])),
                                             end=str(int(d['util_end'])),
                                             cid=cid),
                                 value=d['cpi']),
-                            OwcaMetric(
+                            WcaMetric(
                                 name='threshold_mpki',
                                 labels=dict(start=str(int(d['util_start'])),
                                             end=str(int(d['util_end'])),
                                             cid=cid),
                                 value=(d['mpki'])),
-                            OwcaMetric(
+                            WcaMetric(
                                 name='threshold_mb',
                                 labels=dict(start=str(int(d['util_start'])),
                                             end=str(int(d['util_end'])),
@@ -270,7 +270,7 @@ class ContentionDetector(detectors.AnomalyDetector):
         return assigned_cpus
 
     def _process_measurements(self, tasks_measurements: TasksMeasurements,
-                              tasks_labels: TasksLabels, metric_list: List[OwcaMetric],
+                              tasks_labels: TasksLabels, metric_list: List[wcaMetric],
                               timestamp: float, assigned_cpus: float):
 
         sysutil = 0
@@ -286,8 +286,8 @@ class ContentionDetector(detectors.AnomalyDetector):
                 metrics = container.get_metrics()
                 log.debug('cid=%r container metrics=%r', cid, metrics)
                 if metrics:
-                    owca_metrics = container.get_owca_metrics(app)
-                    metric_list.extend(owca_metrics)
+                    wca_metrics = container.get_wca_metrics(app)
+                    metric_list.extend(wca_metrics)
                     if self.mode_config == ContentionDetector.COLLECT_MODE:
                         app = self._cid_to_app(cid, tasks_labels)
                         if app:

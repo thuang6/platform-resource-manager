@@ -21,7 +21,7 @@ from __future__ import print_function
 from __future__ import division
 
 import logging
-from owca.allocators import AllocationType
+from wca.allocators import AllocationType
 from prm.resource import Resource
 
 log = logging.getLogger(__name__)
