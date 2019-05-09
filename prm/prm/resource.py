@@ -18,7 +18,7 @@
 
 from enum import Enum
 from typing import Union
-from owca.allocators import AllocationType, RDTAllocation, TasksAllocations
+from wca.allocators import AllocationType, RDTAllocation, TasksAllocations
 
 
 class RDTResource(str, Enum):

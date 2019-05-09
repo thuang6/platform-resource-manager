@@ -1,3 +1,3 @@
-[submodule "owca"]
-	path = prm/owca
-	url = https://github.com/intel/owca
+[submodule "prm/workload-collocation-agent"]
+	path = prm/workload-collocation-agent
+	url = https://github.com/intel/workload-collocation-agent

@@ -10,16 +10,16 @@ venv:
 
 flake8: 
 	@echo Checking code quality.
-	pipenv run flake8 owca tests example workloads
+	pipenv run flake8 wca tests example workloads
 
 package: 
-	@echo Building owca pex file.
-	-rm dist/owca-prm.pex
-	-rm .pex-build/owca*
+	@echo Building wca pex file.
+	-rm dist/wca-prm.pex
+	-rm .pex-build/wca*
 	-rm .pex-build/prm*
 	-rm -rf prm.egg-info/
-	pipenv run env PYTHONPATH=. pex . owca -v --cache-dir=.pex-build --output=dist/owca-prm.pex -m owca.main:main 
-	./dist/owca-prm.pex --version
+	pipenv run env PYTHONPATH=. pex . workload-collocation-agent -v --cache-dir=.pex-build --output=dist/wca-prm.pex -m wca.main:main
+	./dist/wca-prm.pex --version
 
 
 check: flake8

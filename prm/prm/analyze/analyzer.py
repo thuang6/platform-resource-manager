@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 
 class Metric(str, Enum):
-    """ This enumeration defines calculated metrics from owca measurements """
+    """ This enumeration defines calculated metrics from wca measurements """
     CYC = 'cycle'
     INST = 'instruction'
     L3MISS = 'cache_miss'
