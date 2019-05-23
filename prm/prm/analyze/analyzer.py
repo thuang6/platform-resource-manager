@@ -88,6 +88,8 @@ class Analyzer:
 
     def _build_tdp_thresh(self, jdata):
         job = jdata['name'].values[0]
+        if job not in self.workload_meta:
+            return
         cpu_no = self.workload_meta[job]['cpus']
 
         utilization_threshold = cpu_no * 100 * 0.95
@@ -126,6 +128,8 @@ class Analyzer:
 
     def _build_thresh(self, jdata, span, strict, use_origin, verbose):
         job = jdata['name'].values[0]
+        if job not in self.workload_meta:
+            return
         cpu_no = self.workload_meta[job]['cpus']
         utilization_partition = self.partition_utilization(
             cpu_no, Analyzer.UTIL_BIN_STEP)
