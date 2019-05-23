@@ -155,9 +155,9 @@ class Analyzer:
                 thresh = {
                     'util_start': lower_bound.item(),
                     'util_end': higher_bound.item(),
-                    'cpi': cpi_thresh.item(),
-                    'mpki': mpki_thresh.item(),
-                    'mb': mb_thresh.item()
+                    'cpi': np.float64(cpi_thresh).item(),
+                    'mpki': np.float64(mpki_thresh).item(),
+                    'mb': np.float64(mb_thresh).item()
                 }
                 if Metric.L2SPKI in jdataf.columns:
                     l2spki = jdataf[Metric.L2SPKI]
@@ -178,8 +178,8 @@ class Analyzer:
 
     def _process_lc_max(self, util_file):
         udf = pd.read_csv(util_file)
-        lcu = udf[udf['name'] == 'lcs']
-        lcu = udf[Metric.UTIL]
+        lcs = udf[udf['name'] == 'lcs']
+        lcu = lcs[Metric.UTIL]
         maxulc = int(lcu.max())
         self.threshold['lcutilmax'] = maxulc
         log.debug('max LC utilization: %f', maxulc)
