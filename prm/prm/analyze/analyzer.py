@@ -28,6 +28,10 @@ import pandas as pd
 from .gmmfense import GmmFense
 log = logging.getLogger(__name__)
 
+class ThreshType(str, Enum):
+    METRICS = 'metrics_threshold'
+    TDP = 'tdp_threshold'
+
 
 class Metric(str, Enum):
     """ This enumeration defines calculated metrics from wca measurements """
@@ -105,7 +109,7 @@ class Analyzer:
             fbar = mean - 3 * std
             if min_freq < fbar:
                 fbar = min_freq
-            self.threshold[job]['tdp'] = {
+            self.threshold[job][ThreshType.TDP] = {
                 'util': utilization_threshold,
                 'mean': mean.item(),
                 'std': std.item(),
@@ -173,7 +177,7 @@ class Analyzer:
                     mspki_thresh = self._get_fense(mspki, True, strict,
                                                    span, use_origin)
                     thresh['mspki'] = mspki_thresh.item()
-                self.threshold[job]['thresh'].append(thresh)
+                self.threshold[job][ThreshType.METRICS].append(thresh)
             except Exception as e:
                 print(str(e))
                 if verbose:
@@ -199,11 +203,8 @@ class Analyzer:
         with open(self.thresh_file, 'w') as threshf:
             threshf.write(json.dumps(self.threshold))
 
-    def get_thresh(self, job):
-        return self.threshold[job]['thresh'] if job in self.threshold else {}
-
-    def get_tdp_thresh(self, job):
-        return self.threshold[job]['tdp'] if job in self.threshold else {}
+    def get_thresh(self, job, thresh_type):
+        return self.threshold[job][thresh_type] if job in self.threshold else {}
 
     def build_model(self, util_file=UTIL_FILE, metric_file=METRIC_FILE,
                     span=4, strict=True, use_origin=False, verbose=False):
@@ -219,7 +220,11 @@ class Analyzer:
             self._build_tdp_thresh(jdata)
             self._build_thresh(jdata, span, strict, use_origin, verbose)
 
-        if verbose:
-            log.warn(self.threshold)
-        with open(self.thresh_file, 'w') as threshf:
-            threshf.write(json.dumps(self.threshold))
+        if self.threshold:
+            if verbose:
+                log.warn(self.threshold)
+            with open(self.thresh_file, 'w') as threshf:
+                threshf.write(json.dumps(self.threshold))
+        else:
+
+            log.warn('Fail to build local model, no enough data were collected!')

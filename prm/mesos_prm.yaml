@@ -12,6 +12,17 @@ runner: !DetectionRunner
     action_delay: *action_delay
     mode_config: 'collect' 
     agg_period: 20.
+    database: !ModelDatabase
+      db_type: etcd    # 1) local 2)zookeeper 3)etcd
+      directory: ~     # required for local
+      host: "10.239.157.129:2379"     # required for zookeeper and etcd
+      namespace: ~     # for zookeeper, if none, using default model_distribution
+      ssl_verify: false     # for etcd, default false
+      api_path: "/v3beta"     # for etcd, '/v3alpha' for 3.2.x etcd version, '/v3beta' or '/v3' for 3.3.x etcd version
+      timeout: 5.0     # for etcd, default 5.0 seconds
+      client_cert_path: ~    # for etcd, default None
+      client_key_path: ~     # for etcd, default None
+    model_pull_cycle: 180.
   rdt_enabled: True
   extra_labels:
     env_uniq_id: "120"

@@ -27,7 +27,8 @@ from wca.detectors import ContendedResource
 from wca.metrics import Metric as WCAMetric
 
 from prm.container import Container
-from prm.analyze.analyzer import Metric, Analyzer
+from prm.analyze.analyzer import Metric, Analyzer, ThreshType
+from prm.model_distribution.db import ModelDatabase
 
 log = logging.getLogger(__name__)
 
@@ -37,8 +38,14 @@ class ContentionDetector(detectors.AnomalyDetector):
     DETECT_MODE = 'detect'
     WL_META_FILE = 'workload.json'
 
-    def __init__(self, action_delay: int, mode_config: str = 'collect',
-                 agg_period: float = 20):
+    def __init__(
+        self, 
+        action_delay: float, 
+        mode_config: str = 'collect',
+        agg_period: float = 20, 
+        database: ModelDatabase = None,
+        model_pull_cycle: float = 180
+    ):
         log.debug('action_delay: %i, mode config: %s, agg_period: %i',
                   action_delay, mode_config, agg_period)
         self.mode_config = mode_config
@@ -63,9 +70,13 @@ class ContentionDetector(detectors.AnomalyDetector):
                 with open(ContentionDetector.WL_META_FILE, 'r') as wlf:
                     self.analyzer = Analyzer(wlf)
             except Exception as e:
-                log.exception('cannot read workload file - stopped')
-                raise e
+                log.exception('cannot read workload file to build local model')
             self.analyzer.build_model()
+            if database:
+                self.database = database
+                self.model_pull_cycle = model_pull_cycle
+                self.threshs = {}
+                self.cycle = 0
 
     def _init_data_file(self, data_file, cols):
         headline = None
@@ -87,7 +98,7 @@ class ContentionDetector(detectors.AnomalyDetector):
         contender_id = None
         for cid, container in self.container_map.items():
             delta = 0
-            if con.cid == container.cid:
+            if con.cid == cid:
                 continue
             if resource == ContendedResource.LLC:
                 delta = container.get_llcoccupany_delta()
@@ -114,28 +125,35 @@ class ContentionDetector(detectors.AnomalyDetector):
             )
         anomalies.append(anomaly)
 
+    def _get_thresholds(self, app: str, thresh_type: ThreshType):
+        thresh = {}
+        vcpus = self.workload_meta[app]['cpus']
+        if self.threshs and app in self.threshs and vcpus in self.threshs[app]:
+            thresh = self.threshs[app][vcpus][thresh_type]
+        if not thresh and app in self.analyzer.threshold:
+            thresh = self.analyzer.get_thresh(app, thresh_type)
+        return thresh
+
     def _detect_one_task(self, con: Container, app: str):
         anomalies = []
         if not con.get_metrics():
             return anomalies
 
-        analyzer = self.analyzer
         cid = con.cid
-        if app in analyzer.threshold:
-            thresh = analyzer.get_thresh(app)
-            contends, wca_metrics = con.contention_detect(thresh)
-            log.debug('cid=%r contends=%r', cid, contends)
-            log.debug('cid=%r threshold metrics=%r', cid, wca_metrics)
-            for contend in contends:
-                contenders = self._detect_contenders(con, contend)
-                self._append_anomaly(anomalies, contend, cid, contenders,
-                                     wca_metrics)
-            thresh_tdp = analyzer.get_tdp_thresh(app)
-            tdp_contend, wca_metrics = con.tdp_contention_detect(thresh_tdp)
-            if tdp_contend:
-                contenders = self._detect_contenders(con, tdp_contend)
-                self._append_anomaly(anomalies, tdp_contend, cid, contenders,
-                                     wca_metrics)
+        thresh = self._get_thresholds(app, ThreshType.METRICS)
+        contends, wca_metrics = con.contention_detect(thresh)
+        log.debug('cid=%r contends=%r', cid, contends)
+        log.debug('cid=%r threshold metrics=%r', cid, wca_metrics)
+        for contend in contends:
+            contenders = self._detect_contenders(con, contend)
+            self._append_anomaly(anomalies, contend, cid, contenders,
+                                 wca_metrics)
+        thresh_tdp = self._get_thresholds(app, ThreshType.TDP)
+        tdp_contend, wca_metrics = con.tdp_contention_detect(thresh_tdp)
+        if tdp_contend:
+            contenders = self._detect_contenders(con, tdp_contend)
+            self._append_anomaly(anomalies, tdp_contend, cid, contenders,
+                                 wca_metrics)
 
         return anomalies
 
@@ -269,11 +287,13 @@ class ContentionDetector(detectors.AnomalyDetector):
         self._remove_finished_tasks(cidset)
         return assigned_cpus
 
-    def _process_measurements(self, tasks_measurements: TasksMeasurements,
-                              tasks_labels: TasksLabels,
-                              metric_list: List[WCAMetric],
-                              timestamp: float, assigned_cpus: float):
-
+    def _process_measurements(
+        self, tasks_measurements: TasksMeasurements,
+        tasks_labels: TasksLabels,
+        metric_list: List[WCAMetric],
+        timestamp: float,
+        assigned_cpus: float
+    ):
         sysutil = 0
         lcutil = 0
         for cid, measurements in tasks_measurements.items():
@@ -325,6 +345,14 @@ class ContentionDetector(detectors.AnomalyDetector):
         anomaly_list = []
         if self.agg:
             if self.mode_config == ContentionDetector.DETECT_MODE:
+                if self.database and self.cycle == 0:
+                    self.threshs = self.database.get(Platform.cpu_model)
+                    if not self.threshs:
+                        log.warn('No model is pulled from model database!')
+                self.cycle += 1
+                if self.cycle == self.model_pull_cycle:
+                    self.cycle = 0
+
                 for container in self.container_map.values():
                     app = self._cid_to_app(container.cid, tasks_labels)
                     if app:

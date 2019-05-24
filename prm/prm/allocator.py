@@ -31,8 +31,8 @@ from prm.naivectl import NaiveController
 from prm.cpucycle import CpuCycle
 from prm.llcoccup import LlcOccup
 from prm.membw import MemoryBw
-from prm.analyze.analyzer import Metric, Analyzer
-
+from prm.analyze.analyzer import Metric, Analyzer, ThreshType
+from prm.model_distribution.db import ModelDatabase
 
 log = logging.getLogger(__name__)
 
@@ -42,8 +42,15 @@ class ResourceAllocator(Allocator):
     DETECT_MODE = 'detect'
     WL_META_FILE = 'workload.json'
 
-    def __init__(self, action_delay: float, mode_config: str = 'collect',
-                 agg_period: float = 20, exclusive_cat: bool = False):
+    def __init__(
+        self, 
+        action_delay: float,
+        mode_config: str = 'collect',
+        agg_period: float = 20, 
+        exclusive_cat: bool = False,
+        database: ModelDatabase = None,
+        model_pull_cycle: float = 180
+    ):
         log.debug('action_delay: %i, mode config: %s, agg_period: %i, exclusive: %s',
                   action_delay, mode_config, agg_period, exclusive_cat)
         self.mode_config = mode_config
@@ -70,9 +77,14 @@ class ResourceAllocator(Allocator):
                 with open(ResourceAllocator.WL_META_FILE, 'r') as wlf:
                     self.analyzer = Analyzer(wlf)
             except Exception as e:
-                log.exception('cannot read workload file - stopped')
-                raise e
+                log.exception('cannot read workload file to build local model')
             self.analyzer.build_model()
+            if database:
+                self.database = database
+                self.model_pull_cycle = model_pull_cycle
+                self.threshs = {}
+                self.cycle = 0
+
             self.cpuc = CpuCycle(self.analyzer.get_lcutilmax(), 0.5, False)
             self.l3c = LlcOccup(self.exclusive_cat)
             self.mbc_enabled = True
@@ -131,28 +143,35 @@ class ResourceAllocator(Allocator):
             )
         anomalies.append(anomaly)
 
+    def _get_thresholds(self, app: str, thresh_type: ThreshType):
+        thresh = {}
+        vcpus = self.workload_meta[app]['cpus']
+        if self.threshs and app in self.threshs and vcpus in self.threshs[app]:
+            thresh = self.threshs[app][vcpus][thresh_type]
+        if not thresh and app in self.analyzer.threshold:
+            thresh = self.analyzer.get_thresh(app, thresh_type)
+        return thresh
+
     def _detect_one_task(self, con: Container, app: str):
         anomalies = []
         if not con.get_metrics():
             return anomalies
 
-        analyzer = self.analyzer
         cid = con.cid
-        if app in analyzer.threshold:
-            thresh = analyzer.get_thresh(app)
-            contends, wca_metrics = con.contention_detect(thresh)
-            log.debug('cid=%r contends=%r', cid, contends)
-            log.debug('cid=%r threshold metrics=%r', cid, wca_metrics)
-            for contend in contends:
-                contenders = self._detect_contenders(con, contend)
-                self._append_anomaly(anomalies, contend, cid, contenders,
-                                     wca_metrics)
-            thresh_tdp = analyzer.get_tdp_thresh(app)
-            tdp_contend, wca_metrics = con.tdp_contention_detect(thresh_tdp)
-            if tdp_contend:
-                contenders = self._detect_contenders(con, tdp_contend)
-                self._append_anomaly(anomalies, tdp_contend, cid, contenders,
-                                     wca_metrics)
+        thresh = self._get_thresholds(app, ThreshType.METRICS)
+        contends, wca_metrics = con.contention_detect(thresh)
+        log.debug('cid=%r contends=%r', cid, contends)
+        log.debug('cid=%r threshold metrics=%r', cid, wca_metrics)
+        for contend in contends:
+            contenders = self._detect_contenders(con, contend)
+            self._append_anomaly(anomalies, contend, cid, contenders,
+                                 wca_metrics)
+        thresh_tdp = self._get_thresholds(app, ThreshType.TDP)
+        tdp_contend, wca_metrics = con.tdp_contention_detect(thresh_tdp)
+        if tdp_contend:
+            contenders = self._detect_contenders(con, tdp_contend)
+            self._append_anomaly(anomalies, tdp_contend, cid, contenders,
+                                 wca_metrics)
 
         return anomalies
 
