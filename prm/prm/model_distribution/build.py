@@ -138,11 +138,10 @@ class BuilderRunner(Runner):
             dataframe = self.prom_processor.generate_new_metric_dataframe(
                 self.metrics_names, label_group, start, end, self._step)
 
-            tdp_thresh, thresholds, maxulc = self._model.build_model(
+            tdp_thresh, thresholds = self._model.build_model(
                 dataframe, label_group)
 
-            value = {'tdp_thresh': tdp_thresh,
-                     'thresholds': thresholds, 'maxulc': maxulc}
+            value = {'tdp_thresh': tdp_thresh, 'thresholds': thresholds}
 
             nested_trees[model_key.cpu_model][model_key.application][model_key.initial_task_cpu_assignment] = value
 

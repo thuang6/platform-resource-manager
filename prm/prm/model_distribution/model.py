@@ -156,20 +156,11 @@ class DistriModel(object):
                     log.exception('error in build threshold util= (%r)', util)
         return thresholds
 
-    def _process_lc_max(self, jdata):
-
-        lcu = jdata[Metric.UTIL]
-        if lcu.shape[0] == 0:
-            return
-        maxulc = int(lcu.max())
-        return maxulc
-
     def build_model(self, dataframe, label_group):
         cpu_number = float(label_group[GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT])
         tdp_thresh = self._build_tdp_thresh(cpu_number, dataframe)
         thresholds = self._build_thresh(
             cpu_number, dataframe, self.span, self.strict, self.use_origin, self.verbose)
-        maxulc = self._process_lc_max(dataframe)
 
-        return tdp_thresh, thresholds, maxulc
+        return tdp_thresh, thresholds
 
