@@ -59,10 +59,9 @@ class ContentionDetector(detectors.AnomalyDetector):
         self.mcols = ['time', 'cid', 'name', Metric.CYC, Metric.INST,
                       Metric.L3MISS, Metric.L3OCC, Metric.MB, Metric.CPI,
                       Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI]
-
+        self.workload_meta = {}
         if mode_config == ContentionDetector.COLLECT_MODE:
             self.analyzer = Analyzer()
-            self.workload_meta = {}
             self._init_data_file(Analyzer.UTIL_FILE, self.ucols)
             self._init_data_file(Analyzer.METRIC_FILE, self.mcols)
         else:
@@ -276,10 +275,9 @@ class ContentionDetector(detectors.AnomalyDetector):
             cidset.add(cid)
             if not self._is_be_app(cid, tasks_labels):
                 assigned_cpus += resources['cpus']
-            if self.mode_config == ContentionDetector.COLLECT_MODE:
-                app = self._cid_to_app(cid, tasks_labels)
-                if app:
-                    self.workload_meta[app] = resources
+            app = self._cid_to_app(cid, tasks_labels)
+            if app:
+                self.workload_meta[app] = resources
 
         if self.mode_config == ContentionDetector.COLLECT_MODE:
             self._update_workload_meta()
