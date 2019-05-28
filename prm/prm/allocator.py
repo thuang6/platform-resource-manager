@@ -411,6 +411,14 @@ class ResourceAllocator(Allocator):
         anomaly_list = []
         if self.agg:
             if self.mode_config == ResourceAllocator.DETECT_MODE:
+                if self.database and self.cycle == 0:
+                    self.threshs = self.database.get(platform.cpu_model)
+                    if not self.threshs:
+                        log.warn('No model is pulled from model database!')
+                self.cycle += 1
+                if self.cycle == self.model_pull_cycle:
+                    self.cycle = 0
+
                 for container in self.container_map.values():
                     app = self._cid_to_app(container.cid, tasks_labels)
                     if app and container.cid not in self.bes:

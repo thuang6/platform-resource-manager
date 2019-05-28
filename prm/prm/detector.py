@@ -346,7 +346,7 @@ class ContentionDetector(detectors.AnomalyDetector):
         if self.agg:
             if self.mode_config == ContentionDetector.DETECT_MODE:
                 if self.database and self.cycle == 0:
-                    self.threshs = self.database.get(Platform.cpu_model)
+                    self.threshs = self.database.get(platform.cpu_model)
                     if not self.threshs:
                         log.warn('No model is pulled from model database!')
                 self.cycle += 1
