@@ -24,7 +24,7 @@ from prm.model_distribution.metric import Metric
 from prm.model_distribution.processing import PromProcessor
 from prm.model_distribution.model import DistriModel
 from prm.model_distribution.db import ModelDatabase
-
+from prm.analyze.analyzer import ThreshType
 
 log = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ class BuilderRunner(Runner):
             tdp_thresh, thresholds = self._model.build_model(
                 dataframe, label_group)
 
-            value = {'tdp_thresh': tdp_thresh, 'thresholds': thresholds}
+            value = {ThreshType.TDP: tdp_thresh, ThreshType.METRICS: thresholds}
 
             nested_trees[model_key.cpu_model][model_key.application][model_key.initial_task_cpu_assignment] = value
 

@@ -44,7 +44,7 @@ from mresource import Resource
 from naivectrl import NaiveController
 from prometheus import PrometheusClient
 from pgos import Pgos
-from analyze.analyzer import Metric, Analyzer
+from analyze.analyzer import Metric, Analyzer, ThreshType
 
 __version__ = 0.8
 
@@ -309,8 +309,8 @@ def mon_metric_cycle(ctx):
             con = ctx.metric_cons[cid]
             con.update_pids(pids)
         else:
-            thresh = ctx.analyzer.get_thresh(key)
-            tdp_thresh = ctx.analyzer.get_tdp_thresh(key)
+            thresh = ctx.analyzer.get_thresh(key, ThreshType.METRICS)
+            tdp_thresh = ctx.analyzer.get_thresh(key, ThreshType.TDP)
             con = Container(ctx.cgroup_driver, cid, name, pids,
                             ctx.args.verbose, thresh, tdp_thresh)
             ctx.metric_cons[cid] = con
