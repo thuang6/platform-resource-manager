@@ -91,7 +91,7 @@ class Container:
         """ retrieve container platform metrics """
         return self.metrics
 
-    def get_wca_metrics(self, app):
+    def get_wca_metrics(self, app, vcpu):
         metrics = []
         if self.metrics:
             for met, val in self.metrics.items():
@@ -100,6 +100,7 @@ class Container:
                 )
                 if app:
                     label_dict['application'] = app
+                    label_dict['initial_task_cpu_assignment'] = str(vcpu)
 
                 metric = WCAMetric(
                     name=met,
