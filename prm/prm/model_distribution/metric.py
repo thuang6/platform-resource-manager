@@ -24,7 +24,6 @@ class GroupInfo(str, Enum):
     INITIAL_TASK_CPU_ASSIGNMENT = "initial_task_cpu_assignment"
     APPLICATION = "application"
     APPLICATION_VERSION_NAME = "application_version_name"
-    # TO is application or workload name? very important
 
 class Metric(str, Enum):
 

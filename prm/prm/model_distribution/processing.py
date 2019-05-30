@@ -142,9 +142,8 @@ class PromProcessor(object):
 
         metric_lengths = []
         metric_data = {}
-        unsure_metric_name_list = [Metric.L2SPKI, Metric.MSPKI, Metric.MB]
 
-        for metric_name in [m for m in metric_name_list if m not in unsure_metric_name_list]:
+        for metric_name in metric_name_list:
             metric_length, metric_data[metric_name] = self.aggregrate_metric_by_application_and_label(
                 metric_name, group_label, start, end, step)
             metric_lengths.append(metric_length)
@@ -155,17 +154,6 @@ class PromProcessor(object):
             final_length = min(metric_lengths)
             for key, value in metric_data.items():
                 metric_data[key] = value[:final_length]
-        else:
-            final_length = metric_length
-
-        for metric_name in unsure_metric_name_list:
-            metric_length, metric_data[metric_name] = self.aggregrate_metric_by_application_and_label(
-                metric_name, group_label, start, end, step)
-            if metric_length < final_length:
-                metric_data[metric_name] = metric_data[metric_name] + [None for i in range(final_length - metric_length)]
-                log.info('fill {} with NaN'.format(metric_name))
-            else:
-                metric_data[metric_name] = metric_data[metric_name][:final_length]
 
         return pd.DataFrame.from_dict(metric_data)
 

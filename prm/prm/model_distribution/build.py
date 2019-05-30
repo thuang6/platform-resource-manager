@@ -70,8 +70,7 @@ class BuilderRunner(Runner):
         self._finish = False
         self._url = self.get_url_of_prom()
 
-        self.metrics_names = [Metric.MB, Metric.MBL, Metric.MBR, Metric.CPI,
-                              Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.L2SPKI, Metric.MSPKI]
+        self.metrics_names = [Metric.MB, Metric.CPI, Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI]
 
         self.prom_processor = PromProcessor(self._url, self._timeout)
         self._last_iteration = time.time()
