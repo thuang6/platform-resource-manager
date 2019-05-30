@@ -305,7 +305,8 @@ class ContentionDetector(detectors.AnomalyDetector):
                 metrics = container.get_metrics()
                 log.debug('cid=%r container metrics=%r', cid, metrics)
                 if metrics:
-                    wca_metrics = container.get_wca_metrics(app)
+                    vcpus = self.workload_meta[app]['cpus']
+                    wca_metrics = container.get_wca_metrics(app, vcpus)
                     metric_list.extend(wca_metrics)
                     if self.mode_config == ContentionDetector.COLLECT_MODE:
                         app = self._cid_to_app(cid, tasks_labels)
