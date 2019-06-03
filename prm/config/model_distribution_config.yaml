@@ -1,6 +1,3 @@
-loggers:
-  prm: debug
-
 runner: !BuilderRunner
   prometheus_host: "10.239.157.129:9090"
   cycle:    # default 3600s
