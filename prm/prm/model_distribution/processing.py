@@ -63,10 +63,12 @@ class PromProcessor(object):
                 nested_models[model.cpu_model][model.application] = temp
         return nested_models
 
-    def generate_existing_models_by_cpu_util(self, start, end):
+    def generate_existing_models_by_cpu_util(self, starts_ends):
         # query all series in the timerange
-        series = self.prom_http.get_series_with_label(
-            Metric.UTIL, start, end, {})
+        series = []
+        for start_end in starts_ends:
+            serie = self.prom_http.get_series_with_label(Metric.UTIL, start_end[0], start_end[1], {})
+            series = series + serie
 
         # make unique group labels
         models = {}
@@ -126,7 +128,7 @@ class PromProcessor(object):
             metric_name,  start, end, group_label, step)
 
         if len(data['result']) == 0:
-            log.warning("empty data of {}.".format(metric_name))
+            log.info("{} data is empty from {} to {}.".format(metric_name, start, end))
             return 0, []
 
         metric_arrary = [[], []]
@@ -138,8 +140,14 @@ class PromProcessor(object):
         # timestamp:axis=0, value:axis=1
         return len(metric_arrary[1]), metric_arrary[1]
 
-    def generate_new_metric_dataframe(self, metric_name_list, group_label, start, end, step):
+    def generate_new_metric_dataframes(self, metric_name_list, group_label, starts_ends, step):
+        frames = []
+        for start_end in starts_ends:
+            frame = self.generate_new_metric_dataframe(metric_name_list, group_label, start_end[0], start_end[1], step)
+            frames.append(frame)
+        return pd.concat(frames)
 
+    def generate_new_metric_dataframe(self, metric_name_list, group_label, start, end, step):
         metric_lengths = []
         metric_data = {}
 
