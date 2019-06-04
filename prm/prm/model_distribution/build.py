@@ -151,7 +151,7 @@ class BuilderRunner(Runner):
             tdp_thresh, thresholds = self._model.build_model(
                 dataframe, label_group)
 
-            value = {ThreshType.TDP: tdp_thresh, ThreshType.METRICS: thresholds}
+            value = {ThreshType.TDP.value: tdp_thresh, ThreshType.METRICS.value: thresholds}
 
             nested_trees[model_key.cpu_model][model_key.application][model_key.initial_task_cpu_assignment] = value
 
