@@ -125,30 +125,19 @@ class DistriModel(object):
                 mpki = jdataf[Metric.L3MPKI]
                 mpki_thresh = self._get_fense(mpki, True, strict,
                                               span, use_origin)
-                if (Metric.MB in jdataf.columns) and (jdataf[Metric.MB].isnull().any() != True):
-                    memb = jdataf[Metric.MB]
-                else:
-                    memb = jdataf[Metric.MBL] + jdataf[Metric.MBR]
-
+                memb = jdataf[Metric.MB]
                 mb_thresh = self._get_fense(memb, False, strict,
                                             span, use_origin)
                 thresh = {
                     'util_start': lower_bound.item(),
                     'util_end': higher_bound.item(),
-                    'cpi': np.float64(cpi_thresh).item(), # fix 'float' object has no attribute 'item' when thresh == -1.0
+                    'cpi': np.float64(cpi_thresh).item(),
                     'mpki': np.float64(mpki_thresh).item(),
                     'mb': np.float64(mb_thresh).item()
                 }
-                if Metric.L2SPKI in jdataf.columns:
-                    l2spki = jdataf[Metric.L2SPKI]
-                    l2spki_thresh = self._get_fense(l2spki, True, strict,
-                                                    span, use_origin)
-                    thresh['l2spki'] = np.float64(l2spki_thresh).item()
-                if Metric.MSPKI in jdataf.columns:
-                    mspki = jdataf[Metric.MSPKI]
-                    mspki_thresh = self._get_fense(mspki, True, strict,
-                                                   span, use_origin)
-                    thresh['mspki'] = np.float64(mspki_thresh).item()
+                mspki = jdataf[Metric.MSPKI]
+                mspki_thresh = self._get_fense(mspki, True, strict,span, use_origin)
+                thresh['mspki'] = np.float64(mspki_thresh).item()
                 thresholds.append(thresh)
 
             except Exception as e:

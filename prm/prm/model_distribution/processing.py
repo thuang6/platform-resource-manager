@@ -63,10 +63,12 @@ class PromProcessor(object):
                 nested_models[model.cpu_model][model.application] = temp
         return nested_models
 
-    def generate_existing_models_by_cpu_util(self, start, end):
+    def generate_existing_models_by_cpu_util(self, starts_ends):
         # query all series in the timerange
-        series = self.prom_http.get_series_with_label(
-            Metric.UTIL, start, end, {})
+        series = []
+        for start_end in starts_ends:
+            serie = self.prom_http.get_series_with_label(Metric.UTIL, start_end[0], start_end[1], {})
+            series = series + serie
 
         # make unique group labels
         models = {}
@@ -126,7 +128,7 @@ class PromProcessor(object):
             metric_name,  start, end, group_label, step)
 
         if len(data['result']) == 0:
-            log.warning("empty data of {}.".format(metric_name))
+            log.info("{} data is empty from {} to {}.".format(metric_name, start, end))
             return 0, []
 
         metric_arrary = [[], []]
@@ -138,13 +140,18 @@ class PromProcessor(object):
         # timestamp:axis=0, value:axis=1
         return len(metric_arrary[1]), metric_arrary[1]
 
-    def generate_new_metric_dataframe(self, metric_name_list, group_label, start, end, step):
+    def generate_new_metric_dataframes(self, metric_name_list, group_label, starts_ends, step):
+        frames = []
+        for start_end in starts_ends:
+            frame = self.generate_new_metric_dataframe(metric_name_list, group_label, start_end[0], start_end[1], step)
+            frames.append(frame)
+        return pd.concat(frames)
 
+    def generate_new_metric_dataframe(self, metric_name_list, group_label, start, end, step):
         metric_lengths = []
         metric_data = {}
-        unsure_metric_name_list = [Metric.L2SPKI, Metric.MSPKI, Metric.MB]
 
-        for metric_name in [m for m in metric_name_list if m not in unsure_metric_name_list]:
+        for metric_name in metric_name_list:
             metric_length, metric_data[metric_name] = self.aggregrate_metric_by_application_and_label(
                 metric_name, group_label, start, end, step)
             metric_lengths.append(metric_length)
@@ -155,17 +162,6 @@ class PromProcessor(object):
             final_length = min(metric_lengths)
             for key, value in metric_data.items():
                 metric_data[key] = value[:final_length]
-        else:
-            final_length = metric_length
-
-        for metric_name in unsure_metric_name_list:
-            metric_length, metric_data[metric_name] = self.aggregrate_metric_by_application_and_label(
-                metric_name, group_label, start, end, step)
-            if metric_length < final_length:
-                metric_data[metric_name] = metric_data[metric_name] + [None for i in range(final_length - metric_length)]
-                log.info('fill {} with NaN'.format(metric_name))
-            else:
-                metric_data[metric_name] = metric_data[metric_name][:final_length]
 
         return pd.DataFrame.from_dict(metric_data)
 
