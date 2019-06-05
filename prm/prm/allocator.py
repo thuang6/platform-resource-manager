@@ -18,6 +18,7 @@ import logging
 import json
 import numpy as np
 from typing import List
+from ast import literal_eval
 
 from wca.platforms import Platform
 from wca.detectors import ContentionAnomaly, TasksMeasurements
@@ -78,7 +79,11 @@ class ResourceAllocator(Allocator):
                     self.analyzer = Analyzer(wlf)
             except Exception as e:
                 log.exception('cannot read workload file to build local model')
-            self.analyzer.build_model()
+            try:
+                self.analyzer.build_model()
+            except Exception as e:
+                log.exception('cannot build model from local metrics data')
+             
             if database:
                 self.database = database
                 self.model_pull_cycle = model_pull_cycle
@@ -145,11 +150,11 @@ class ResourceAllocator(Allocator):
 
     def _get_thresholds(self, app: str, thresh_type: ThreshType):
         thresh = {}
-        vcpus = self.workload_meta[app]['cpus']
+        vcpus = str(self.workload_meta[app]['cpus'])
         if self.threshs and app in self.threshs and vcpus in self.threshs[app]:
-            thresh = self.threshs[app][vcpus][thresh_type]
+            thresh = self.threshs[app][vcpus][thresh_type.value]
         if not thresh and app in self.analyzer.threshold:
-            thresh = self.analyzer.get_thresh(app, thresh_type)
+            thresh = self.analyzer.get_thresh(app, thresh_type.value)
         return thresh
 
     def _detect_one_task(self, con: Container, app: str):
@@ -159,19 +164,21 @@ class ResourceAllocator(Allocator):
 
         cid = con.cid
         thresh = self._get_thresholds(app, ThreshType.METRICS)
-        contends, wca_metrics = con.contention_detect(thresh)
-        log.debug('cid=%r contends=%r', cid, contends)
-        log.debug('cid=%r threshold metrics=%r', cid, wca_metrics)
-        for contend in contends:
-            contenders = self._detect_contenders(con, contend)
-            self._append_anomaly(anomalies, contend, cid, contenders,
-                                 wca_metrics)
+        if thresh:
+            contends, wca_metrics = con.contention_detect(thresh)
+            log.debug('cid=%r contends=%r', cid, contends)
+            log.debug('cid=%r threshold metrics=%r', cid, wca_metrics)
+            for contend in contends:
+                contenders = self._detect_contenders(con, contend)
+                self._append_anomaly(anomalies, contend, cid, contenders,
+                                     wca_metrics)
         thresh_tdp = self._get_thresholds(app, ThreshType.TDP)
-        tdp_contend, wca_metrics = con.tdp_contention_detect(thresh_tdp)
-        if tdp_contend:
-            contenders = self._detect_contenders(con, tdp_contend)
-            self._append_anomaly(anomalies, tdp_contend, cid, contenders,
-                                 wca_metrics)
+        if thresh_tdp:
+            tdp_contend, wca_metrics = con.tdp_contention_detect(thresh_tdp)
+            if tdp_contend:
+                contenders = self._detect_contenders(con, tdp_contend)
+                self._append_anomaly(anomalies, tdp_contend, cid, contenders,
+                                     wca_metrics)
 
         return anomalies
 
@@ -412,8 +419,11 @@ class ResourceAllocator(Allocator):
         if self.agg:
             if self.mode_config == ResourceAllocator.DETECT_MODE:
                 if self.database and self.cycle == 0:
-                    self.threshs = self.database.get(platform.cpu_model)
-                    if not self.threshs:
+                    threshs = self.database.get(platform.cpu_model)
+                    self.threshs = literal_eval(threshs)
+                    if self.threshs:
+                        log.debug('pulled model thresholds=%r', self.threshs)
+                    else:
                         log.warn('No model is pulled from model database!')
                 self.cycle += 1
                 if self.cycle == self.model_pull_cycle:
