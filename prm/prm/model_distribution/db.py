@@ -132,6 +132,6 @@ class ModelDatabase(object):
         key = correct_key_characters(key)
         key = bytes(key, 'ascii')
         value = self.instance.get(key)
-        return value.decode('ascii') if value else {}
+        return value.decode('ascii') if value else '{}'
 
 

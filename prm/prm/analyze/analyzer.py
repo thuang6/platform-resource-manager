@@ -109,7 +109,7 @@ class Analyzer:
             fbar = mean - 3 * std
             if min_freq < fbar:
                 fbar = min_freq
-            self.threshold[job][ThreshType.TDP] = {
+            self.threshold[job][ThreshType.TDP.value] = {
                 'util': utilization_threshold,
                 'mean': mean.item(),
                 'std': std.item(),
@@ -177,7 +177,7 @@ class Analyzer:
                     mspki_thresh = self._get_fense(mspki, True, strict,
                                                    span, use_origin)
                     thresh['mspki'] = mspki_thresh.item()
-                self.threshold[job][ThreshType.METRICS].append(thresh)
+                self.threshold[job][ThreshType.METRICS.value].append(thresh)
             except Exception as e:
                 print(str(e))
                 if verbose:
@@ -215,7 +215,7 @@ class Analyzer:
         mdf = pd.read_csv(metric_file)
         cnames = mdf['name'].unique()
         for cname in cnames:
-            self.threshold[cname] = {"tdp": {}, "thresh": []}
+            self.threshold[cname] = {ThreshType.TDP.value: {}, ThreshType.METRICS.value: []}
             jdata = mdf[mdf['name'] == cname]
             self._build_tdp_thresh(jdata)
             self._build_thresh(jdata, span, strict, use_origin, verbose)
@@ -226,5 +226,4 @@ class Analyzer:
             with open(self.thresh_file, 'w') as threshf:
                 threshf.write(json.dumps(self.threshold))
         else:
-
             log.warn('Fail to build local model, no enough data were collected!')

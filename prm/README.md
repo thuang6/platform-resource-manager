@@ -62,7 +62,7 @@ runner: !DetectionRunner
   # Available value: 'collect'/'detect'
   # prm collects data of mesos container and writes the data into a csv file under 'collect' mode.
   # prm will build the model based on the data collected and detect the contention under 'detect' mode.
-    mode_config: 'collect'
+    mode_config: 'detect'
   # if agg_period value is multiple times of action_delay, prm will aggregate metrics based on agg_period
   # or it will record metrics based on action_delay
     agg_period: 20.
