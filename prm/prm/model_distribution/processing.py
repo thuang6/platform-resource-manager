@@ -73,6 +73,8 @@ class PromProcessor(object):
         # make unique group labels
         models = {}
         for s in series:
+            if GroupInfo.CPU_Model not in s or GroupInfo.APPLICATION not in s or GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT not in s:
+                continue
             temp_model = GroupLabel(
                 s[GroupInfo.CPU_Model], s[GroupInfo.APPLICATION], s[GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT])
             if models.get(temp_model) == None:
