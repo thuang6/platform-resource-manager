@@ -20,8 +20,8 @@ import time
 from typing import List, Union, Optional
 from datetime import datetime, timedelta
 from wca.runners import Runner
-from prm.model_distribution.metric import Metric
-from prm.model_distribution.processing import PromProcessor
+from prm.model_distribution.metric import Metric,GroupInfo
+from prm.model_distribution.prometheus.processing import PromProcessor
 from prm.model_distribution.model import DistriModel
 from prm.model_distribution.db import ModelDatabase
 from prm.analyze.analyzer import ThreshType
@@ -33,7 +33,7 @@ class ImproperStepError(Exception):
     """exceeded maximum resolution of 11,000 points per timeseries for Prometheus. """
 
 
-class BuilderRunner(Runner):
+class BuildRunnerProm(Runner):
     """
     BuildModel runner run iterations to build model thresholds and store them in database.
     Arguments:

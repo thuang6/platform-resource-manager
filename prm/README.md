@@ -151,6 +151,8 @@ overwrite enabled. user can use a Prometheus Exporter to pull metrics to Prometh
 Also a PRM model builder is required to be deployed in one node, which consumes metrics data in Prometheus database and periodically 
 builds models and stores to a distributed configuration service, such as etcd/zookeeper
 
+### train model from prometheus data 
+
 Use the commands to run model builder:
 
 ```
@@ -182,7 +184,28 @@ runner: !BuilderRunner
     use_origin: false
     verbose: false
 ```
+### train model from csv data 
+run commands
 
+```
+./dist/wca-prm.pex -c csv_config.yaml -r prm.model_distribution.csv.builder_csv:BuildRunnerCSV -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
+```
+csv_config.yaml example:
+
+```yaml
+runner: !BuildRunnerCSV
+  cycle: 3600    # seconds
+  file_path: "data/file.csv"
+  database: !ModelDatabase
+    db_type: zookeeper
+    host: "10.239.157.129:2181"     # required for zookeeper
+    namespace: ~     # for zookeeper, if none, using default model_distribution
+  model: !DistriModel
+    span: 3
+    strict: false
+    use_origin: false
+    verbose: false
+```
 ## Security Consideration 
 
 ### Run WCA PRM Agent with Proper Privilege 

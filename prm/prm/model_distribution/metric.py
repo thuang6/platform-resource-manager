@@ -20,7 +20,7 @@ from collections import namedtuple
 
 
 class GroupInfo(str, Enum):
-    CPU_Model = "cpu_model"
+    CPU_MODEL = "cpu_model"
     INITIAL_TASK_CPU_ASSIGNMENT = "initial_task_cpu_assignment"
     APPLICATION = "application"
     APPLICATION_VERSION_NAME = "application_version_name"

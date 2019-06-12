@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 from enum import Enum
 from prm.model_distribution.metric import GroupInfo, Metric, GroupLabel
-from prm.model_distribution.query import PromHttp
+from prm.model_distribution.prometheus.query import PromHttp
 
 log = logging.getLogger(__name__)
 
@@ -73,10 +73,10 @@ class PromProcessor(object):
         # make unique group labels
         models = {}
         for s in series:
-            if GroupInfo.CPU_Model not in s or GroupInfo.APPLICATION not in s or GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT not in s:
+            if GroupInfo.CPU_MODEL not in s or GroupInfo.APPLICATION not in s or GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT not in s:
                 continue
             temp_model = GroupLabel(
-                s[GroupInfo.CPU_Model], s[GroupInfo.APPLICATION], s[GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT])
+                s[GroupInfo.CPU_MODEL], s[GroupInfo.APPLICATION], s[GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT])
             if models.get(temp_model) == None:
                 models[temp_model] = True
 
