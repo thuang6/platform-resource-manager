@@ -35,7 +35,7 @@ class ImproperStepError(Exception):
 
 class BuilderRunner(Runner):
     """
-    BuildModel TODO runner run iterations to build model thresholds and store them in database.
+    BuildModel runner run iterations to build model thresholds and store them in database.
     Arguments:
         prometheus_host: prometheus database host
         database: model storage database, get/set api is provided
@@ -147,9 +147,9 @@ class BuilderRunner(Runner):
             label_group = model_key._asdict()
             dataframe = self.prom_processor.generate_new_metric_dataframes(
                 self.metrics_names, label_group, starts_ends, self._step)
-
+            cpu_number = float(label_group[GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT])
             tdp_thresh, thresholds = self._model.build_model(
-                dataframe, label_group)
+                dataframe, cpu_number)
 
             value = {ThreshType.TDP.value: tdp_thresh, ThreshType.METRICS.value: thresholds}
 

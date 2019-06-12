@@ -145,8 +145,7 @@ class DistriModel(object):
                     log.exception('error in build threshold util= (%r)', util)
         return thresholds
 
-    def build_model(self, dataframe, label_group):
-        cpu_number = float(label_group[GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT])
+    def build_model(self, dataframe, cpu_number):
         tdp_thresh = self._build_tdp_thresh(cpu_number, dataframe)
         thresholds = self._build_thresh(
             cpu_number, dataframe, self.span, self.strict, self.use_origin, self.verbose)
