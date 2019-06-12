@@ -23,7 +23,7 @@ from wca.runners import Runner
 from prm.model_distribution.metric import Metric,GroupInfo
 from prm.model_distribution.prometheus.processing import PromProcessor
 from prm.model_distribution.model import DistriModel
-from prm.model_distribution.db import ModelDatabase
+from prm.model_distribution.db import ModelDatabase, DatabaseError
 from prm.analyze.analyzer import ThreshType
 
 log = logging.getLogger(__name__)
@@ -160,4 +160,7 @@ class BuildRunnerProm(Runner):
 
     def _store_database(self, nested_trees):
         for key, value in nested_trees.items():
-            self._database.set(key, value)
+            try:
+                self._database.set(key, value)
+            except DatabaseError as e:
+                log.error("failed to set key-value to the database: {}".format(e))

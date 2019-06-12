@@ -162,7 +162,7 @@ Use the commands to run model builder:
 The default configuration file is ```model_distribution_config.yaml```
 
 ```yaml
-runner: !BuilderRunner
+runner: !BuildRunner
   prometheus_host: "10.239.157.129:9090"
   cycle:    # default 3600s
   time_range:    # defult 86400 seconds

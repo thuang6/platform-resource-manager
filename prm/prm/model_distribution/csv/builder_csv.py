@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 from wca.runners import Runner
 from prm.model_distribution.metric import Metric
 from prm.model_distribution.model import DistriModel
-from prm.model_distribution.db import ModelDatabase
+from prm.model_distribution.db import ModelDatabase, DatabaseError
 from prm.analyze.analyzer import ThreshType
 
 
@@ -134,4 +134,7 @@ class BuildRunnerCSV(Runner):
 
     def _store_database(self, target):
         for key, value in nested_trees.items():
-            self._database.set(key, value)
+            try:
+                self._database.set(key, value)
+            except DatabaseError as e:
+                log.error("failed to set key-value to the database: {}".format(e))

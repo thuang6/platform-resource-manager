@@ -38,6 +38,9 @@ def _format_host_for_etcd(host: str):
     else:
         return host
 
+class DatabaseError(Exception):
+    """Error raised when communcation with the database"""
+
 class ImproperDatabaseTypeError(Exception):
     """Error raised for any of improper dbtype. """
     pass
