@@ -25,6 +25,7 @@ runner: !AllocationRunner
     action_delay: *action_delay
     agg_period: 20.
     exclusive_cat: False
+    enable_control: True
     model_pull_cycle: 180.
   rdt_enabled: True
   extra_labels:

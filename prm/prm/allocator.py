@@ -33,29 +33,27 @@ from prm.cpucycle import CpuCycle
 from prm.llcoccup import LlcOccup
 from prm.membw import MemoryBw
 from prm.analyze.analyzer import Metric, Analyzer, ThreshType
-from prm.model_distribution.db import ModelDatabase
+from prm.model_distribution.db import ModelDatabase, correct_key_characters
 
 log = logging.getLogger(__name__)
 
 
 class ResourceAllocator(Allocator):
-    COLLECT_MODE = 'collect'
-    DETECT_MODE = 'detect'
     WL_META_FILE = 'workload.json'
 
     def __init__(
         self, 
-        action_delay: float,
-        mode_config: str = 'collect',
-        agg_period: float = 20, 
-        exclusive_cat: bool = False,
         database: ModelDatabase = None,
-        model_pull_cycle: float = 180
+        action_delay: float,
+        agg_period: float = 20, 
+        model_pull_cycle: float = 180,
+        exclusive_cat: bool = False,
+        enable_control = True
     ):
-        log.debug('action_delay: %i, mode config: %s, agg_period: %i, exclusive: %s',
-                  action_delay, mode_config, agg_period, exclusive_cat)
-        self.mode_config = mode_config
+        log.debug('action_delay: %i, agg_period: %i, exclusive: %s, model_pull_cycle: %i',
+                  action_delay, mode_config, agg_period, exclusive_cat, model_pull_cycle)
         self.exclusive_cat = exclusive_cat
+        self.enable_control = enable_control
         self.agg_cnt = int(agg_period) / int(action_delay) \
             if int(agg_period) % int(action_delay) == 0 else 1
 
@@ -65,31 +63,19 @@ class ResourceAllocator(Allocator):
         self.bes = set()
         self.lcs = set()
         self.ucols = ['time', 'cid', 'name', Metric.UTIL]
-        self.mcols = ['time', 'cid', 'name', Metric.CYC, Metric.INST,
+        self.mcols = ['time', 'cid', 'name', 'cpu_model', 'vcpu_count', 
+                      Metric.CYC, Metric.INST,
                       Metric.L3MISS, Metric.L3OCC, Metric.MB, Metric.CPI,
                       Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI]
         self.workload_meta = {}
-        if mode_config == ResourceAllocator.COLLECT_MODE:
-            self.analyzer = Analyzer()
-            self._init_data_file(Analyzer.UTIL_FILE, self.ucols)
-            self._init_data_file(Analyzer.METRIC_FILE, self.mcols)
-        else:
-            try:
-                with open(ResourceAllocator.WL_META_FILE, 'r') as wlf:
-                    self.analyzer = Analyzer(wlf)
-            except Exception as e:
-                log.exception('cannot read workload file to build local model')
-            try:
-                self.analyzer.build_model()
-            except Exception as e:
-                log.exception('cannot build model from local metrics data')
-             
-            if database:
-                self.database = database
-                self.model_pull_cycle = model_pull_cycle
-                self.threshs = {}
-                self.cycle = 0
-
+        self.analyzer = Analyzer()
+        self._init_data_file(Analyzer.METRIC_FILE, self.mcols)
+        if database:
+            self.database = database
+            self.model_pull_cycle = model_pull_cycle
+            self.threshs = {}
+            self.cycle = 0
+        if enable_control: 
             self.cpuc = CpuCycle(self.analyzer.get_lcutilmax(), 0.5, False)
             self.l3c = LlcOccup(self.exclusive_cat)
             self.mbc_enabled = True
@@ -153,8 +139,6 @@ class ResourceAllocator(Allocator):
         vcpus = str(self.workload_meta[app]['cpus'])
         if self.threshs and app in self.threshs and vcpus in self.threshs[app]:
             thresh = self.threshs[app][vcpus][thresh_type.value]
-        if not thresh and app in self.analyzer.threshold:
-            thresh = self.analyzer.get_thresh(app, thresh_type.value)
         return thresh
 
     def _detect_one_task(self, con: Container, app: str):
@@ -275,9 +259,9 @@ class ResourceAllocator(Allocator):
         with open(Analyzer.UTIL_FILE, 'a') as utilf:
             utilf.write(','.join(row) + '\n')
 
-    def _record_metrics(self, time, cid, name, metrics):
-        row = [str(time), cid, name]
-        for i in range(3, len(self.mcols)):
+    def _record_metrics(self, time, cid, name, cpu_model, vcpus, metrics):
+        row = [str(time), cid, name, cpu_model, str(vcpus)]
+        for i in range(5, len(self.mcols)):
             row.append(str(metrics[self.mcols[i]]))
         with open(Analyzer.METRIC_FILE, 'a') as metricf:
             metricf.write(','.join(row) + '\n')
@@ -302,16 +286,20 @@ class ResourceAllocator(Allocator):
             if app:
                 self.workload_meta[app] = resources
 
-        if self.mode_config == ResourceAllocator.COLLECT_MODE:
-            self._update_workload_meta()
+        self._update_workload_meta()
 
         self._remove_finished_tasks(cidset)
         return assigned_cpus
 
-    def _process_measurements(self, tasks_measurements: TasksMeasurements,
-                              tasks_labels: TasksLabels, metric_list: List[WCAMetric],
-                              timestamp: float, assigned_cpus: float):
-
+    def _process_measurements(
+        self, 
+        tasks_measurements: TasksMeasurements,
+        tasks_labels: TasksLabels,
+        metric_list: List[WCAMetric],
+        timestamp: float,
+        assigned_cpus: float,
+        cpu_model: str
+    ):
         sysutil = 0
         lcutil = 0
         beutil = 0
@@ -322,7 +310,7 @@ class ResourceAllocator(Allocator):
             else:
                 container = Container(cid)
                 self.container_map[cid] = container
-                if self.mode_config == ResourceAllocator.DETECT_MODE:
+                if self.enable_control:
                     if cid in self.bes:
                         self.cpuc.set_share(cid, 0.0)
                         self.cpuc.budgeting([cid], [])
@@ -347,19 +335,16 @@ class ResourceAllocator(Allocator):
                     vcpus = self.workload_meta[app]['cpus']
                     wca_metrics = container.get_wca_metrics(app, vcpus)
                     metric_list.extend(wca_metrics)
-                    if self.mode_config == ResourceAllocator.COLLECT_MODE:
-                        app = self._cid_to_app(cid, tasks_labels)
-                        if app:
-                            self._record_metrics(timestamp, cid, app, metrics)
+                    app = self._cid_to_app(cid, tasks_labels)
+                    if app:
+                        self._record_metrics(timestamp, cid, app,
+                                             correct_key_characters(cpu_model),
+                                             vcpus, metrics)
 
-        if self.mode_config == ResourceAllocator.COLLECT_MODE:
-            self._record_utils(timestamp, lcutil)
-        elif self.mode_config == ResourceAllocator.DETECT_MODE:
-            metric_list.extend(self._get_headroom_metrics(
-                assigned_cpus, lcutil, sysutil))
-            if self.bes:
-                exceed, hold = self.cpuc.detect_margin_exceed(lcutil, beutil)
-                self.controllers[ContendedResource.CPUS].update(self.bes, [], exceed, hold)
+        metric_list.extend(self._get_headroom_metrics(assigned_cpus, lcutil, sysutil))
+        if self.enable_control and self.bes:
+            exceed, hold = self.cpuc.detect_margin_exceed(lcutil, beutil)
+            self.controllers[ContendedResource.CPUS].update(self.bes, [], exceed, hold)
 
     def _allocate_resources(self, anomalies: List[ContentionAnomaly]):
         contentions = {
@@ -398,7 +383,7 @@ class ResourceAllocator(Allocator):
         assigned_cpus = self._get_task_resources(tasks_resources, tasks_labels)
 
         allocs: TasksAllocations = dict()
-        if self.mode_config == ResourceAllocator.DETECT_MODE:
+        if self.enable_control:
             self.cpuc.update_allocs(tasks_allocs, allocs, platform.cpus)
             self.l3c.update_allocs(tasks_allocs, allocs, platform.rdt_information.cbm_mask, platform.sockets)
 
@@ -413,29 +398,32 @@ class ResourceAllocator(Allocator):
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
         self._process_measurements(tasks_measurements, tasks_labels, metric_list,
-                                   platform.timestamp, assigned_cpus)
+                                   platform.timestamp, assigned_cpus, platform.cpu_model)
 
         anomaly_list = []
         if self.agg:
-            if self.mode_config == ResourceAllocator.DETECT_MODE:
-                if self.database and self.cycle == 0:
+            if self.database and self.cycle == 0:
+                try:
                     threshs = self.database.get(platform.cpu_model)
                     self.threshs = literal_eval(threshs)
                     if self.threshs:
                         log.debug('pulled model thresholds=%r', self.threshs)
                     else:
                         log.warn('No model is pulled from model database!')
-                self.cycle += 1
-                if self.cycle == self.model_pull_cycle:
-                    self.cycle = 0
+                except Exception:
+                    log.exception('error in pulling model from database')
+            self.cycle += 1
+            if self.cycle == self.model_pull_cycle:
+                self.cycle = 0
 
-                for container in self.container_map.values():
-                    app = self._cid_to_app(container.cid, tasks_labels)
-                    if app and container.cid not in self.bes:
-                        anomalies = self._detect_one_task(container, app)
-                        anomaly_list.extend(anomalies)
-                if anomaly_list:
-                    log.debug('anomalies: %r', anomaly_list)
+            for container in self.container_map.values():
+                app = self._cid_to_app(container.cid, tasks_labels)
+                if app and container.cid not in self.bes:
+                    anomalies = self._detect_one_task(container, app)
+                    anomaly_list.extend(anomalies)
+            if anomaly_list:
+                log.debug('anomalies: %r', anomaly_list)
+            if self.enable_control:
                 self._allocate_resources(anomaly_list)
         if metric_list:
             log.debug('metrics: %r', metric_list)

@@ -339,7 +339,7 @@ class ContentionDetector(detectors.AnomalyDetector):
                        log.debug('pulled model thresholds=%r', self.threshs)
                     else:
                        log.warn('No model is pulled from model database!')
-                except Exception as e:
+                except Exception:
                     log.exception('error in pulling model from database')
             self.cycle += 1
             if self.cycle == self.model_pull_cycle:
