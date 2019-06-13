@@ -18,6 +18,7 @@
 from wca.databases import LocalDatabase, ZookeeperDatabase, EtcdDatabase
 import datetime
 from typing import List, Union, Optional
+from wca.config import IpPort
 
 import logging
 import string
@@ -76,7 +77,7 @@ class ModelDatabase(object):
     def __init__(
         self,
         db_type: str,
-        host: Union[str, list, None],
+        host: Union[IpPort, list[IpPort], None],
         namespace: Optional[str] = 'model_distribution',
         directory: Optional[str] = None,
         ssl_verify: Union[bool, str, None] = True,

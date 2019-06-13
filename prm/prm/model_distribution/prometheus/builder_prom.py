@@ -25,6 +25,7 @@ from prm.model_distribution.prometheus.processing import PromProcessor
 from prm.model_distribution.model import DistriModel
 from prm.model_distribution.db import ModelDatabase, DatabaseError
 from prm.analyze.analyzer import ThreshType
+from wca.config import IpPort
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class BuildRunnerProm(Runner):
 
     def __init__(
         self,
-        prometheus_host: str,
+        prometheus_host: IpPort,
         database: ModelDatabase,
         model: DistriModel,
         cycle: Union[float, int, None] = 3600,

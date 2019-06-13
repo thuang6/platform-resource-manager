@@ -27,6 +27,7 @@ from prm.model_distribution.metric import Metric
 from prm.model_distribution.model import DistriModel
 from prm.model_distribution.db import ModelDatabase, DatabaseError
 from prm.analyze.analyzer import ThreshType
+from wca.config import Path
 import pandas as pd
 
 log = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ class BuildRunnerCSV(Runner):
     """
     def __init__(
         self,
-        file_path: str,
+        file_path: Path,
         database: ModelDatabase,
         model: DistriModel,
         cycle: Union[float, int, None]
