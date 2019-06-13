@@ -156,7 +156,7 @@ builds models and stores to a distributed configuration service, such as etcd/zo
 Use the commands to run model builder:
 
 ```
-./dist/wca-prm.pex -c model_distribution_config.yaml -r prm.model_distribution.build:BuilderRunner -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
+./dist/wca-prm.pex -c model_distribution_config.yaml -r prm.model_distribution.prometheus.builder_prom:BuildRunnerProm -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
 ```
 
 The default configuration file is ```model_distribution_config.yaml```
