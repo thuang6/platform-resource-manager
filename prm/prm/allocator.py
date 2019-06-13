@@ -43,15 +43,15 @@ class ResourceAllocator(Allocator):
 
     def __init__(
         self, 
-        database: ModelDatabase = None,
+        database: ModelDatabase,
         action_delay: float,
         agg_period: float = 20, 
         model_pull_cycle: float = 180,
         exclusive_cat: bool = False,
-        enable_control = True
+        enable_control: bool = True
     ):
         log.debug('action_delay: %i, agg_period: %i, exclusive: %s, model_pull_cycle: %i',
-                  action_delay, mode_config, agg_period, exclusive_cat, model_pull_cycle)
+                  action_delay, agg_period, exclusive_cat, model_pull_cycle)
         self.exclusive_cat = exclusive_cat
         self.enable_control = enable_control
         self.agg_cnt = int(agg_period) / int(action_delay) \
@@ -195,7 +195,8 @@ class ResourceAllocator(Allocator):
         util_max = self.analyzer.get_lcutilmax()
         if util_max < lcutil:
             self.analyzer.update_lcutilmax(lcutil)
-            self.cpuc.update_max_sys_util(lcutil)
+            if self.enable_control:
+                self.cpuc.update_max_sys_util(lcutil)
             util_max = lcutil
         capacity = assign_cpus * 100
         return [WCAMetric(name=Metric.LCCAPACITY, value=capacity),
