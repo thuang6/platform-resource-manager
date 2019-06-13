@@ -3,19 +3,15 @@ runner: !AllocationRunner
     mesos_agent_endpoint: "http://127.0.0.1:5051"
   action_delay: &action_delay 1.
   metrics_storage: !LogStorage
-    output_filename: 'metrics/metrics.prom'
+    output_filename: '/tmp/metrics.prom'
     overwrite: true
   anomalies_storage: !LogStorage
-    output_filename: 'metrics/anomalies.prom'
+    output_filename: '/tmp/anomalies.prom'
     overwrite: true
   allocations_storage: !LogStorage
-    output_filename: 'metrics/allocations.prom'
+    output_filename: '/tmp/allocations.prom'
     overwrite: true
   allocator: !ResourceAllocator
-    action_delay: *action_delay
-    mode_config: 'detect'
-    agg_period: 20.
-    exclusive_cat: False
     database: !ModelDatabase
       db_type: etcd    # 1) local 2)zookeeper 3)etcd
       directory: ~     # required for local
@@ -26,6 +22,9 @@ runner: !AllocationRunner
       timeout: 5.0     # for etcd, default 5.0 seconds
       client_cert_path: ~    # for etcd, default None
       client_key_path: ~     # for etcd, default None
+    action_delay: *action_delay
+    agg_period: 20.
+    exclusive_cat: False
     model_pull_cycle: 180.
   rdt_enabled: True
   extra_labels:

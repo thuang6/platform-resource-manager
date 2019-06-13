@@ -3,20 +3,12 @@ runner: !DetectionRunner
     mesos_agent_endpoint: "http://127.0.0.1:5051"
   action_delay: &action_delay 1.
   metrics_storage: !LogStorage
-    output_filename: 'metrics/metrics.prom'
+    output_filename: '/tmp/metrics.prom'
     overwrite: true
   anomalies_storage: !LogStorage
-    output_filename: 'metrics/anomalies.prom'
+    output_filename: '/tmp/anomalies.prom'
     overwrite: true
   detector: !ContentionDetector
-    action_delay: *action_delay
-  # Available value: 'collect'/'detect'
-  # prm collects data of mesos container and writes the data into a csv file under 'collect' mode.
-  # prm will build the model based on the data collected and detect the contention under 'detect' mode.
-    mode_config: 'detect'
-  # if agg_period value is multiple times of action_delay, prm will aggregate metrics based on agg_period
-  # or it will record metrics based on action_delay
-    agg_period: 20.
     database: !ModelDatabase
         db_type: etcd    # 1) local 2)zookeeper 3)etcd
         directory: ~     # required for local
@@ -27,7 +19,11 @@ runner: !DetectionRunner
         timeout: 5.0     # for etcd, default 5.0 seconds
         client_cert_path: ~    # for etcd, default None
         client_key_path: ~     # for etcd, default None
-    model_pull_cycle:  # how many cycles needs to be waited after previous model pulling, default 180 cycles
+    action_delay: *action_delay
+  # if agg_period value is multiple times of action_delay, prm will aggregate metrics based on agg_period
+  # or it will record metrics based on action_delay
+    agg_period: 20.
+    model_pull_cycle: 180.  # how many cycles needs to be waited after previous model pulling, default 180 cycles
   # prm will detect contention base on the rdt. This configuration must be enabled.
   rdt_enabled: True
   # key value pairs to tag the data
