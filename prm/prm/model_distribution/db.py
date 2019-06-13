@@ -79,7 +79,7 @@ class ModelDatabase(object):
         host: Union[str, list, None],
         namespace: Optional[str],
         directory: Optional[str],
-        ssl_verify: Union[bool, str],
+        ssl_verify: Union[bool, str, None],
         api_path: Optional[str],
         timeout: Union[float, int, None],
         client_cert_path: Optional[str] = None,

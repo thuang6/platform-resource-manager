@@ -27,7 +27,7 @@ from prm.model_distribution.metric import Metric
 from prm.model_distribution.model import DistriModel
 from prm.model_distribution.db import ModelDatabase, DatabaseError
 from prm.analyze.analyzer import ThreshType
-
+import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -53,16 +53,18 @@ class BuildRunnerCSV(Runner):
     """
     def __init__(
         self,
-        cycle: Union[float, int, None],
         file_path: str,
+        database: ModelDatabase,
         model: DistriModel,
+        cycle: Union[float, int, None]
     ):
         self._cycle = 3600 if cycle is None else cycle
-        
+        self._file_path = file_path
         self._model = model
+        self._database = database
         self._finish = False
 
-        self.default_columns = [GroupInfo.CPU_MODEL, GroupInfo.APPLICATION, GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT, Metric.MB, Metric.CPI, Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI]
+        self.default_columns = {Metric.NAME, Metric.CPU_MODEL, Metric.VCPU_COUNT, Metric.MB, Metric.CPI, Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI}
 
         self._last_iteration = time.time()
 
@@ -113,27 +115,28 @@ class BuildRunnerCSV(Runner):
     def _iterate(self):
 
         df = pd.read_csv(self._file_path)
-        if set(df.columns) != self.default_columns:
+        if not self.default_columns.issubset(set(df.columns)):
             raise ImproperCSVFileColumns("The csv's columns {} and default columns {} do not match".format(set(df.columns), self.default_columns))
 
-        model_keys = df.groupby([GroupInfo.CPU_MODEL, GroupInfo.APPLICATION, GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT]).groups.keys()
-
+        model_keys = df.groupby([Metric.CPU_MODEL, Metric.NAME, Metric.VCPU_COUNT]).groups.keys()
+        
         for model_key in model_keys:
             # filter dataframe by cpu_model, application, cpu_assignment
-            dataframe = df[df['CPU_MODEL']==model_key[0]][df['APPLICATION']==model_key[1]][df['CPU_ASSIGNMENT'==model_key[2]]
+            if any(str(v) == 'nan' for v in model_key):
+                continue
+            dataframe = df[(df[Metric.CPU_MODEL] == model_key[0]) & (df[Metric.NAME] == model_key[1]) & (df[Metric.VCPU_COUNT] == model_key[2])]
             
             cpu_number = model_key[2]
             tdp_thresh, thresholds = self._model.build_model(dataframe, cpu_number)
 
             value = {ThreshType.TDP.value: tdp_thresh, ThreshType.METRICS.value: thresholds}
-
             self.target[model_key[0]][model_key[1]][model_key[2]] = value
 
         self._store_database(self.target)
         self._wait()
 
     def _store_database(self, target):
-        for key, value in nested_trees.items():
+        for key, value in target.items():
             try:
                 self._database.set(key, value)
             except DatabaseError as e:

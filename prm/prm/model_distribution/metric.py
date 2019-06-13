@@ -45,7 +45,9 @@ class Metric(str, Enum):
     LCCAPACITY = 'latency_critical_utilization_capacity'
     LCMAX = 'latency_critical_utilization_max'
     SYSUTIL = 'system_utilization'
-
+    NAME = 'name'
+    CPU_MODEL = 'cpu_model'
+    VCPU_COUNT = 'vcpu_count'
 
 GroupLabel = namedtuple(
     'GroupLabel', ["cpu_model", "application", "initial_task_cpu_assignment"])
