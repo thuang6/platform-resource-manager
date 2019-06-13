@@ -39,7 +39,7 @@ class BuildRunnerProm(Runner):
     Arguments:
         prometheus_host: prometheus database host
         database: model storage database, get/set api is provided
-        model: threshold analyer
+        model: threshold analyzer
         cycle:iteration cycle in seconds
             (default to 3600 second )
         time_range: query range of prometheus database
@@ -55,10 +55,10 @@ class BuildRunnerProm(Runner):
         prometheus_host: str,
         database: ModelDatabase,
         model: DistriModel,
-        cycle: Union[float, int, None],
-        time_range: Union[str, float, int, None],
-        step: Union[str, float, int, None],
-        timeout: Union[float, int, None],
+        cycle: Union[float, int, None] = 3600,
+        time_range: Union[str, float, int, None] = 86400,
+        step: Union[str, float, int, None] = 10,
+        timeout: Union[float, int, None] = 1,
     ):
         self._prometheus_host = prometheus_host
         self._cycle = 3600 if cycle is None else cycle

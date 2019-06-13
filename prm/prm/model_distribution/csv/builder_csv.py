@@ -49,7 +49,7 @@ class BuildRunnerCSV(Runner):
             (default to 3600 second )
         file_path: the file_path of the csv file
         database: model storage database, get/set api is provided
-        model: threshold analyer
+        model: threshold analyzer
     """
     def __init__(
         self,
@@ -83,6 +83,7 @@ class BuildRunnerCSV(Runner):
         if splitext(self._file_path)[1] !='.csv':
             raise ImproperCSVFilePath("Please provide a csv file path.")
         
+        # initialize a three-level nested dict
         self.target = defaultdict(lambda: defaultdict(dict))
 
 
