@@ -77,11 +77,11 @@ class ModelDatabase(object):
         self,
         db_type: str,
         host: Union[str, list, None],
-        namespace: Optional[str],
-        directory: Optional[str],
-        ssl_verify: Union[bool, str, None],
-        api_path: Optional[str],
-        timeout: Union[float, int, None],
+        namespace: Optional[str] = 'model_distribution',
+        directory: Optional[str] = None,
+        ssl_verify: Union[bool, str, None] = True,
+        api_path: Optional[str] = '/v3alpha',
+        timeout: Union[float, int, None] = 5.0,
         client_cert_path: Optional[str] = None,
         client_key_path: Optional[str] = None
     ):
