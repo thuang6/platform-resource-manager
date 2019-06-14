@@ -60,7 +60,6 @@ class ContentionDetector(detectors.AnomalyDetector):
                       Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI]
         self.workload_meta = {}
         self.analyzer = Analyzer()
-        self._init_data_file(Analyzer.METRIC_FILE, self.mcols)
         if database:
             self.database = database
             self.model_pull_cycle = model_pull_cycle
@@ -301,6 +300,8 @@ class ContentionDetector(detectors.AnomalyDetector):
                     metric_list.extend(wca_metrics)
                     app = self._cid_to_app(cid, tasks_labels)
                     if app:
+                        # always try to init header column considering log rotate
+                        self._init_data_file(Analyzer.METRIC_FILE, self.mcols)
                         self._record_metrics(timestamp, cid, app, 
                                              correct_key_characters(cpu_model),
                                              vcpus, metrics)
