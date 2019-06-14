@@ -42,12 +42,12 @@ class DistriModel(object):
     UTIL_BIN_STEP = 50
 
     def __init__(self,
-                 span: Optional[int],
-                 strict: Optional[bool],
-                 use_origin: Optional[bool],
-                 verbose: Optional[bool],
+                 span: Optional[int] = 3,
+                 strict: Optional[bool] = True,
+                 use_origin: Optional[bool] = False,
+                 verbose: Optional[bool] = False,
                  ):
-        self.span = 4 if span is None else span
+        self.span = 3 if span is None else span
         self.strict = True if span is None else strict
         self.use_origin = False if use_origin is None else use_origin
         self.verbose = False if verbose is None else verbose
