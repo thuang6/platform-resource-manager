@@ -19,6 +19,7 @@ from wca.databases import LocalDatabase, ZookeeperDatabase, EtcdDatabase
 import datetime
 from typing import List, Union, Optional
 from wca.config import IpPort
+from wca.security import SSL
 
 import logging
 import string
@@ -80,22 +81,18 @@ class ModelDatabase(object):
         host: Union[IpPort, list[IpPort], None],
         namespace: Optional[str] = 'model_distribution',
         directory: Optional[str] = None,
-        ssl_verify: Union[bool, str, None] = True,
         api_path: Optional[str] = '/v3alpha',
         timeout: Union[float, int, None] = 5.0,
-        client_cert_path: Optional[str] = None,
-        client_key_path: Optional[str] = None
+        ssl: Optional[SSL] = None
     ):
 
         self.db_type = db_type
         self.directory = directory
         self.host = host
         self.namespace = 'model_distribution' if namespace is None else namespace
-        self.ssl_verify = True if ssl_verify is None else ssl_verify
         self.api_path = '/v3alpha' if api_path is None else api_path
         self.timeout = 5.0 if timeout is None else timeout
-        self.client_cert_path = client_cert_path
-        self.client_key_path = client_key_path
+        self.ssl = ssl
         self.instance = self.create()
 
     def create(self):
@@ -113,7 +110,7 @@ class ModelDatabase(object):
             if self.host is None or self.host == '':
                 raise ImproperHostError(
                     "Please provide a ip:port for zookeeper database")
-            return ZookeeperDatabase(self.host, self.namespace)
+            return ZookeeperDatabase(self.host, self.namespace, self.timeout, self.ssl)
 
         elif self.db_type == 'etcd':
 
@@ -121,7 +118,7 @@ class ModelDatabase(object):
                 hosts = [_format_host_for_etcd(self.host)]
             elif isinstance(self.host, list):
                 hosts = [_format_host_for_etcd(h) for h in self.host]
-            return EtcdDatabase(hosts, self.ssl_verify, self.timeout, self.api_path, self.client_cert_path, self.client_key_path)
+            return EtcdDatabase(hosts, self.timeout, self.api_path, self.ssl)
         else:
             raise ImproperDatabaseTypeError(
                 "The agent only support 1)local 2)zookeeper 3)etcd databases")
