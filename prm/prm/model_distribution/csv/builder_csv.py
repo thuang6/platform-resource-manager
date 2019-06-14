@@ -44,10 +44,8 @@ class ImproperCSVFileColumns(Exception):
     pass
 class BuildRunnerCSV(Runner):
     """
-    BuildModel runner run iterations to build model thresholds and store them in zookeeper.
+    Using CSV data to build model thresholds and store them in zookeeper.
     Arguments:
-        cycle: iteration cycle in seconds
-            (default to 3600 second )
         file_path: the file_path of the csv file
         database: model storage database, get/set api is provided
         model: threshold analyzer
@@ -57,18 +55,13 @@ class BuildRunnerCSV(Runner):
         file_path: Path,
         database: ModelDatabase,
         model: DistriModel,
-        cycle: Union[float, int, None]
     ):
-        self._cycle = 3600 if cycle is None else cycle
         self._file_path = file_path
         self._model = model
         self._database = database
         self._finish = False
 
         self.default_columns = {Metric.NAME, Metric.CPU_MODEL, Metric.VCPU_COUNT, Metric.MB, Metric.CPI, Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI}
-
-        self._last_iteration = time.time()
-
 
     def _initialize(self):
         """Three-level nested dict example:
@@ -86,21 +79,6 @@ class BuildRunnerCSV(Runner):
         
         # initialize a three-level nested dict
         self.target = defaultdict(lambda: defaultdict(dict))
-
-
-    def _wait(self):
-        """Decides how long one iteration should take.
-        Additionally calculate residual time, based on time already taken by iteration.
-        """
-        now = time.time()
-
-        iteration_duration = now - self._last_iteration
-
-        self._last_iteration = now
-
-        residual_time = max(0., self._cycle - iteration_duration)
-        log.info('waiting for next iteration')
-        time.sleep(residual_time)
 
     def run(self) -> int:
         log.info('model-distribution runner is started!')
@@ -135,7 +113,7 @@ class BuildRunnerCSV(Runner):
             self.target[model_key[0]][model_key[1]][model_key[2]] = value
 
         self._store_database(self.target)
-        self._wait()
+        self._finish = True
 
     def _store_database(self, target):
         for key, value in target.items():

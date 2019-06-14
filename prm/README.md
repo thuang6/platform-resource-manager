@@ -195,7 +195,6 @@ csv_config.yaml example:
 
 ```yaml
 runner: !BuildRunnerCSV
-  cycle: 3600    # seconds
   file_path: "data/file.csv"
   database: !ModelDatabase
     db_type: zookeeper    # 1) local 2)zookeeper 3)etcd
