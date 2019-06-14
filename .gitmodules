@@ -1,3 +1,4 @@
 [submodule "prm/workload-collocation-agent"]
 	path = prm/workload-collocation-agent
 	url = https://github.com/intel/workload-collocation-agent
+	branch = 1.0.x
