@@ -88,7 +88,7 @@ ulimit -n 65536
 
 Note:
 When you need to deploy your agent in a cluster, it is highly recommended to run agent as systemd service with a non-root user. 
-You can refer to [Running WCA as non-root user](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-wca-as-non-root-user) section and [Running as systemd service](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-as-systemd-service) for detail.
+You can refer to [Running WCA as non-root user](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-wca-as-non-root-user) section and [Running as systemd service](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-as-systemd-service) section for detail.
 
 ## Metrics data persistence 
 
@@ -97,10 +97,11 @@ ways which depends on the [agent storage configuration](https://github.com/intel
 
 User can determine the approach based on their own infrastrucutre condition. For example, you can configure agent 
 to send metrics to your existing Kafka service or you can configure agent to store the metrics in log file and 
-use Prometheus Node exporter to export metrics to central Prometheus database. WCA/PRM agent also persists metrics
-in local file with csv format. By default agent store the file in the same directory as agent working directory.
-User can change the file path in agent configuration file. Since agent itself does not rotate the csv file, it is
-highly recommanded that user rotate it manually or periodically with logrotate utility.
+use Prometheus Node exporter to export metrics to central Prometheus database.
+
+WCA/PRM agent also persists metrics in local file with csv format. By default agent store the file in the same directory 
+as agent working directory. User can change the file path in agent configuration file. Since agent itself does not rotate 
+the csv file, it is highly recommanded that user rotate it manually or periodically with logrotate utility.
 
 In most of cases, it is recommanded that central model builder train models from metrics data stored in a Prometheus
 database. But if user don't have Prometheus database services available, user can let model builder train model from
