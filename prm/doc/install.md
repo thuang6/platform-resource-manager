@@ -12,7 +12,7 @@
 
 WCA use PEX distribution for executable binary, before you start to build WCA with PRM plugin
 you need to prepare build environment for PEX distribution. Please refer to 
-[WCA installation guide] (https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst) 
+[WCA installation guide](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst) 
 
 To build WCA/PRM, please use following commands:
 
