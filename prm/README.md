@@ -8,7 +8,7 @@ for the Workload Collocation Agent (WCA).
 - [Introduction](#Introduction)
 - [Get started](#Get-started)
 - [Security consideration](#Security-consideration)
-  - [Run WCA PRM agent with proper Privilege](#Run-WCA-PRM-agent-with-proper-privilege)
+  - [Run WCA PRM agent with proper privilege](#Run-WCA-PRM-agent-with-proper-privilege)
   - [Protect configuration and model file](#Protect-configuration-and-model-file)
 
 
