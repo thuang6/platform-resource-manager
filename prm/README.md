@@ -170,14 +170,15 @@ runner: !BuildRunner
   timeout:     # prometheus request timeout, default 1 seconds
   database: !ModelDatabase
     db_type: etcd    # 1) local 2)zookeeper 3)etcd
-    directory: ~     # required for local
-    host: "10.239.157.129:2379"     # required for zookeeper and etcd
-    namespace: ~     # for zookeeper, if none, using default model_distribution
-    ssl_verify: false     # for etcd, default false
+    host: "10.239.157.1291:2379"     # required for zookeeper and etcd
+    namespace: ~
+    directory: ~
     api_path: "/v3beta"     # for etcd, '/v3alpha' for 3.2.x etcd version, '/v3beta' or '/v3' for 3.3.x etcd version
     timeout: 5.0     # for etcd, default 5.0 seconds
-    client_cert_path: ~    # for etcd, default None
-    client_key_path: ~     # for etcd, default None
+    ssl: !SSL 
+      server_verify: false
+      client_cert_path: ~
+      client_key_path: ~
   model: !DistriModel
     span: 3
     strict: false
@@ -194,17 +195,16 @@ csv_config.yaml example:
 
 ```yaml
 runner: !BuildRunnerCSV
-  cycle: 3600    # seconds
   file_path: "data/file.csv"
   database: !ModelDatabase
-    db_type: zookeeper
-    host: "10.239.157.129:2181"     # required for zookeeper
+    db_type: zookeeper    # 1) local 2)zookeeper 3)etcd
+    host: "10.239.157.129:2181"     # required for zookeeper and etcd
     namespace: ~     # for zookeeper, if none, using default model_distribution
-  model: !DistriModel
-    span: 3
-    strict: false
-    use_origin: false
-    verbose: false
+    timeout: 5.0
+    ssl: !SSL
+      server_verify: false
+      client_cert_path: ~
+      client_key_path: ~
 ```
 ## Security Consideration 
 

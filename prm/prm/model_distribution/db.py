@@ -78,13 +78,13 @@ class ModelDatabase(object):
     def __init__(
         self,
         db_type: str,
-        host: Union[IpPort, list[IpPort], None],
+        host: Union[str, list, None],
         namespace: Optional[str] = 'model_distribution',
         directory: Optional[str] = None,
         api_path: Optional[str] = '/v3alpha',
         timeout: Union[float, int, None] = 5.0,
         ssl: Optional[SSL] = None
-    ):
+        ):
 
         self.db_type = db_type
         self.directory = directory
