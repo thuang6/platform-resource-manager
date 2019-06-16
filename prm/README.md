@@ -5,14 +5,14 @@ for the Workload Collocation Agent (WCA).
 
 ## Table of Contents
 
-- [Description](#Description)
+- [Introduction](#Introduction)
 - [Get started](#Get-started)
 - [Security consideration](#Security-consideration)
   - [Run WCA PRM agent with proper Privilege](#Run-WCA-PRM-agent-with-proper-privilege)
   - [Protect configuration and model file](#Protect-configuration-and-model-file)
 
 
-## Description
+## Introduction
 
 The Intel® PRM plugin for WCA is an analysis and decision engine for WCA. It uses hardware and OS
 metrics to build models for each workload in a cluster and use these models to detect resource 
