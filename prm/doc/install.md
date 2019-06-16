@@ -110,7 +110,7 @@ a csv file, which requires user combines all csv files collected from each node 
 ## Cluster job scheduler integration
 
 Agent supports to integrate with different type of job schedulers in cluster, including Mesos and Kubernetes. 
-It has some version requirements and configuration restrics to thes job schedulers. Also Agent itself support 
+It has some version requirements and configuration restrictions to thes job schedulers. Also Agent itself support 
 differtn configuration options for different job scheduler. For detail, please refer to following links:<BR>
 [Mesos Integration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/mesos.rst)   
 [Kubernetes Integration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/kubernetes.rst)
