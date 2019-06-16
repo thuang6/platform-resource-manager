@@ -23,13 +23,12 @@ For WCA details, please refer to [WCA](https://github.com/intel/workload-colloca
 
 ## Get started
 
-This section describes how to build and deploy WCA with PRM plugin in a cluster step by step.
-In general, WCA/PRM Agent needs to be deployed in each worker node, which collects platform metrics
-,detect resource contention and conduct resource allocation if needed. A PRM model builder needs 
-to be deployed seperately, which builds workload models and pushes to a configuration service, like
-zookeeper or etcd.      
+This section describes how to build and deploy WCA with PRM plugin in a cluster. In general, WCA/PRM
+Agent needs to be deployed in each worker node, which collects platform metrics, detect resource 
+contention and conduct resource allocation if needed. A PRM model builder needs to be deployed 
+seperately, which builds workload models and pushes to a configuration service, like zookeeper or etcd.      
 
-[Installation Guide](doc/install.md) introduces how to build WCA with PRM plugin and how to install 
+[Installation Guide](doc/install.md) introduces how to build WCA with PRM plugin, how to install 
 WCA/PRM agent and how to configure agent to work with differen type of cluster scheduler.
 
 [Model Builder Guide](doc/model.md) introduces how to deploy and configure model builder, including
@@ -46,8 +45,7 @@ For detail, please refer to installation guide section of WCA project.
 ### Protect configuration and model file
 
 WCA PRM agent uses YAML format configuration file in local file system. Also it 
-generates JSON format model file and stores in either local file system or remote
-configuraton service, such as etcd/zookeeper.  Tampering of these files may impact
-availability of the whole solution. When user deploy the solution, it is highly 
-recommended to enable proper access control to these local files or remote 
-configuration services.
+generates JSON format model file and stores in remote configuraton service, such 
+as etcd/zookeeper.  Tampering of these files may impact availability of the whole
+solution. When user deploys the solution, it is highly recommended to enable proper
+access control to these local files or remote configuration services.
