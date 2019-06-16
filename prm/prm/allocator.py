@@ -47,11 +47,13 @@ class ResourceAllocator(Allocator):
         action_delay: float,
         agg_period: float = 20, 
         model_pull_cycle: float = 180,
-        exclusive_cat: bool = False,
-        enable_control: bool = True
+        metric_file: str = Analyzer.METRIC_FILE,
+        enable_control: bool = True,
+        exclusive_cat: bool = False
     ):
         log.debug('action_delay: %i, agg_period: %i, exclusive: %s, model_pull_cycle: %i',
                   action_delay, agg_period, exclusive_cat, model_pull_cycle)
+        self.metric_file = metric_file
         self.exclusive_cat = exclusive_cat
         self.enable_control = enable_control
         self.agg_cnt = int(agg_period) / int(action_delay) \
@@ -263,7 +265,7 @@ class ResourceAllocator(Allocator):
         row = [str(time), cid, name, cpu_model, str(vcpus)]
         for i in range(5, len(self.mcols)):
             row.append(str(metrics[self.mcols[i]]))
-        with open(Analyzer.METRIC_FILE, 'a') as metricf:
+        with open(self.metric_file, 'a') as metricf:
             metricf.write(','.join(row) + '\n')
 
     def _update_workload_meta(self):
@@ -338,7 +340,7 @@ class ResourceAllocator(Allocator):
                     app = self._cid_to_app(cid, tasks_labels)
                     if app:
                         # always try to init header column cosidering log rotate
-                        self._init_data_file(Analyzer.METRIC_FILE, self.mcols)
+                        self._init_data_file(self.metric_file, self.mcols)
                         self._record_metrics(timestamp, cid, app,
                                              correct_key_characters(cpu_model),
                                              vcpus, metrics)

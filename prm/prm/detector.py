@@ -37,16 +37,17 @@ log = logging.getLogger(__name__)
 class ContentionDetector(detectors.AnomalyDetector):
     WL_META_FILE = 'workload.json'
 
-
     def __init__(
         self, 
         database: ModelDatabase,
         action_delay: float, 
         agg_period: float = 20, 
-        model_pull_cycle: float = 180
+        model_pull_cycle: float = 180,
+        metric_file: str = Analyzer.METRIC_FILE
     ):
         log.debug('action_delay: %i, agg_period: %i, model_pull_cycle: %i',
                   action_delay, agg_period, model_pull_cycle)
+        self.metric_file = metric_file
         self.agg_cnt = int(agg_period) / int(action_delay) \
             if int(agg_period) % int(action_delay) == 0 else 1
 
@@ -249,7 +250,7 @@ class ContentionDetector(detectors.AnomalyDetector):
         row = [str(time), cid, name, cpu_model, str(vcpus)]
         for i in range(5, len(self.mcols)):
             row.append(str(metrics[self.mcols[i]]))
-        with open(Analyzer.METRIC_FILE, 'a') as metricf:
+        with open(self.metric_file, 'a') as metricf:
             metricf.write(','.join(row) + '\n')
 
     def _update_workload_meta(self):
@@ -301,7 +302,7 @@ class ContentionDetector(detectors.AnomalyDetector):
                     app = self._cid_to_app(cid, tasks_labels)
                     if app:
                         # always try to init header column considering log rotate
-                        self._init_data_file(Analyzer.METRIC_FILE, self.mcols)
+                        self._init_data_file(self.metric_file, self.mcols)
                         self._record_metrics(timestamp, cid, app, 
                                              correct_key_characters(cpu_model),
                                              vcpus, metrics)
