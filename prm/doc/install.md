@@ -86,8 +86,9 @@ ulimit -n 65536
 ./dist/wca-prm.pex -c wca_prm_mesos.yaml -r prm.allocator:ResourceAllocator -r prm.model_distribution.db:ModelDatabase -l info
 ```
 
+Note:
 When you need to deploy your agent in a cluster, it is highly recommended to run agent as systemd service with a non-root user. 
-You can refer to [Running WCA as non-root user](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-wca-as-non-root-user) section for detail.
+You can refer to [Running WCA as non-root user](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-wca-as-non-root-user) section and [Running as systemd service](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-as-systemd-service) for detail.
 
 ## Metrics data persistence 
 
