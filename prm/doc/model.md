@@ -10,13 +10,12 @@
 
 To train model in cluster level, each WCA/PRM agent need to be configured to make sure the metrics can be stored in a centralized 
 Prometheus database. For example, in default configuration, the metrics are configured to be stored in a local file with 
-overwrite enabled. user can use a Prometheus Exporter to pull metrics to Prometheus database.  
+overwrite enabled. user can use a Prometheus Exporter to export metrics to Prometheus database.  
 
 Also a PRM model builder (use same executable binary as WCA/Agent) is required to be deployed in one node, which consumes metrics 
 data in Prometheus database and periodically trains models and stores in a distributed configuration service, such as etcd/zookeeper.
 
-In case there is no Prometheus database service available in user environment, model builder also support train model from a csv file, 
-which requires user combines all csv files collected from each node into single csv file with automation.
+In case there is no Prometheus database service available in user environment, model builder also support user triggered model training from a csv file, which requires user combines all csv files collected from each node into single csv file in advance.
  
 ## Train model from data in Prometheus database 
 
