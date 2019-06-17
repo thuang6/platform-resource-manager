@@ -171,12 +171,12 @@ class Analyzer:
                     l2spki = jdataf[Metric.L2SPKI]
                     l2spki_thresh = self._get_fense(l2spki, True, strict,
                                                     span, use_origin)
-                    thresh['l2spki'] = l2spki_thresh.item()
+                    thresh['l2spki'] = np.float64(l2spki_thresh).item()
                 if Metric.MSPKI in jdataf.columns:
                     mspki = jdataf[Metric.MSPKI]
                     mspki_thresh = self._get_fense(mspki, True, strict,
                                                    span, use_origin)
-                    thresh['mspki'] = mspki_thresh.item()
+                    thresh['mspki'] = np.float64(mspki_thresh).item()
                 self.threshold[job][ThreshType.METRICS.value].append(thresh)
             except Exception as e:
                 print(str(e))
