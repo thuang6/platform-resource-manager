@@ -80,6 +80,7 @@ application_hosts:
           count: 1
           communication_port: 9142
           jmx_port: 7299
+          storage_port: 7200
           slo: 1000
           cassandra:
             image_name: cassandra

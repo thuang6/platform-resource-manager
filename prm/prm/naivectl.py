@@ -40,13 +40,9 @@ class NaiveController:
 
         if detected:
             self.cyc_cnt = 0
-            if self.res.is_min_level():
-                # already throttled BE to minimal
-                pass
-            else:
-                # always throttle BE to minimal
-                self.res.set_level(Resource.BUGET_LEV_MIN)
-                self.res.budgeting(bes, lcs)
+            # always throttle BE to minimal
+            self.res.set_level(Resource.BUGET_LEV_MIN)
+            self.res.budgeting(bes, lcs)
         else:
             if hold or self.res.is_full_level():
                 # no contention, pass
