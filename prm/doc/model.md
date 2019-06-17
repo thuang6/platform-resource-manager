@@ -21,11 +21,9 @@ In case there is no Prometheus database service available in user environment, m
 
 Use the commands to run model builder:
 
-Note: for security reason, WCA requires absolute file path for configuration, please replace relative path with absolute path in 
-following example command according to your environment. 
-
 ```
-./dist/wca-prm.pex -c model_distribution_config.yaml -r prm.model_distribution.prometheus.builder_prom:BuildRunnerProm -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
+// for security reason, WCA requires absolute file path for configuration
+./dist/wca-prm.pex -c $PWD/model_distribution_config.yaml -r prm.model_distribution.prometheus.builder_prom:BuildRunnerProm -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
 ```
 
 The default configuration file is ```model_distribution_config.yaml```
@@ -62,11 +60,9 @@ runner: !BuildRunner
 
 run commands
 
-Note: for security reason, WCA requires absolute file path for configuration, please replace relative path with absolute path in 
-following example command according to your environment. 
-
 ```
-./dist/wca-prm.pex -c csv_config.yaml -r prm.model_distribution.csv.builder_csv:BuildRunnerCSV -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
+// for security reason, WCA requires absolute file path for configuration
+./dist/wca-prm.pex -c $PWD/csv_config.yaml -r prm.model_distribution.csv.builder_csv:BuildRunnerCSV -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
 ```
 csv_config.yaml example:
 
