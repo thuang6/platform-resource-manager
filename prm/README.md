@@ -29,7 +29,7 @@ contention and conduct resource allocation if needed. A PRM model builder needs 
 seperately, which builds workload models and pushes to a configuration service, like zookeeper or etcd.      
 
 [Installation Guide](doc/install.md) introduces how to build WCA with PRM plugin, how to install 
-WCA/PRM agent and how to configure agent to work with differen type of cluster scheduler.
+WCA/PRM agent and how to configure agent to work with differen type of job scheduler.
 
 [Model Builder Guide](doc/model.md) introduces how to deploy and configure model builder, including
 how to configure model builder to aggregate platform metrics cross nodes and how to configure model
