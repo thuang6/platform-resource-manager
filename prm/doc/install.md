@@ -72,9 +72,6 @@ runner: !AllocationRunner
 
 If you need to validate your agent in command line, use following commands in worker node:
 
-Note: for security reason, WCA requires absolute file path for agent configuration, please 
-replace relative path with absolute path in following example command according to your environment. 
-
 ```
 sudo -s
 
@@ -82,8 +79,9 @@ sudo -s
 // Set an appropriate value.
 ulimit -n 65536
 
-// detect contention in work node, pull model from central model database
-./dist/wca-prm.pex -c wca_prm_mesos.yaml -r prm.allocator:ResourceAllocator -r prm.model_distribution.db:ModelDatabase -l info
+// detect contention in worker node, pull model from central model database
+// for security reason, WCA requires absolute file path for agent configuration file
+./dist/wca-prm.pex -c $PWD/wca_prm_mesos.yaml -r prm.allocator:ResourceAllocator -r prm.model_distribution.db:ModelDatabase -l info
 ```
 
 Note:
