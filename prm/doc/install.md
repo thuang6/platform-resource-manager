@@ -90,7 +90,7 @@ ulimit -n 65536
 
 // detect contention in worker node, pull model from central model database
 // for security reason, WCA requires absolute file path for agent configuration file
-./dist/wca-prm.pex -c $PWD/wca_prm_mesos.yaml -r prm.allocator:ResourceAllocator -r prm.model_distribution.db:ModelDatabase -l info
+./dist/wca-prm.pex -0 -c $PWD/wca_prm_mesos.yaml -r prm.allocator:ResourceAllocator -r prm.model_distribution.db:ModelDatabase -l info
 ```
 
 Note:
@@ -108,7 +108,7 @@ use Prometheus Node exporter to export metrics to central Prometheus database.
 
 WCA/PRM agent also persists metrics in local file with csv format. By default agent store the file in the same directory 
 as agent working directory. User can change the file path in agent configuration file. Since agent itself does not rotate 
-the csv file, it is highly recommanded that user rotate it manually or periodically with logrotate utility.
+the csv file, it is highly recommanded that user rotate it with manually or periodically with logrotate utility (use copytruncate).
 
 In most of cases, it is recommanded that central model builder train models from metrics data stored in a Prometheus
 database. But if user don't have Prometheus database services available, user can let model builder train model from
