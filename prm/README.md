@@ -44,8 +44,8 @@ For detail, please refer to installation guide section of WCA project.
 
 ### Protect configuration and model file
 
-WCA PRM agent uses YAML format configuration file in local file system. Also it 
-generates JSON format model file and stores in remote configuraton service, such 
-as etcd/zookeeper.  Tampering of these files may impact availability of the whole
-solution. When user deploys the solution, it is highly recommended to enable proper
-access control to these local files or remote configuration services.
+WCA PRM agent reads YAML format configuration file in local file system and it produces CSV format metrics
+data file. Also it generates JSON format model and stores in remote configuraton service, such as etcd/zookeeper. 
+Agent does not execute or display the data in any of these files. Tampering of these files may impact availability 
+of the whole solution. When user deploys the solution, it is highly recommended to enable proper access control to 
+these local files and remote configuration services.
