@@ -112,7 +112,7 @@ class BuildRunnerCSV(Runner):
             value = {ThreshType.TDP.value: tdp_thresh, ThreshType.METRICS.value: thresholds}
             self.target[model_key[0]][model_key[1]][model_key[2]] = value
 
-        self._store_database(self.target)
+        self._store_database(dict(self.target))
         self._finish = True
 
     def _store_database(self, target):
