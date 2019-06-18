@@ -12,14 +12,22 @@
 
 WCA use PEX distribution for executable binary, before you start to build WCA with PRM plugin
 you need to prepare build environment for PEX distribution. Please refer to 
-[WCA installation guide](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst) 
+[WCA installation guide](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst) <BR>
+  
+Note: you don't need to get WCA source code and build WCA executable binary in above step. PRM use WCA as 
+sub-module, you will build WCA with PRM plugin in next step.
+
 
 To build WCA/PRM, please use following commands:
 
 ```
-cd ..
+// get prm source code in 0.8.x branch
+git clone --branch 0.8.x https://github.com/intel/platform-resource-manager
+cd platform-resource-manager
+// get submodule wca source code
 git submodule update --init
 cd prm
+// build wca with prm plugin
 make
 ```
 
