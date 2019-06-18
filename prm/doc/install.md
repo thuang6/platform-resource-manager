@@ -36,9 +36,10 @@ You can find executable binary under dist/wca-prm.pex
 ## Configuration
 
 The example WCA/PRM agent configuration file is ```wca_prm_mesos.yaml```, in this configuration,
-agent works with Mesos worker node and pull statistic model from zookeeper service and detects 
-workload resource contention without allocation control. For more detail about WCA configuration. 
-Please refer to [WCA Configuration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/README.rst#id16) 
+agent works with Mesos worker node and pull statistic model from zookeeper service every 3600 seconds and detects 
+workload resource contention without allocation control. 
+
+For more detail about WCA configuration. Please refer to [WCA Configuration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/README.rst#id16) 
 
 ```yaml
 runner: !AllocationRunner
@@ -46,13 +47,13 @@ runner: !AllocationRunner
     mesos_agent_endpoint: "http://127.0.0.1:5051"
   action_delay: &action_delay 1.
   metrics_storage: !LogStorage
-    output_filename: 'metrics/metrics.prom'
+    output_filename: 'metrics.prom'
     overwrite: true
   anomalies_storage: !LogStorage
-    output_filename: 'metrics/anomalies.prom'
+    output_filename: 'anomalies.prom'
     overwrite: true
   allocations_storage: !LogStorage
-    output_filename: 'metrics/allocations.prom'
+    output_filename: 'allocations.prom'
     overwrite: true
   allocator: !ResourceAllocator
     database: !ModelDatabase # model database configuration
