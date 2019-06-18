@@ -29,8 +29,7 @@ You can find executable binary under dist/wca-prm.pex
 
 The example WCA/PRM agent configuration file is ```wca_prm_mesos.yaml```, in this configuration,
 agent works with Mesos worker node and pull statistic model from zookeeper service and detects 
-workload resource contention without allocation control. For more detail about WCA configuration. 
-Please refer to [WCA Configuration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/README.rst) 
+workload resource contention without allocation control. For more detail about WCA configuration please refer to [WCA Configuration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/README.rst) 
 
 ```yaml
 runner: !AllocationRunner
