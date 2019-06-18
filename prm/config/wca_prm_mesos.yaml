@@ -3,13 +3,13 @@ runner: !AllocationRunner
     mesos_agent_endpoint: "http://127.0.0.1:5051"
   action_delay: &action_delay 1.
   metrics_storage: !LogStorage
-    output_filename: 'metrics/metrics.prom'
+    output_filename: 'metrics.prom'
     overwrite: true
   anomalies_storage: !LogStorage
-    output_filename: 'metrics/anomalies.prom'
+    output_filename: 'anomalies.prom'
     overwrite: true
   allocations_storage: !LogStorage
-    output_filename: 'metrics/allocations.prom'
+    output_filename: 'allocations.prom'
     overwrite: true
   allocator: !ResourceAllocator
     database: !ModelDatabase # model database configuration
