@@ -18,7 +18,6 @@ import logging
 import json
 import numpy as np
 from typing import List
-from ast import literal_eval
 
 from wca import detectors
 from wca.platforms import Platform
@@ -336,7 +335,7 @@ class ContentionDetector(detectors.AnomalyDetector):
             if self.database and self.cycle == 0:
                 try:
                     threshs = self.database.get(platform.cpu_model)
-                    self.threshs = literal_eval(threshs)
+                    self.threshs = json.loads(threshs)
                     if self.threshs:
                        log.debug('pulled model thresholds=%r', self.threshs)
                     else:

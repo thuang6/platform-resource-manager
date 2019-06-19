@@ -20,7 +20,7 @@ import datetime
 from typing import List, Union, Optional
 from wca.config import IpPort
 from wca.security import SSL
-
+import json
 import logging
 import string
 
@@ -126,7 +126,7 @@ class ModelDatabase(object):
     def set(self, key: str, value: dict):
         key = correct_key_characters(key)
         key = bytes(key, 'ascii')
-        value = bytes(str(value), 'ascii')
+        value = bytes(json.dumps(value), 'ascii')
         self.instance.set(key, value)
 
     def get(self, key: str):
