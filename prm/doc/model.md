@@ -162,4 +162,4 @@ let's have a key ```Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz``` , its value:
     }
 }
 ```
-Before setting into database, the key/vlaue pairs are transfered into database accepted format, and transfer back to dict object after calling get api of the database.
+Before setting into database, the key/value pairs are transfered into database accepted format, and transfer back to dict object after calling get api of the database.
