@@ -18,7 +18,6 @@ import logging
 import json
 import numpy as np
 from typing import List
-from ast import literal_eval
 
 from wca.platforms import Platform
 from wca.detectors import ContentionAnomaly, TasksMeasurements
@@ -409,7 +408,7 @@ class ResourceAllocator(Allocator):
             if self.database and self.cycle == 0:
                 try:
                     threshs = self.database.get(platform.cpu_model)
-                    self.threshs = literal_eval(threshs)
+                    self.threshs = json.loads(threshs)
                     if self.threshs:
                         log.debug('pulled model thresholds=%r', self.threshs)
                     else:
