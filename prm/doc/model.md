@@ -109,57 +109,56 @@ For example,
 let's have a key ```Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz``` , its value:
 ```json
 {
-  'tensorflow.default':
+  "tensorflow.default":
     {
-      10.0: 
+      "10.0": 
         {
-          'tdp_threshold': {},
-           'metrics_threshold':
+          "tdp_threshold": {},
+           "metrics_threshold":
               [
                 {
-                  'util_start': 650.0,
-                  'util_end': 700.0,
-                  'cpi': 1.0032199193473827,
-                  'mpki': 6.864916939581287,
-                  'mb': 14236.592832677068,
-                  'mspki': 158.24676336243277
+                  "util_start": 650.0,
+                  "util_end": 700.0,
+                  "cpi": 1.0032199193473827,
+                  "mpki": 6.864916939581287,
+                  "mb": 14236.592832677068,
+                  "mspki": 158.24676336243277
                 },
                 {
-                  'util_start': 700.0,
-                  'util_end': 750.0,
-                  'cpi': 1.0111220923534292,
-                  'mpki': 5.728084299629307,
-                  'mb': 13662.18074588682,
-                  'mspki': 162.17633323752193
+                  "util_start": 700.0,
+                  "util_end": 750.0,
+                  "cpi": 1.0111220923534292,
+                  "mpki": 5.728084299629307,
+                  "mb": 13662.18074588682,
+                  "mspki": 162.17633323752193
                 },
               ]
           }
     },
-  'specjbb.jbb1': 
+  "specjbb.jbb1": 
     {
-      1.0:
+      "1.0":
         {
-          'tdp_threshold':
+          "tdp_threshold":
            {
-             'util': 95.0,
-             'mean': 2146.169156707765,
-             'std': 107.6736058303353,
-             'bar': 1822.100759269943
+             "util": 95.0,
+             "mean": 2146.169156707765,
+             "std": 107.6736058303353,
+             "bar": 1822.100759269943
            },
-          'metrics_threshold': 
+          "metrics_threshold": 
             [
               {
-                'util_start': 50.0,
-                'util_end': 100.0,
-                'cpi': 1.2779672663320973,
-                'mpki': 5.030281918209746,
-                'mb': 712.0550828570538,
-                'mspki': 517.6264192015491
+                "util_start": 50.0,
+                "util_end": 100.0,
+                "cpi": 1.2779672663320973,
+                "mpki": 5.030281918209746,
+                "mb": 712.0550828570538,
+                "mspki": 517.6264192015491
               }
             ]
         }
     }
 }
-
-Before setting into database, the key/vlaue pairs are transfered into database accepted format, and transfer back to dict object after calling get api of the database.
 ```
+Before setting into database, the key/vlaue pairs are transfered into database accepted format, and transfer back to dict object after calling get api of the database.
