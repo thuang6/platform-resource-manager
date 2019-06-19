@@ -5,6 +5,7 @@
 - [Introduction](#Introduction)
 - [Train model from data in Prometheus database](#Train-model-from-data-in-Prometheus-database)
 - [Train model from csv data](#Train-model-from-csv-data)
+- [Key-Value store of model thresholds](#Key-Value-store-of-model-thresholds)
 
 ## Introduction
 
