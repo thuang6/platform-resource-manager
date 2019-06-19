@@ -112,12 +112,12 @@ class BuildRunnerCSV(Runner):
             value = {ThreshType.TDP.value: tdp_thresh, ThreshType.METRICS.value: thresholds}
             self.target[model_key[0]][model_key[1]][model_key[2]] = value
 
-        self._store_database(dict(self.target))
+        self._store_database(self.target)
         self._finish = True
 
     def _store_database(self, target):
         for key, value in target.items():
             try:
-                self._database.set(key, value)
+                self._database.set(key, dict(value))
             except DatabaseError as e:
                 log.error("failed to set key-value to the database: {}".format(e))
