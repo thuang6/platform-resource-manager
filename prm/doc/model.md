@@ -5,7 +5,7 @@
 - [Introduction](#Introduction)
 - [Train model from data in Prometheus database](#Train-model-from-data-in-Prometheus-database)
 - [Train model from csv data](#Train-model-from-csv-data)
-- [Key-Value store of model thresholds](#Key-Value-store-of-model-thresholds)
+- [Key-value store of model thresholds](#Key-value-store-of-model-thresholds)
 
 ## Introduction
 
@@ -33,10 +33,7 @@ The default configuration file is ```model_distribution_config.yaml```
 runner: !BuildRunner
   prometheus_host: "10.239.157.129:9090"
   cycle:    # default 3600s
-  time_range:    # defult 86400 secondsrunner: !BuildRunner
-  prometheus_host: "10.239.157.129:9090"
-  cycle:    # default 3600s
-  time_range:    # defult 86400 seconds
+  time_range:    # default 86400 seconds
   step:    # prometheus sample step, default 10 seconds
   timeout:     # prometheus request timeout, default 1 seconds
   database: !ModelDatabase
@@ -86,9 +83,9 @@ runner: !BuildRunnerCSV
     verbose: false
 ```
 
-## Key-Value store of model thresholds
+## Key-value store of model thresholds
 
-Trained models are stored in key/value pairs, cpu model is used as key and its value is a mutiple-level nested dict.
+Trained models are stored in key/value pairs, cpu model is used as key and its value is a JSON string serialized from a mutiple-level nested dict.
 
 Nested relationship of value:
 ```json
@@ -162,4 +159,4 @@ let's have a key ```Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz``` , its value:
     }
 }
 ```
-Before setting into database, the key/value pairs are transfered into database accepted format, and transfer back to dict object after calling get api of the database.
+Before setting into database, the key/value pairs are converted into database accepted format. And the value are converted back to dict object after agent pulls value back from database.
