@@ -28,9 +28,13 @@ import pandas as pd
 from .gmmfense import GmmFense
 log = logging.getLogger(__name__)
 
+class ThreshType(str, Enum):
+    METRICS = 'metrics_threshold'
+    TDP = 'tdp_threshold'
+
 
 class Metric(str, Enum):
-    """ This enumeration defines calculated metrics from owca measurements """
+    """ This enumeration defines calculated metrics from wca measurements """
     CYC = 'cycle'
     INST = 'instruction'
     L3MISS = 'cache_miss'
@@ -89,6 +93,8 @@ class Analyzer:
 
     def _build_tdp_thresh(self, jdata):
         job = jdata['name'].values[0]
+        if job not in self.workload_meta:
+            return
         cpu_no = self.workload_meta[job]['cpus']
 
         utilization_threshold = cpu_no * 100 * 0.95
@@ -104,7 +110,7 @@ class Analyzer:
             fbar = mean - 3 * std
             if min_freq < fbar:
                 fbar = min_freq
-            self.threshold[job]['tdp'] = {
+            self.threshold[job][ThreshType.TDP.value] = {
                 'util': utilization_threshold,
                 'mean': mean.item(),
                 'std': std.item(),
@@ -127,6 +133,8 @@ class Analyzer:
 
     def _build_thresh(self, jdata, span, strict, use_origin, verbose):
         job = jdata['name'].values[0]
+        if job not in self.workload_meta:
+            return
         cpu_no = self.workload_meta[job]['cpus']
         utilization_partition = self.partition_utilization(
             cpu_no, Analyzer.UTIL_BIN_STEP)
@@ -156,21 +164,21 @@ class Analyzer:
                 thresh = {
                     'util_start': lower_bound.item(),
                     'util_end': higher_bound.item(),
-                    'cpi': cpi_thresh.item(),
-                    'mpki': mpki_thresh.item(),
-                    'mb': mb_thresh.item()
+                    'cpi': np.float64(cpi_thresh).item(),
+                    'mpki': np.float64(mpki_thresh).item(),
+                    'mb': np.float64(mb_thresh).item()
                 }
                 if Metric.L2SPKI in jdataf.columns:
                     l2spki = jdataf[Metric.L2SPKI]
                     l2spki_thresh = self._get_fense(l2spki, True, strict,
                                                     span, use_origin)
-                    thresh['l2spki'] = l2spki_thresh.item()
+                    thresh['l2spki'] = np.float64(l2spki_thresh).item()
                 if Metric.MSPKI in jdataf.columns:
                     mspki = jdataf[Metric.MSPKI]
                     mspki_thresh = self._get_fense(mspki, True, strict,
                                                    span, use_origin)
-                    thresh['mspki'] = mspki_thresh.item()
-                self.threshold[job]['thresh'].append(thresh)
+                    thresh['mspki'] = np.float64(mspki_thresh).item()
+                self.threshold[job][ThreshType.METRICS.value].append(thresh)
             except Exception as e:
                 print(str(e))
                 if verbose:
@@ -179,8 +187,8 @@ class Analyzer:
 
     def _process_lc_max(self, util_file):
         udf = pd.read_csv(util_file)
-        lcu = udf[udf['name'] == 'lcs']
-        lcu = udf[Metric.UTIL]
+        lcs = udf[udf['name'] == 'lcs']
+        lcu = lcs[Metric.UTIL]
         maxulc = int(lcu.max())
         self.threshold['lcutilmax'] = maxulc
         log.debug('max LC utilization: %f', maxulc)
@@ -196,11 +204,8 @@ class Analyzer:
         with open(self.thresh_file, 'w') as threshf:
             threshf.write(json.dumps(self.threshold))
 
-    def get_thresh(self, job):
-        return self.threshold[job]['thresh'] if job in self.threshold else {}
-
-    def get_tdp_thresh(self, job):
-        return self.threshold[job]['tdp'] if job in self.threshold else {}
+    def get_thresh(self, job, thresh_type):
+        return self.threshold[job][thresh_type] if job in self.threshold else {}
 
     def build_model(self, util_file=UTIL_FILE, metric_file=METRIC_FILE,
                     span=4, strict=True, use_origin=False, verbose=False):
@@ -211,12 +216,15 @@ class Analyzer:
         mdf = pd.read_csv(metric_file)
         cnames = mdf['name'].unique()
         for cname in cnames:
-            self.threshold[cname] = {"tdp": {}, "thresh": []}
+            self.threshold[cname] = {ThreshType.TDP.value: {}, ThreshType.METRICS.value: []}
             jdata = mdf[mdf['name'] == cname]
             self._build_tdp_thresh(jdata)
             self._build_thresh(jdata, span, strict, use_origin, verbose)
 
-        if verbose:
-            log.warn(self.threshold)
-        with open(self.thresh_file, 'w') as threshf:
-            threshf.write(json.dumps(self.threshold))
+        if self.threshold:
+            if verbose:
+                log.warn(self.threshold)
+            with open(self.thresh_file, 'w') as threshf:
+                threshf.write(json.dumps(self.threshold))
+        else:
+            log.warn('Fail to build local model, no enough data were collected!')

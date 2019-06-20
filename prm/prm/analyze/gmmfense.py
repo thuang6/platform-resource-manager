@@ -146,15 +146,17 @@ class GmmFense:
 
             if is_upper is True:
                 data_bar = np.amax(gaussian_data)
-                three_std_bar = mean + span * std
+                n_std_bar = mean + span * std
+                threshold = n_std_bar
                 if is_strict is True:
-                    threshold = three_std_bar if three_std_bar < data_bar else data_bar
+                    threshold = n_std_bar if n_std_bar < data_bar else data_bar
                 outlier_count = (self.data > threshold).sum()
             else:
                 data_bar = np.amin(gaussian_data)
-                three_std_bar = mean - span * std
+                n_std_bar = mean - span * std
+                threshold = n_std_bar
                 if is_strict is True:
-                    threshold = three_std_bar if three_std_bar > data_bar else data_bar
+                    threshold = n_std_bar if n_std_bar > data_bar else data_bar
                 outlier_count = (self.data < threshold).sum()
 
             percentage = float(outlier_count) / total
