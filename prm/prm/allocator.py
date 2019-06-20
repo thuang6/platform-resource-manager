@@ -410,7 +410,7 @@ class ResourceAllocator(Allocator):
                     threshs = self.database.get(platform.cpu_model)
                     self.threshs = json.loads(threshs)
                     if self.threshs:
-                        log.debug('pulled model thresholds=%r', self.threshs)
+                        log.info('pulled model thresholds=%r', self.threshs)
                     else:
                         log.warn('No model is pulled from model database!')
                 except Exception:
