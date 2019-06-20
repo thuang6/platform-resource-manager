@@ -108,7 +108,7 @@ use Prometheus Node exporter to export metrics to central Prometheus database.
 
 WCA/PRM agent also persists metrics in local file with csv format. By default agent store the file in the same directory 
 as agent working directory. User can change the file path in agent configuration file. Since agent itself does not rotate 
-the csv file, it is highly recommanded that user rotates it with manually or periodically with logrotate utility (use copytruncate).
+the csv file, it is highly recommanded that user rotates it manually or periodically with logrotate utility (use copytruncate).
 
 In most of cases, it is recommanded that central model builder train models from metrics data stored in a Prometheus
 database. But if user does not have Prometheus database services available, user can let model builder train models from
