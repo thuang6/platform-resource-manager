@@ -16,9 +16,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "helper.h"
+#include <linux/perf_event.h>
 
 void set_attr_disabled(struct perf_event_attr *attr, int disabled) {
 	attr->disabled = disabled;
+}
+
+void set_attr_precise_ip(struct perf_event_attr *attr, unsigned char precise_ip) {
+	attr->sample_period = 1000;
+	attr->sample_type |= PERF_SAMPLE_IP;
+	attr->precise_ip = precise_ip;
 }
 
 struct cgroup* get_cgroup(struct cgroup *cgroups, int index) {

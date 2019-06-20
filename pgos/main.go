@@ -47,6 +47,8 @@ type ModelSpecificEvent uint64
 const (
 	CYCLE_ACTIVITY_STALLS_L2_MISS ModelSpecificEvent = 0
 	CYCLE_ACTIVITY_STALLS_MEM_ANY ModelSpecificEvent = 1
+	MEM_LOAD_RETIRED_LOCAL_PMM ModelSpecificEvent = 2
+        MEM_LOAD_L3_MISS_RETIRED_REMOTE_PMM ModelSpecificEvent = 3
 )
 
 const (
@@ -62,14 +64,17 @@ var metricsDescription = []string{"instructions", "cycles", "LLC misses", "stall
 type PerfCounter struct {
 	Type   C.uint32_t
 	Config C.uint64_t
+	Pebs   C.uint8_t
 }
 
 var counters = []PerfCounter{
 	PerfCounter{Type: C.PERF_TYPE_HARDWARE, Config: C.PERF_COUNT_HW_INSTRUCTIONS},
 	PerfCounter{Type: C.PERF_TYPE_HARDWARE, Config: C.PERF_COUNT_HW_CPU_CYCLES},
 	PerfCounter{Type: C.PERF_TYPE_HARDWARE, Config: C.PERF_COUNT_HW_CACHE_MISSES},
-	PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(CYCLE_ACTIVITY_STALLS_L2_MISS)},
+	//PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(CYCLE_ACTIVITY_STALLS_L2_MISS)},
 	PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(CYCLE_ACTIVITY_STALLS_MEM_ANY)},
+	PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(MEM_LOAD_RETIRED_LOCAL_PMM), Pebs: 0},
+	//PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(MEM_LOAD_L3_MISS_RETIRED_REMOTE_PMM), Pebs: 1},
 }
 
 type Cgroup struct {
@@ -164,8 +169,10 @@ func collect(ctx C.struct_context) C.struct_context {
 		cg.instructions = C.uint64_t(res[0])
 		cg.cycles = C.uint64_t(res[1])
 		cg.llc_misses = C.uint64_t(res[2])
-		cg.stalls_l2_misses = C.uint64_t(res[3])
-		cg.stalls_memory_load = C.uint64_t(res[4])
+		//cg.stalls_l2_misses = C.uint64_t(res[3])
+		cg.stalls_memory_load = C.uint64_t(res[3])
+		cg.mem_load_retired_local_pmm = C.uint64_t(res[4])
+		//cg.mem_load_l3miss_retired_remote_pmm = C.uint64_t(res[5])
 
 		if pqosEnabled {
 			pgosValue := C.pgos_mon_poll(cgroups[j].PgosHandler)
@@ -197,13 +204,13 @@ func NewCgroup(path string, cid string, index int) (*Cgroup, C.int) {
 	followers := make([]uintptr, 0, coreCount*(len(counters)-1))
 
 	for i := 0; i < coreCount; i++ {
-		l, code := OpenLeader(cgroupFile.Fd(), uintptr(i), counters[0].Type, counters[0].Config)
+		l, code := OpenLeader(cgroupFile.Fd(), uintptr(i), counters[0].Type, counters[0].Config, counters[0].Pebs)
 		if code != 0 {
 			return nil, code
 		}
 		leaders = append(leaders, l)
 		for j := 1; j < len(counters); j++ {
-			f, code := OpenFollower(l, uintptr(i), counters[j].Type, counters[j].Config)
+			f, code := OpenFollower(l, uintptr(i), counters[j].Type, counters[j].Config, counters[j].Pebs)
 			if code != 0 {
 				return nil, code
 			}

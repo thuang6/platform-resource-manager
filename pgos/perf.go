@@ -32,11 +32,13 @@ import (
 	"syscall"
 	"unsafe"
 )
+//import "fmt"
 
 func perfEventOpen(attr C.struct_perf_event_attr,
 	pid, cpu, groupFd, flags uintptr) (uintptr, C.int) {
 	fd, _, err := syscall.Syscall6(syscall.SYS_PERF_EVENT_OPEN, uintptr(unsafe.Pointer(&attr)),
 		pid, cpu, groupFd, flags, 0)
+	//fmt.Printf("attr: %+v, err: %+v %d\n", attr, err, err)	
 	if err != 0 {
 		return 0, ErrorCannotPerfomSyscall
 	}
@@ -61,7 +63,7 @@ type PerfStruct struct {
 	}
 }
 
-func OpenLeader(cgroupFd uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t) (uintptr, C.int) {
+func OpenLeader(cgroupFd uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t, pebs C.uint8_t) (uintptr, C.int) {
 	leaderAttr := C.struct_perf_event_attr{
 		_type:       C.__u32(perfType),
 		size:        C.__u32(C.def_PERF_ATTR_SIZE_VER5),
@@ -73,10 +75,11 @@ func OpenLeader(cgroupFd uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C
 			C.PERF_FORMAT_ID,
 	}
 	C.set_attr_disabled(&leaderAttr, 1)
+	C.set_attr_precise_ip(&leaderAttr, pebs)
 	return perfEventOpen(leaderAttr, cgroupFd, cpu, ^uintptr(0), C.PERF_FLAG_PID_CGROUP|C.PERF_FLAG_FD_CLOEXEC)
 }
 
-func OpenFollower(leader uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t) (uintptr, C.int) {
+func OpenFollower(leader uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C.uint64_t, pebs C.uint8_t) (uintptr, C.int) {
 	followerAttr := C.struct_perf_event_attr{
 		_type:       C.__u32(perfType),
 		size:        C.__u32(C.def_PERF_ATTR_SIZE_VER5),
@@ -88,6 +91,7 @@ func OpenFollower(leader uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C
 			C.PERF_FORMAT_ID,
 	}
 	C.set_attr_disabled(&followerAttr, 0)
+	C.set_attr_precise_ip(&followerAttr, pebs)
 	return perfEventOpen(followerAttr, ^uintptr(0), cpu, leader, C.PERF_FLAG_FD_CLOEXEC)
 }
 
@@ -110,6 +114,7 @@ func ReadLeader(leader uintptr) (PerfStruct, C.int) {
 	}
 	var result PerfStruct
 	binary.Read(bytes.NewBuffer(b), binary.LittleEndian, &result)
+	//fmt.Printf("result %+v \n", result)
 	for i := 0; i < len(result.Data); i++ {
 		if result.TimeRunning == 0 {
 			result.Data[i].Value = 0

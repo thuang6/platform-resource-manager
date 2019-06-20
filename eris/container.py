@@ -87,10 +87,9 @@ class Container(object):
             metrics[Metric.L3OCC],
             metrics[Metric.MBL],
             metrics[Metric.MBR],
-            metrics[Metric.L2STALL],
             metrics[Metric.MEMSTALL],
-            metrics[Metric.L2SPKI],
             metrics[Metric.MSPKI],
+            metrics[Metric.MLRLPMM],
         ]
         return ','.join(str(col) for col in cols) + '\n'
 
@@ -99,9 +98,8 @@ class Container(object):
                         (Metric.CPI, float), (Metric.L3MPKI, float),
                         (Metric.L3MISS, int), (Metric.NF, float),
                         (Metric.L3OCC, int), (Metric.MBL, float),
-                        (Metric.MBR, float), (Metric.L2STALL, int),
-                        (Metric.MEMSTALL, int), (Metric.L2SPKI, float),
-                        (Metric.MSPKI, float)]
+                        (Metric.MBR, float), (Metric.MEMSTALL, int), 
+                        (Metric.MSPKI, float), (Metric.MLRLPMM, int)]
         for key, converter in key_mappings:
             self.metrics[key] = converter(row_tuple[1][key])
         self.utils = float(row_tuple[1][Metric.UTIL])
@@ -140,14 +138,11 @@ class Container(object):
             if metrics[Metric.INST] == 0:
                 metrics[Metric.CPI] = 0
                 metrics[Metric.L3MPKI] = 0
-                metrics[Metric.L2SPKI] = 0
                 metrics[Metric.MSPKI] = 0
             else:
                 metrics[Metric.CPI] = metrics[Metric.CYC] /\
                     metrics[Metric.INST]
                 metrics[Metric.L3MPKI] = metrics[Metric.L3MISS] * 1000 /\
-                    metrics[Metric.INST]
-                metrics[Metric.L2SPKI] = metrics[Metric.L2STALL] * 1000 /\
                     metrics[Metric.INST]
                 metrics[Metric.MSPKI] = metrics[Metric.MEMSTALL] * 1000 /\
                     metrics[Metric.INST]
@@ -215,10 +210,9 @@ class Container(object):
                 print('Last Level Cache contention is detected at %s' %
                       metrics['time'])
                 print('Latency critical container %s, CPI = %f, threshold =\
-%f, MPKI = %f, threshold = %f, L2SPKI = %f, threshold = %f' %
+%f, MPKI = %f, threshold = %f, threshold = %f' %
                       (self.name, metrics[Metric.CPI], thresh['cpi'],
-                       metrics[Metric.L3MPKI], thresh['mpki'],
-                       metrics[Metric.L2SPKI], thresh['l2spki']))
+                       metrics[Metric.L3MPKI], thresh['mpki']))
                 unk_res = False
                 contend_res.append(Contention.LLC)
             if metrics[Metric.MBL] + metrics[Metric.MBR] < thresh['mb'] or\

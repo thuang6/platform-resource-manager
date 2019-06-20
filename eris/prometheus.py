@@ -52,6 +52,9 @@ class PrometheusClient:
         self.gauge_llc_occupancy = Gauge('cma_llc_occupancy',
                                          'Instructions of a container',
                                          ['container'])
+        self.gauge_mem_load_ret_local_pmm = Gauge('cma_mem_load_ret_local_pmm',
+                                                  'memory load retired on local pmm',
+                                                  ['container'])
 
     def start(self):
         start_http_server(8080)
@@ -60,7 +63,7 @@ class PrometheusClient:
                      unhalted_cycle, llc_miss, instructions,
                      cycles_per_instruction, misses_per_instruction,
                      stalls_mem_load_per_instruction, average_frequency,
-                     memory_bandwidth, llc_occupancy):
+                     memory_bandwidth, llc_occupancy, mem_load_ret_local_pmm):
         self.gauge_cpu_usage_percentage.labels(container_name).set(
             cpu_usage_percentage)
         self.gauge_unhalted_cycles.labels(container_name).set(unhalted_cycle)
@@ -77,3 +80,4 @@ class PrometheusClient:
         self.gauge_memory_bandwidth.labels(container_name).set(
             memory_bandwidth)
         self.gauge_llc_occupancy.labels(container_name).set(llc_occupancy)
+        self.gauge_mem_load_ret_local_pmm.labels(container_name).set(mem_load_ret_local_pmm)

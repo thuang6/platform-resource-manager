@@ -41,6 +41,16 @@ struct perf_event_spec{
 struct x86_cpu_info {
 	uint32_t display_model;
 	uint32_t display_family;
+        uint32_t stepping;
+};
+
+static const struct perf_event_spec csl_spec[] = {
+	{.event = 0xA3, .umask = 0x05, .cmask = 5},
+	{.event = 0xA3, .umask = 0x14, .cmask = 20},
+	//{.event = 0xA3, .umask = 0x10, .cmask = 16},
+	//{.event = 0xA3, .umask = 0x10, .cmask = 16},
+	{.event = 0xD1, .umask = 0x80},
+	{.event = 0xD3, .umask = 0x10},
 };
 
 static const struct perf_event_spec skl_spec[] = {
@@ -56,6 +66,7 @@ static const struct perf_event_spec brw_spec[] = {
 struct x86_cpu_info get_x86_cpu_info(void) {
 	uint32_t eax, ebx, ecx, edx;
 	__cpuid(1, eax, ebx, ecx, edx);
+	const uint32_t stepping = eax & 0xF;
 	const uint32_t model = (eax >> 4) & 0xF;
 	const uint32_t family = (eax >> 8) & 0xF;
 	const uint32_t extended_model = (eax >> 16) & 0xF;
@@ -70,7 +81,8 @@ struct x86_cpu_info get_x86_cpu_info(void) {
 	}
 	return (struct x86_cpu_info) {
 		.display_model = display_model,
-			.display_family = display_family
+		.display_family = display_family,
+                .stepping = stepping
 	};
 }
 
@@ -81,15 +93,30 @@ uint64_t get_config_of_event(uint32_t type,uint64_t event) {
 
 	struct x86_cpu_info cpu_info = get_x86_cpu_info();
 	struct perf_event_spec spec;
-	//printf("CPU family %x CPU model %x\n", cpu_info.display_family, cpu_info.display_model);
+	//printf("CPU family %x CPU model %x Stepping %x\n", cpu_info.display_family, cpu_info.display_model, cpu_info.stepping);
 	if (cpu_info.display_family == 0x06) {
 		switch (cpu_info.display_model) {
 			case 0x4E:
 			case 0x5E:
-			case 0x55:
 				/* Skylake */
 				spec = skl_spec[event];
 				break;
+			case 0x55:
+				{
+					switch (cpu_info.stepping) {
+					case 0x4:
+						/* Skylake */
+						spec = skl_spec[event];
+						break;
+					case 0x5:
+					case 0x6:
+					case 0x7:
+ 						/* cascadelake */
+						spec = csl_spec[event];
+						break;
+					}
+					break;
+				}
 			case 0x3D:
 			case 0x47:
 			case 0x4F:
@@ -99,7 +126,9 @@ uint64_t get_config_of_event(uint32_t type,uint64_t event) {
 				break;
 		}
 	}
-	return  ((uint32_t) spec.event) | (((uint32_t) spec.umask) << 8) | (((uint32_t) spec.edge) << 18) 
+	uint32_t evt = ((uint32_t) spec.event) | (((uint32_t) spec.umask) << 8) | (((uint32_t) spec.edge) << 18) 
 		| (((uint32_t) spec.inv) << 23) | (((uint32_t) spec.cmask) << 24);	
+	//printf("event %x\n", evt);
+	return evt;
 }
 

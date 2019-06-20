@@ -44,6 +44,7 @@ class Metric(str, Enum):
     UTIL = 'cpu_utilization'
     L2STALL = 'stalls_l2_miss'
     MEMSTALL = 'stalls_mem_load'
+    MLRLPMM = 'mem_load_retired_local_pmm'
     L2SPKI = 'stalls_l2miss_per_kilo_instruction'
     MSPKI = 'stalls_memory_load_per_kilo_instruction'
     LCCAPACITY = 'latency_critical_utilization_capacity'

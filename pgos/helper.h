@@ -24,7 +24,9 @@ struct cgroup {
     int ret;
     char* path;
     char* cid;
-    uint64_t instructions, cycles, llc_misses, stalls_l2_misses, stalls_memory_load, llc_occupancy;
+    //uint64_t instructions, cycles, llc_misses, stalls_memory_load, mem_load_l3miss_retired_remote_pmm, llc_occupancy;
+    uint64_t instructions, cycles, llc_misses, stalls_memory_load, mem_load_retired_local_pmm, llc_occupancy;
+    //uint64_t instructions, cycles, llc_misses, stalls_l2_misses, stalls_memory_load, mem_load_retired_local_pmm, llc_occupancy;
     double mbm_local, mbm_remote;
 };
 
@@ -41,4 +43,6 @@ struct context {
 struct cgroup* get_cgroup(struct cgroup *cgroups, int index);
 
 void set_attr_disabled(struct perf_event_attr *attr, int disabled);
+
+void set_attr_precise_ip(struct perf_event_attr *attr, unsigned char precise_ip);
 #endif

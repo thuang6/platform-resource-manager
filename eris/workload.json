@@ -7,12 +7,20 @@
         "cpus": 8,
         "type": "latency_critical"
     }, 
-    "memcache_workload_1": {
-	"cpus": 2,
+    "pmem-redis-6379": {
+	"cpus": 1,
 	"type": "latency_critical"
     }, 
-    "memcache_workload_2": {
-	"cpus": 2,
+    "pmem-redis-6380": {
+	"cpus": 1,
+	"type": "latency_critical"
+    },    
+    "pmem-redis-6381": {
+	"cpus": 1,
+	"type": "latency_critical"
+    }, 
+    "pmem-redis-6382": {
+	"cpus": 1,
 	"type": "latency_critical"
     },    
     "memcache_workload_3": {
