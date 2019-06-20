@@ -5,6 +5,7 @@
 - [Introduction](#Introduction)
 - [Train model from data in Prometheus database](#Train-model-from-data-in-Prometheus-database)
 - [Train model from csv data](#Train-model-from-csv-data)
+- [Key-Value store of model thresholds](#Key-Value-store-of-model-thresholds)
 
 ## Introduction
 
@@ -21,11 +22,9 @@ In case there is no Prometheus database service available in user environment, m
 
 Use the commands to run model builder:
 
-Note: for security reason, WCA requires absolute file path for configuration, please replace relative path with absolute path in 
-following example command according to your environment. 
-
 ```
-./dist/wca-prm.pex -c model_distribution_config.yaml -r prm.model_distribution.prometheus.builder_prom:BuildRunnerProm -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
+// for security reason, WCA requires absolute file path for configuration
+./dist/wca-prm.pex -c $PWD/model_distribution_config.yaml -r prm.model_distribution.prometheus.builder_prom:BuildRunnerProm -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
 ```
 
 The default configuration file is ```model_distribution_config.yaml```
@@ -47,13 +46,13 @@ runner: !BuildRunner
     directory: ~
     api_path: "/v3beta"     # for etcd, '/v3alpha' for 3.2.x etcd version, '/v3beta' or '/v3' for 3.3.x etcd version
     timeout: 5.0     # for etcd, default 5.0 seconds
-    ssl: !SSL 
-      server_verify: false
-      client_cert_path: ~
-      client_key_path: ~
+    #ssl: !SSL 
+      #server_verify: true
+      #client_cert_path: "/home/ssg/ssl/keystore.pem"
+      #client_key_path: "/home/ssg/ssl/keystore.pem"
   model: !DistriModel
     span: 3
-    strict: false
+    strict: true
     use_origin: false
     verbose: false
 ```
@@ -62,11 +61,9 @@ runner: !BuildRunner
 
 run commands
 
-Note: for security reason, WCA requires absolute file path for configuration, please replace relative path with absolute path in 
-following example command according to your environment. 
-
 ```
-./dist/wca-prm.pex -c csv_config.yaml -r prm.model_distribution.csv.builder_csv:BuildRunnerCSV -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
+// for security reason, WCA requires absolute file path for configuration
+./dist/wca-prm.pex -c $PWD/csv_config.yaml -r prm.model_distribution.csv.builder_csv:BuildRunnerCSV -r prm.model_distribution.db:ModelDatabase -r prm.model_distribution.model:DistriModel -l info
 ```
 csv_config.yaml example:
 
@@ -78,13 +75,91 @@ runner: !BuildRunnerCSV
     host: "10.239.157.129:2181"     # required for zookeeper and etcd
     namespace: ~     # for zookeeper, if none, using default model_distribution
     timeout: 5.0
-    ssl: !SSL
-      server_verify: false
-      client_cert_path: ~
-      client_key_path: ~
+    #ssl: !SSL
+      #server_verify: true
+      #client_cert_path: "/home/ssg/ssl/keystore.pem"
+      #client_key_path: "/home/ssg/ssl/keystore.pem"
   model: !DistriModel
     span: 3
-    strict: false
+    strict: true
     use_origin: false
     verbose: false
 ```
+
+## Key-Value store of model thresholds
+
+Trained models are stored in key/value pairs, cpu model is used as key and its value is a mutiple-level nested dict.
+
+Nested relationship of value:
+```json
+{
+  "app1":
+  {
+    "cpu_count1":
+    {
+      "tdp_threshold":
+      {},
+      "metrics_threshold":
+      []
+    }
+  }
+}
+```
+For example,
+
+let's have a key ```Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz``` , its value:
+```json
+{
+  "tensorflow.default":
+    {
+      "10.0": 
+        {
+          "tdp_threshold": {},
+           "metrics_threshold":
+              [
+                {
+                  "util_start": 650.0,
+                  "util_end": 700.0,
+                  "cpi": 1.0032199193473827,
+                  "mpki": 6.864916939581287,
+                  "mb": 14236.592832677068,
+                  "mspki": 158.24676336243277
+                },
+                {
+                  "util_start": 700.0,
+                  "util_end": 750.0,
+                  "cpi": 1.0111220923534292,
+                  "mpki": 5.728084299629307,
+                  "mb": 13662.18074588682,
+                  "mspki": 162.17633323752193
+                },
+              ]
+          }
+    },
+  "specjbb.jbb1": 
+    {
+      "1.0":
+        {
+          "tdp_threshold":
+           {
+             "util": 95.0,
+             "mean": 2146.169156707765,
+             "std": 107.6736058303353,
+             "bar": 1822.100759269943
+           },
+          "metrics_threshold": 
+            [
+              {
+                "util_start": 50.0,
+                "util_end": 100.0,
+                "cpi": 1.2779672663320973,
+                "mpki": 5.030281918209746,
+                "mb": 712.0550828570538,
+                "mspki": 517.6264192015491
+              }
+            ]
+        }
+    }
+}
+```
+Before setting into database, the key/value pairs are transfered into database accepted format, and transfer back to dict object after calling get api of the database.

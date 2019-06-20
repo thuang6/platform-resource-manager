@@ -118,6 +118,6 @@ class BuildRunnerCSV(Runner):
     def _store_database(self, target):
         for key, value in target.items():
             try:
-                self._database.set(key, value)
+                self._database.set(key, dict(value))
             except DatabaseError as e:
                 log.error("failed to set key-value to the database: {}".format(e))

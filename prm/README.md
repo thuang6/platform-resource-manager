@@ -29,7 +29,7 @@ contention and conduct resource allocation if needed. A PRM model builder needs 
 seperately, which builds workload models and pushes to a configuration service, like zookeeper or etcd.      
 
 [Installation Guide](doc/install.md) introduces how to build WCA with PRM plugin, how to install 
-WCA/PRM agent and how to configure agent to work with differen type of cluster scheduler.
+WCA/PRM agent and how to configure agent to work with differen type of job scheduler.
 
 [Model Builder Guide](doc/model.md) introduces how to deploy and configure model builder, including
 how to configure model builder to aggregate platform metrics cross nodes and how to configure model
@@ -44,8 +44,8 @@ For detail, please refer to installation guide section of WCA project.
 
 ### Protect configuration and model file
 
-WCA PRM agent uses YAML format configuration file in local file system. Also it 
-generates JSON format model file and stores in remote configuraton service, such 
-as etcd/zookeeper.  Tampering of these files may impact availability of the whole
-solution. When user deploys the solution, it is highly recommended to enable proper
-access control to these local files or remote configuration services.
+WCA PRM agent reads YAML format configuration file in local file system and it produces CSV format metrics
+data file. Also it generates JSON format model and stores in remote configuraton service, such as etcd/zookeeper. 
+Agent does not execute or display the data in any of these files. Tampering of these files may impact availability 
+of the whole solution. When user deploys the solution, it is highly recommended to enable proper access control to 
+these local files and remote configuration services.

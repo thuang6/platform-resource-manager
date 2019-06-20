@@ -12,14 +12,22 @@
 
 WCA use PEX distribution for executable binary, before you start to build WCA with PRM plugin
 you need to prepare build environment for PEX distribution. Please refer to 
-[WCA installation guide](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst) 
+[WCA installation guide](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst) <BR>
+  
+Note: you don't need to get WCA source code and build WCA executable binary in above step. PRM use WCA as 
+sub-module, you will build WCA with PRM plugin in next step.
+
 
 To build WCA/PRM, please use following commands:
 
 ```
-cd ..
+// get prm source code in 0.8.x branch
+git clone --branch 0.8.x https://github.com/intel/platform-resource-manager
+cd platform-resource-manager
+// get submodule wca source code
 git submodule update --init
 cd prm
+// build wca with prm plugin
 make
 ```
 
@@ -28,9 +36,10 @@ You can find executable binary under dist/wca-prm.pex
 ## Configuration
 
 The example WCA/PRM agent configuration file is ```wca_prm_mesos.yaml```, in this configuration,
-agent works with Mesos worker node and pull statistic model from zookeeper service and detects 
-workload resource contention without allocation control. For more detail about WCA configuration. 
-Please refer to [WCA Configuration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/README.rst) 
+agent works with Mesos worker node and pull the contention detection model from zookeeper service every 3600 seconds and detects 
+workload resource contention without allocation control. 
+
+For more detail about WCA configuration. Please refer to [WCA Configuration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/README.rst#id16) 
 
 ```yaml
 runner: !AllocationRunner
@@ -38,13 +47,13 @@ runner: !AllocationRunner
     mesos_agent_endpoint: "http://127.0.0.1:5051"
   action_delay: &action_delay 1.
   metrics_storage: !LogStorage
-    output_filename: 'metrics/metrics.prom'
+    output_filename: 'metrics.prom'
     overwrite: true
   anomalies_storage: !LogStorage
-    output_filename: 'metrics/anomalies.prom'
+    output_filename: 'anomalies.prom'
     overwrite: true
   allocations_storage: !LogStorage
-    output_filename: 'metrics/allocations.prom'
+    output_filename: 'allocations.prom'
     overwrite: true
   allocator: !ResourceAllocator
     database: !ModelDatabase # model database configuration
@@ -72,9 +81,6 @@ runner: !AllocationRunner
 
 If you need to validate your agent in command line, use following commands in worker node:
 
-Note: for security reason, WCA requires absolute file path for agent configuration, please 
-replace relative path with absolute path in following example command according to your environment. 
-
 ```
 sudo -s
 
@@ -82,8 +88,9 @@ sudo -s
 // Set an appropriate value.
 ulimit -n 65536
 
-// detect contention in work node, pull model from central model database
-./dist/wca-prm.pex -c wca_prm_mesos.yaml -r prm.allocator:ResourceAllocator -r prm.model_distribution.db:ModelDatabase -l info
+// detect contention in worker node, pull model from central model database
+// for security reason, WCA requires absolute file path for agent configuration file
+./dist/wca-prm.pex -0 -c $PWD/wca_prm_mesos.yaml -r prm.allocator:ResourceAllocator -r prm.model_distribution.db:ModelDatabase -l info
 ```
 
 Note:
@@ -101,11 +108,11 @@ use Prometheus Node exporter to export metrics to central Prometheus database.
 
 WCA/PRM agent also persists metrics in local file with csv format. By default agent store the file in the same directory 
 as agent working directory. User can change the file path in agent configuration file. Since agent itself does not rotate 
-the csv file, it is highly recommanded that user rotate it manually or periodically with logrotate utility.
+the csv file, it is highly recommanded that user rotates it with manually or periodically with logrotate utility (use copytruncate).
 
 In most of cases, it is recommanded that central model builder train models from metrics data stored in a Prometheus
-database. But if user don't have Prometheus database services available, user can let model builder train model from
-a csv file, which requires user combines all csv files collected from each node into single csv file with automation.
+database. But if user does not have Prometheus database services available, user can let model builder train models from
+a single csv file, which requires user to combine all the csv files collected from those nodes into a single csv file with automation.
   
 ## Cluster job scheduler integration
 
