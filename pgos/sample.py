@@ -28,7 +28,8 @@ class cgroup(Structure):
                 ("llc_misses", c_ulonglong),
                 #("stall_l2_misses", c_ulonglong),
                 ("stalls_memory_load", c_ulonglong),
-                ("mem_load_retired_local_pmm", c_ulonglong),
+                ("offcore_req_l3_miss_data_rd", c_ulonglong),
+                #("mem_load_retired_local_pmm", c_ulonglong),
                 #("mem_load_l3miss_retired_remote_pmm", c_ulonglong),
                 ("llc_occupancy", c_ulonglong),
                 ("mbm_local", c_double),
@@ -48,14 +49,14 @@ lib.collect.restype = context
 
 
 cg0 = cgroup()
-cg0.path = '/sys/fs/cgroup/perf_event/system.slice/docker-7b21146c53747d17cfb7fc50c9960e4c3aa1a3e7583aef48e44209caf0164d6c.scope/'.encode()
+cg0.path = '/sys/fs/cgroup/perf_event/docker/be776bd43908215671ae5eeb98dd0d0bd7251043d332956960b9a6fc2dc51342/'.encode()
 cg0.cid = 'cassandra'.encode()
 
 cg1 = cgroup()
-cg1.path = '/sys/fs/cgroup/perf_event/system.slice/docker-fffad25b5c956414a85d69fc557a024374399aa7adb0135c778530ae23a9851a.scope/'.encode()
+cg1.path = '/sys/fs/cgroup/perf_event/docker/6985ab1fccd4346783f7da8598a165373ed5024dbe5f0b22281f6c05ccb3880a/'.encode()
 cg1.cid = 'memcache'.encode()
 ctx = context()
-ctx.core = 96
+ctx.core = 72
 ctx.period = 10000
 ctx.cgroup_count = 2
 ctx.cgroups = (cgroup * 2)(cg0, cg1)
@@ -68,12 +69,12 @@ for i in range(5):
       cg = ret.cgroups[0]
       #print(cg.ret, cg.instructions, cg.cycles, cg.llc_misses, cg.stall_l2_misses,
       print(cg.ret, cg.instructions, cg.cycles, cg.llc_misses,
-            cg.stalls_memory_load, cg.mem_load_retired_local_pmm, 
+            cg.stalls_memory_load, cg.offcore_req_l3_miss_data_rd, 
             #cg.stall_l2_misses, cg.stalls_memory_load, cg.mem_load_retired_local_pmm, cg.mem_load_l3miss_retired_remote_pmm,
             cg.llc_occupancy, cg.mbm_local, cg.mbm_remote)
       cg = ret.cgroups[1]
       print(cg.ret, cg.instructions, cg.cycles, cg.llc_misses,
-            cg.stalls_memory_load, cg.mem_load_retired_local_pmm,
+            cg.stalls_memory_load, cg.offcore_req_l3_miss_data_rd,
             #cg.stall_l2_misses, cg.stalls_memory_load, cg.mem_load_retired_local_pmm, cg.mem_load_l3miss_retired_remote_pmm,
             cg.llc_occupancy, cg.mbm_local, cg.mbm_remote)
 

@@ -47,8 +47,9 @@ type ModelSpecificEvent uint64
 const (
 	CYCLE_ACTIVITY_STALLS_L2_MISS ModelSpecificEvent = 0
 	CYCLE_ACTIVITY_STALLS_MEM_ANY ModelSpecificEvent = 1
-	MEM_LOAD_RETIRED_LOCAL_PMM ModelSpecificEvent = 2
-        MEM_LOAD_L3_MISS_RETIRED_REMOTE_PMM ModelSpecificEvent = 3
+	OFFCORE_REQ_L3_MISS_DEMAND_DATA_RD ModelSpecificEvent = 2
+	MEM_LOAD_RETIRED_LOCAL_PMM ModelSpecificEvent = 3
+        MEM_LOAD_L3_MISS_RETIRED_REMOTE_PMM ModelSpecificEvent = 4
 )
 
 const (
@@ -71,9 +72,9 @@ var counters = []PerfCounter{
 	PerfCounter{Type: C.PERF_TYPE_HARDWARE, Config: C.PERF_COUNT_HW_INSTRUCTIONS},
 	PerfCounter{Type: C.PERF_TYPE_HARDWARE, Config: C.PERF_COUNT_HW_CPU_CYCLES},
 	PerfCounter{Type: C.PERF_TYPE_HARDWARE, Config: C.PERF_COUNT_HW_CACHE_MISSES},
-	//PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(CYCLE_ACTIVITY_STALLS_L2_MISS)},
 	PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(CYCLE_ACTIVITY_STALLS_MEM_ANY)},
-	PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(MEM_LOAD_RETIRED_LOCAL_PMM), Pebs: 0},
+	PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(OFFCORE_REQ_L3_MISS_DEMAND_DATA_RD)},
+	//PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(MEM_LOAD_RETIRED_LOCAL_PMM), Pebs: 1},
 	//PerfCounter{Type: C.PERF_TYPE_RAW, Config: C.uint64_t(MEM_LOAD_L3_MISS_RETIRED_REMOTE_PMM), Pebs: 1},
 }
 
@@ -171,7 +172,8 @@ func collect(ctx C.struct_context) C.struct_context {
 		cg.llc_misses = C.uint64_t(res[2])
 		//cg.stalls_l2_misses = C.uint64_t(res[3])
 		cg.stalls_memory_load = C.uint64_t(res[3])
-		cg.mem_load_retired_local_pmm = C.uint64_t(res[4])
+                cg.offcore_req_l3_miss_data_rd = C.uint64_t(res[4])
+		//cg.mem_load_retired_local_pmm = C.uint64_t(res[4])
 		//cg.mem_load_l3miss_retired_remote_pmm = C.uint64_t(res[5])
 
 		if pqosEnabled {

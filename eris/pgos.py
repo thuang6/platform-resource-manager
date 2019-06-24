@@ -34,7 +34,7 @@ class cgroup(Structure):
                 ("llc_misses", c_ulonglong),
                 #("stalls_l2_misses", c_ulonglong),
                 ("stalls_memory_load", c_ulonglong),
-                ("mem_load_retired_local_pmm", c_ulonglong),
+                ("offcore_req_l3_miss_data_rd", c_ulonglong),
                 ("llc_occupancy", c_ulonglong),
                 ("mbm_local", c_double),
                 ("mbm_remote", c_double)]
@@ -97,7 +97,7 @@ class Pgos(object):
                                     Metric.CYC: cg.cycles,
                                     Metric.L3MISS: cg.llc_misses,
                                     Metric.MEMSTALL: cg.stalls_memory_load,
-                                    Metric.MLRLPMM: cg.mem_load_retired_local_pmm,
+                                    Metric.OCRL3MRD: cg.offcore_req_l3_miss_data_rd,
                                     Metric.L3OCC: cg.llc_occupancy,
                                     Metric.MBL: cg.mbm_local,
                                     Metric.MBR: cg.mbm_remote,

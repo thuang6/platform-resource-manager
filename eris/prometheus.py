@@ -52,8 +52,14 @@ class PrometheusClient:
         self.gauge_llc_occupancy = Gauge('cma_llc_occupancy',
                                          'Instructions of a container',
                                          ['container'])
-        self.gauge_mem_load_ret_local_pmm = Gauge('cma_mem_load_ret_local_pmm',
-                                                  'memory load retired on local pmm',
+        self.gauge_ocr_l3_miss_demand_rd = Gauge('cma_ocr_l3_miss_demand_rd',
+                                                  'offcore request outstanding l3 miss demand data rd',
+                                                  ['container'])
+        self.gauge_ocr_l3_miss_per_instruction = Gauge('cma_ocr_l3_miss_per_instruction',
+                                                  'offcore request outstanding l3 miss per instruction',
+                                                  ['container'])
+        self.gauge_ocr_l3_miss_per_miss = Gauge('cma_ocr_l3_miss_per_miss',
+                                                  'offcore request outstanding l3 miss per miss',
                                                   ['container'])
 
     def start(self):
@@ -63,7 +69,8 @@ class PrometheusClient:
                      unhalted_cycle, llc_miss, instructions,
                      cycles_per_instruction, misses_per_instruction,
                      stalls_mem_load_per_instruction, average_frequency,
-                     memory_bandwidth, llc_occupancy, mem_load_ret_local_pmm):
+                     memory_bandwidth, llc_occupancy, ocr_l3_miss_demand_rd,
+                     ocr_l3_miss_per_instruction, ocr_l3_miss_per_miss):
         self.gauge_cpu_usage_percentage.labels(container_name).set(
             cpu_usage_percentage)
         self.gauge_unhalted_cycles.labels(container_name).set(unhalted_cycle)
@@ -80,4 +87,6 @@ class PrometheusClient:
         self.gauge_memory_bandwidth.labels(container_name).set(
             memory_bandwidth)
         self.gauge_llc_occupancy.labels(container_name).set(llc_occupancy)
-        self.gauge_mem_load_ret_local_pmm.labels(container_name).set(mem_load_ret_local_pmm)
+        self.gauge_ocr_l3_miss_demand_rd.labels(container_name).set(ocr_l3_miss_demand_rd)
+        self.gauge_ocr_l3_miss_per_instruction.labels(container_name).set(ocr_l3_miss_per_instruction)
+        self.gauge_ocr_l3_miss_per_miss.labels(container_name).set(ocr_l3_miss_per_miss)

@@ -1,6 +1,6 @@
 {
     "cassandra_workload": {
-        "cpus": 10, 
+        "cpus": 8, 
         "type": "latency_critical"
     }, 
     "django_workload": {
@@ -23,8 +23,8 @@
 	"cpus": 1,
 	"type": "latency_critical"
     },    
-    "memcache_workload_3": {
-	"cpus": 2,
+    "memcache_workload": {
+	"cpus": 6,
 	"type": "latency_critical"
     },
     "stress-ng": {

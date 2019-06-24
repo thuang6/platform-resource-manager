@@ -32,7 +32,7 @@ import (
 	"syscall"
 	"unsafe"
 )
-//import "fmt"
+import "fmt"
 
 func perfEventOpen(attr C.struct_perf_event_attr,
 	pid, cpu, groupFd, flags uintptr) (uintptr, C.int) {
@@ -40,6 +40,7 @@ func perfEventOpen(attr C.struct_perf_event_attr,
 		pid, cpu, groupFd, flags, 0)
 	//fmt.Printf("attr: %+v, err: %+v %d\n", attr, err, err)	
 	if err != 0 {
+		fmt.Printf("oepn error %+v \n", err)
 		return 0, ErrorCannotPerfomSyscall
 	}
 	return fd, 0
@@ -48,6 +49,7 @@ func perfEventOpen(attr C.struct_perf_event_attr,
 func ioctl(fd, req, arg uintptr) C.int {
 	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, req, arg)
 	if err != 0 {
+		fmt.Printf("ioctl error %+v \n", err)
 		return ErrorCannotPerfomSyscall
 	}
 	return 0
@@ -75,7 +77,7 @@ func OpenLeader(cgroupFd uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C
 			C.PERF_FORMAT_ID,
 	}
 	C.set_attr_disabled(&leaderAttr, 1)
-	C.set_attr_precise_ip(&leaderAttr, pebs)
+	//C.set_attr_precise_ip(&leaderAttr, pebs)
 	return perfEventOpen(leaderAttr, cgroupFd, cpu, ^uintptr(0), C.PERF_FLAG_PID_CGROUP|C.PERF_FLAG_FD_CLOEXEC)
 }
 
@@ -91,7 +93,7 @@ func OpenFollower(leader uintptr, cpu uintptr, perfType C.uint32_t, perfConfig C
 			C.PERF_FORMAT_ID,
 	}
 	C.set_attr_disabled(&followerAttr, 0)
-	C.set_attr_precise_ip(&followerAttr, pebs)
+	//C.set_attr_precise_ip(&followerAttr, pebs)
 	return perfEventOpen(followerAttr, ^uintptr(0), cpu, leader, C.PERF_FLAG_FD_CLOEXEC)
 }
 
@@ -110,6 +112,7 @@ func ReadLeader(leader uintptr) (PerfStruct, C.int) {
 	b := make([]byte, 1000)
 	_, err := syscall.Read(int(leader), b)
 	if err != nil {
+		fmt.Printf("read error %+v \n", err)
 		return PerfStruct{}, ErrorCannotPerfomSyscall
 	}
 	var result PerfStruct

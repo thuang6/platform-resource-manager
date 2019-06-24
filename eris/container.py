@@ -89,7 +89,9 @@ class Container(object):
             metrics[Metric.MBR],
             metrics[Metric.MEMSTALL],
             metrics[Metric.MSPKI],
-            metrics[Metric.MLRLPMM],
+            metrics[Metric.OCRL3MRD],
+            metrics[Metric.OCRL3MPKI],
+            metrics[Metric.OCRL3PM]
         ]
         return ','.join(str(col) for col in cols) + '\n'
 
@@ -99,7 +101,7 @@ class Container(object):
                         (Metric.L3MISS, int), (Metric.NF, float),
                         (Metric.L3OCC, int), (Metric.MBL, float),
                         (Metric.MBR, float), (Metric.MEMSTALL, int), 
-                        (Metric.MSPKI, float), (Metric.MLRLPMM, int)]
+                        (Metric.MSPKI, float), (Metric.OCRL3MRD, int)]
         for key, converter in key_mappings:
             self.metrics[key] = converter(row_tuple[1][key])
         self.utils = float(row_tuple[1][Metric.UTIL])
@@ -139,6 +141,7 @@ class Container(object):
                 metrics[Metric.CPI] = 0
                 metrics[Metric.L3MPKI] = 0
                 metrics[Metric.MSPKI] = 0
+                metrics[Metric.OCRL3MPKI] = 0
             else:
                 metrics[Metric.CPI] = metrics[Metric.CYC] /\
                     metrics[Metric.INST]
@@ -146,6 +149,13 @@ class Container(object):
                     metrics[Metric.INST]
                 metrics[Metric.MSPKI] = metrics[Metric.MEMSTALL] * 1000 /\
                     metrics[Metric.INST]
+                metrics[Metric.OCRL3MPKI] = metrics[Metric.OCRL3MRD] * 1000 /\
+                    metrics[Metric.INST]
+            if metrics[Metric.L3MISS] == 0:
+                metrics[Metric.OCRL3PM] = 0
+            else:
+                metrics[Metric.OCRL3PM] = metrics[Metric.OCRL3MRD] /\
+                    metrics[Metric.L3MISS]
             if self.utils == 0:
                 metrics[Metric.NF] = 0
             else:

@@ -149,7 +149,9 @@ def set_metrics(ctx, timestamp, data):
                                                 metrics[Metric.MBR] +
                                                 metrics[Metric.MBL],
                                                 metrics[Metric.L3OCC],
-                                                metrics[Metric.MLRLPMM])
+                                                metrics[Metric.OCRL3MRD],
+                                                metrics[Metric.OCRL3MPKI],
+                                                metrics[Metric.OCRL3PM])
 
         if key in ctx.lc_set:
             if ctx.args.exclusive_cat:
@@ -496,7 +498,8 @@ def main():
             cols = ['time', 'cid', 'name', Metric.INST, Metric.CYC,
                     Metric.CPI, Metric.L3MPKI, Metric.L3MISS, Metric.NF,
                     Metric.UTIL, Metric.L3OCC, Metric.MBL, Metric.MBR,
-                    Metric.MEMSTALL, Metric.MSPKI, Metric.MLRLPMM]
+                    Metric.MEMSTALL, Metric.MSPKI, Metric.OCRL3MRD,
+                    Metric.OCRL3MPKI, Metric.OCRL3PM]
             init_data_file(ctx, Analyzer.METRIC_FILE, cols)
         ctx.pgos = Pgos(cpu_count(), ctx.args.metric_interval * 1000 - 1500)
         ret = ctx.pgos.init_pgos()

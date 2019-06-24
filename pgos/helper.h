@@ -25,7 +25,8 @@ struct cgroup {
     char* path;
     char* cid;
     //uint64_t instructions, cycles, llc_misses, stalls_memory_load, mem_load_l3miss_retired_remote_pmm, llc_occupancy;
-    uint64_t instructions, cycles, llc_misses, stalls_memory_load, mem_load_retired_local_pmm, llc_occupancy;
+    //uint64_t instructions, cycles, llc_misses, stalls_memory_load, mem_load_retired_local_pmm, llc_occupancy;
+    uint64_t instructions, cycles, llc_misses, stalls_memory_load, offcore_req_l3_miss_data_rd, llc_occupancy;
     //uint64_t instructions, cycles, llc_misses, stalls_l2_misses, stalls_memory_load, mem_load_retired_local_pmm, llc_occupancy;
     double mbm_local, mbm_remote;
 };

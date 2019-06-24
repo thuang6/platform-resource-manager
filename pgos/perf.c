@@ -47,6 +47,7 @@ struct x86_cpu_info {
 static const struct perf_event_spec csl_spec[] = {
 	{.event = 0xA3, .umask = 0x05, .cmask = 5},
 	{.event = 0xA3, .umask = 0x14, .cmask = 20},
+	{.event = 0x60, .umask = 0x10},
 	//{.event = 0xA3, .umask = 0x10, .cmask = 16},
 	//{.event = 0xA3, .umask = 0x10, .cmask = 16},
 	{.event = 0xD1, .umask = 0x80},
@@ -56,6 +57,7 @@ static const struct perf_event_spec csl_spec[] = {
 static const struct perf_event_spec skl_spec[] = {
 	{.event = 0xA3, .umask = 0x05, .cmask = 5},
 	{.event = 0xA3, .umask = 0x14, .cmask = 20},
+	{.event = 0x60, .umask = 0x10},
 };
 
 static const struct perf_event_spec brw_spec[] = {
