@@ -181,6 +181,16 @@ class Analyzer:
                     mspki_thresh = self._get_fense(mspki, True, strict,
                                                    span, use_origin)
                     thresh['mspki'] = np.float64(mspki_thresh).item()
+                if Metric.OCRL3PM in jdataf.columns:
+                    ocrl3pm = jdataf[Metric.OCRL3PM]
+                    ocrl3pm_thresh = self._get_fense(ocrl3pm, True, strict,
+                                                     span, use_origin)
+                    thresh['ocrl3pm'] = np.float64(ocrl3pm_thresh).item()
+                if Metric.OCRL3MPKI in jdataf.columns:
+                    ocrl3mpki = jdataf[Metric.OCRL3MPKI]
+                    ocrl3mpki_thresh = self._get_fense(ocrl3mpki, True, strict,
+                                                     span, use_origin)
+                    thresh['ocrl3mpki'] = np.float64(ocrl3mpki_thresh).item()
                 self.threshold[job][ThreshType.METRICS.value].append(thresh)
             except Exception as e:
                 print(str(e))

@@ -23,16 +23,16 @@
 	"cpus": 1,
 	"type": "latency_critical"
     },    
-    "memcache_workload": {
+    "memcache_workload_1": {
 	"cpus": 6,
 	"type": "latency_critical"
     },
     "stress-ng": {
-	"cpus": 2,
+	"cpus": 18,
 	"type": "best_efforts"
     },
-    "tensorflow_training": {
-	"cpus": 1,
-	"type": "best_efforts"
+    "tensor_benchmark_prediction": {
+	"cpus": 18,
+	"type": "latency_critical"
     }
 }

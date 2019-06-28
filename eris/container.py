@@ -101,7 +101,8 @@ class Container(object):
                         (Metric.L3MISS, int), (Metric.NF, float),
                         (Metric.L3OCC, int), (Metric.MBL, float),
                         (Metric.MBR, float), (Metric.MEMSTALL, int), 
-                        (Metric.MSPKI, float), (Metric.OCRL3MRD, int)]
+                        (Metric.MSPKI, float), (Metric.OCRL3MRD, int),
+                        (Metric.OCRL3MPKI, float), (Metric.OCRL3PM, float)]
         for key, converter in key_mappings:
             self.metrics[key] = converter(row_tuple[1][key])
         self.utils = float(row_tuple[1][Metric.UTIL])
@@ -220,20 +221,24 @@ class Container(object):
                 print('Last Level Cache contention is detected at %s' %
                       metrics['time'])
                 print('Latency critical container %s, CPI = %f, threshold =\
-%f, MPKI = %f, threshold = %f, threshold = %f' %
+%f, MPKI = %f, threshold = %f' %
                       (self.name, metrics[Metric.CPI], thresh['cpi'],
                        metrics[Metric.L3MPKI], thresh['mpki']))
                 unk_res = False
                 contend_res.append(Contention.LLC)
             if metrics[Metric.MBL] + metrics[Metric.MBR] < thresh['mb'] or\
-               metrics[Metric.MSPKI] > thresh['mspki']:
+               metrics[Metric.OCRL3PM] > thresh['ocrl3pm']:
+               #metrics[Metric.MSPKI] > thresh['mspki']:
                 print('Memory Bandwidth contention detected at %s' %
                       metrics['time'])
                 print('Latency critical container %s, CPI = %f, threshold =\
-%f, MBL = %f, MBR = %f, threshold = %f, MSPKI = %f, threshold = %f' %
+%f, MBL = %f, MBR = %f, threshold = %f, MSPKI = %f, threshold = %f,\
+OCRL3PM = %f, threshold = %f, OCRL3MPKI = %f, threshold= %f' %
                       (self.name, metrics[Metric.CPI], thresh['cpi'],
                        metrics[Metric.MBL], metrics[Metric.MBR], thresh['mb'],
-                       metrics[Metric.MSPKI], thresh['mspki']))
+                       metrics[Metric.MSPKI], thresh['mspki'],
+                       metrics[Metric.OCRL3PM], thresh['ocrl3pm'],
+                       metrics[Metric.OCRL3MPKI], thresh['ocrl3mpki']))
                 unk_res = False
                 contend_res.append(Contention.MEM_BW)
             if unk_res:
