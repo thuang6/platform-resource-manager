@@ -24,7 +24,7 @@ import argparse
 import pandas as pd
 from container import Container, Contention
 from eris import remove_finished_containers, detect_contender
-from analyze.analyzer import Analyzer
+from analyze.analyzer import Analyzer, ThreshType
 
 
 def process_offline_data(args, analyzer):
@@ -43,8 +43,8 @@ def process_offline_data(args, analyzer):
         remove_finished_containers(cids, metric_cons)
         for cid in cids:
             jdata = pdata[pdata[key] == cid]
-            thresh = analyzer.get_thresh(cid)
-            tdp_thresh = analyzer.get_tdp_thresh(cid)
+            thresh = analyzer.get_thresh(cid, ThreshType.METRICS)
+            tdp_thresh = analyzer.get_thresh(cid, ThreshType.TDP)
             if cid in metric_cons:
                 con = metric_cons[cid]
             else:
