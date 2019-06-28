@@ -21,8 +21,8 @@ sub-module, you will build WCA with PRM plugin in next step.
 To build WCA/PRM, please use following commands:
 
 ```
-// get prm source code in 0.8.x branch
-git clone --branch 0.8.x https://github.com/intel/platform-resource-manager
+// get prm source code
+git clone https://github.com/intel/platform-resource-manager
 cd platform-resource-manager
 // get submodule wca source code
 git submodule update --init
