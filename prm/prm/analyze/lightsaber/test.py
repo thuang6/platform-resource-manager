@@ -15,9 +15,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-""" This shows an example of using the cache contention detector to detect cache contentions in a noisy history """
+""" This shows an example of using the cache contention detector
+to detect cache contentions in a noisy history """
 
-import csv
 import sys
 import datetime
 import workloadData
@@ -45,7 +45,9 @@ if __name__ == '__main__':
                 time[i]).strftime('%Y-%m-%d %H:%M:%S')
             output_str = str(datatime_human_str) + ", " + str(cpi[i]) + ", " + str(
                 contention[i]) + ", " + str(mpki[i]) + ", " + str(occu[i]) + ", " + str(util[i])
-            #output_str = str(time[i]) + ", " + str(cpi[i]) + ", " + str(contention[i]) + "," + str(mpki[i]) + ", " + str(occu[i]) + ", " + str(util[i])
+            # output_str = str(time[i]) + ",
+            # " + str(cpi[i]) + ", " + str(contention[i]) + "," +
+            # str(mpki[i]) + ", " + str(occu[i]) + ", " + str(util[i])
             print(output_str)
         print("")
 
