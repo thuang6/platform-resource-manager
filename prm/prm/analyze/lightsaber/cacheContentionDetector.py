@@ -17,7 +17,6 @@
 
 """ This module implements the cache contention detector taking a noisy history as the input """
 
-import workloadData
 import cacheAnalyzer
 import cpiAnalyzer
 import configConstants

@@ -17,14 +17,14 @@
 
 import logging
 import time
-from typing import List, Union, Optional
 from datetime import datetime, timedelta
 from wca.runners import Runner
-from prm.model_distribution.metric import Metric,GroupInfo
+from prm.model_distribution.metric import Metric, GroupInfo
 from prm.model_distribution.prometheus.processing import PromProcessor
 from prm.model_distribution.model import DistriModel
 from prm.model_distribution.db import ModelDatabase, DatabaseError
 from prm.analyze.analyzer import ThreshType
+from typing import Union
 from wca.config import IpPort
 
 log = logging.getLogger(__name__)
@@ -71,7 +71,8 @@ class BuildRunnerProm(Runner):
         self._finish = False
         self._url = self.get_url_of_prom()
 
-        self.metrics_names = [Metric.MB, Metric.CPI, Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI]
+        self.metrics_names = [Metric.MB, Metric.CPI, Metric.L3MPKI,
+                              Metric.NF, Metric.UTIL, Metric.MSPKI]
 
         self.prom_processor = PromProcessor(self._url, self._timeout)
         self._last_iteration = time.time()
@@ -81,22 +82,25 @@ class BuildRunnerProm(Runner):
         maximum_resolution = 11000
         end_time = datetime.now()
         if self._time_range/self._step > maximum_resolution:
-            log.info(ImproperStepError("step {} is too small for timerange {}, which exceeded maximum resolution of 11,000 points per timeseries.".format(
-                self._step, self._time_range)))
+            log.info(ImproperStepError(
+                "step {} is too small for timerange {}, which exceeded maximum "
+                "resolution of 11,000 points per timeseries.".format(
+                    self._step, self._time_range)))
             start_end_list = []
 
             cur_seconds = maximum_resolution*self._step
             iters = int(self._time_range / cur_seconds)
             last_seconds = self._time_range % cur_seconds
-            
+
             for i in range(iters):
                 start_time = end_time - timedelta(seconds=cur_seconds)
-                start_end_list.append((start_time,end_time))
+                start_end_list.append((start_time, end_time))
                 end_time = start_time
-            
+
             start_end_list.append((end_time-timedelta(seconds=last_seconds), end_time))
-            return [(time.mktime(t[0].timetuple()), time.mktime(t[1].timetuple())) for t in start_end_list]
-        else: 
+            return [(time.mktime(t[0].timetuple()),
+                     time.mktime(t[1].timetuple())) for t in start_end_list]
+        else:
             start_time = end_time - timedelta(seconds=self._time_range)
             end = time.mktime(end_time.timetuple())
             start = time.mktime(start_time.timetuple())
@@ -141,7 +145,7 @@ class BuildRunnerProm(Runner):
         log.info('new iteration start now!')
 
         starts_ends = self._start_end_of_timestamp_now()
-        
+
         model_keys, nested_trees = self._get_existing_models(starts_ends)
 
         for model_key in model_keys:
@@ -154,7 +158,8 @@ class BuildRunnerProm(Runner):
 
             value = {ThreshType.TDP.value: tdp_thresh, ThreshType.METRICS.value: thresholds}
 
-            nested_trees[model_key.cpu_model][model_key.application][model_key.initial_task_cpu_assignment] = value
+            nested_trees[model_key.cpu_model][model_key.application][
+                model_key.initial_task_cpu_assignment] = value
 
         self._store_database(nested_trees)
         self._wait()
