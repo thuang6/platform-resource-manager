@@ -1,0 +1,85 @@
+// Copyright (C) 2018 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions
+// and limitations under the License.
+//
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+// #cgo CFLAGS: -fstack-protector-strong
+// #cgo CFLAGS: -fPIE -fPIC
+// #cgo CFLAGS: -O2 -D_FORTIFY_SOURCE=2
+// #cgo CFLAGS: -Wformat -Wformat-security
+// #cgo LDFLAGS: -lpqos
+// #cgo LDFLAGS: -Wl,-z,noexecstack
+// #cgo LDFLAGS: -Wl,-z,relro
+// #cgo LDFLAGS: -Wl,-z,now
+import "C"
+
+import (
+	"flag"
+	"os"
+	"os/signal"
+	"syscall"
+)
+
+var workloadConfFile = flag.String("workload_conf_file", "workload.json", "workload configuration file describes each task name, type, id, request cpu count")
+var verbose = flag.Bool("verbose", false, "increase output verbosity")
+var collectMetrics = flag.Bool("collect-metrics", false, "collect platform performance metrics (CPI, MPKI, etc..)'")
+var detect = flag.Bool("detect", false, "detect resource contention between containers")
+var control = flag.Bool("control", false, "regulate best-efforts task resource usages")
+var record = flag.Bool("record", false, "record container CPU utilizaton and platform metrics in csv file")
+var keyCid = flag.Bool("key-cid", false, "use container id in workload configuration file as key id")
+var enableHold = flag.Bool("enable-hold", false, "keep container resource usage in current level while the usage is close but not exceed throttle threshold")
+var disableCat = flag.Bool("disable-cat", false, "disable CAT control while in resource regulation")
+var exclusiveCat = flag.Bool("exclusive-cat", false, "use exclusive CAT control while in resource regulation")
+var prometheusPort = flag.Int("prometheus-port", 0, "allow eris send metrics to Prometheus")
+var utilInterval = flag.Int("util-interval", 2, "CPU utilization monitor interval")
+var metricInterval = flag.Int("metric-interval", 20, "platform metrics monitor interval")
+var llcCycles = flag.Int("llc-cycles", 6, "cycle number in LLC controller")
+var quotaCycles = flag.Int("quota-cycles", 7, "cycle number in CPU CFS quota controller")
+var marginRatio = flag.Float64("margin-ratio", 0.5, "margin ratio related to one logical processor used in CPU cycle regulation")
+var threshFile = flag.String("thresh-file", "threshold.json", "threshold model file build from analyze.py tool")
+var metricFile = flag.String("metric-file", "metric.csv", "file to store collected metrics")
+var utilFile = flag.String("util-file", "util.csv", "file to store collected utilization")
+
+func main() {
+	flag.Parse()
+	initPerf()
+	newDockerClient()
+	readCgroupDriver()
+	//	initWorkload()
+	//	initSystemUtilization()
+	//
+	if *detect {
+		initThreshold()
+	}
+	if *prometheusPort != 0 {
+		go prometheusStart()
+	}
+	//	if *control {
+	//		// TODO
+	//	}
+	//	if *record {
+	//		// TODO
+	//	}
+
+	if *collectMetrics {
+		go handleData()
+		go startCollectMetrics()
+	}
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+}
