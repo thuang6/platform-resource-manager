@@ -4,9 +4,9 @@
 * metrics polling
 ## Usage
 ```
-go get -d github.intel.com/wangjial/eris
-cd go/src/github.intel.com/wangjial/eris # if $GOPATH is not set
-cd $GOPATH/src/github.intel.com/wangjial/eris # if $GOPATH is set
+go get -d github.com/intel/platform-resource-manager/eris
+cd ~/go/src/github.com/intel/platform-resource-manager/eris # if $GOPATH is not set
+cd $GOPATH/src/github.com/intel/platform-resource-manager/eris # if $GOPATH is set
 make
 sudo ./eris -collect-metrics -metric-file metric.csv
 ```
