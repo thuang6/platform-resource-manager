@@ -12,7 +12,7 @@
 
 WCA use PEX distribution for executable binary, before you start to build WCA with PRM plugin
 you need to prepare build environment for PEX distribution. Please refer to 
-[WCA installation guide] (https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst) 
+[WCA installation guide](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst) 
 
 To build WCA/PRM, please use following commands:
 
@@ -86,8 +86,9 @@ ulimit -n 65536
 ./dist/wca-prm.pex -c wca_prm_mesos.yaml -r prm.allocator:ResourceAllocator -r prm.model_distribution.db:ModelDatabase -l info
 ```
 
+Note:
 When you need to deploy your agent in a cluster, it is highly recommended to run agent as systemd service with a non-root user. 
-You can refer to [Running WCA as non-root user](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-wca-as-non-root-user) section for detail.
+You can refer to [Running WCA as non-root user](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-wca-as-non-root-user) section and [Running as systemd service](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/install.rst#running-as-systemd-service) section for detail.
 
 ## Metrics data persistence 
 
@@ -96,10 +97,11 @@ ways which depends on the [agent storage configuration](https://github.com/intel
 
 User can determine the approach based on their own infrastrucutre condition. For example, you can configure agent 
 to send metrics to your existing Kafka service or you can configure agent to store the metrics in log file and 
-use Prometheus Node exporter to export metrics to central Prometheus database. WCA/PRM agent also persists metrics
-in local file with csv format. By default agent store the file in the same directory as agent working directory.
-User can change the file path in agent configuration file. Since agent itself does not rotate the csv file, it is
-highly recommanded that user rotate it manually or periodically with logrotate utility.
+use Prometheus Node exporter to export metrics to central Prometheus database.
+
+WCA/PRM agent also persists metrics in local file with csv format. By default agent store the file in the same directory 
+as agent working directory. User can change the file path in agent configuration file. Since agent itself does not rotate 
+the csv file, it is highly recommanded that user rotate it manually or periodically with logrotate utility.
 
 In most of cases, it is recommanded that central model builder train models from metrics data stored in a Prometheus
 database. But if user don't have Prometheus database services available, user can let model builder train model from
@@ -108,8 +110,8 @@ a csv file, which requires user combines all csv files collected from each node 
 ## Cluster job scheduler integration
 
 Agent supports to integrate with different type of job schedulers in cluster, including Mesos and Kubernetes. 
-It has some version requirements and configuration restrics to thes job schedulers. Also Agent itself support 
-differtn configuration options for different job scheduler. For detail, please refer to following links:<BR>
+It has some version requirements and configuration restrictions to these job schedulers. Also Agent itself support 
+different configuration options for different job scheduler. For detail, please refer to following links:<BR>
 [Mesos Integration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/mesos.rst)   
 [Kubernetes Integration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/kubernetes.rst)
 
