@@ -115,12 +115,12 @@ class GmmFense:
             if normal > strict:
                 return normal
             return strict
-    
+
     def get_gaussian_round_fense(self, is_upper, is_strict, span=3):
         """
         Get threshold by looing into each gaussian
             is_upper - If True, upper fense is returned
-            is_strict - If True, pick less aggressive value from 
+            is_strict - If True, pick less aggressive value from
                         ( 3_std_threshold,
                         if is_upper is True: max point of the gaussian
                         if is_upper is False: min point of the gaussian )
@@ -131,13 +131,13 @@ class GmmFense:
         labels = self.gmm.predict(self.data)
 
         if is_upper is True:
-                index_sort_means = np.flipud(index_sort_means)
+            index_sort_means = np.flipud(index_sort_means)
 
         threshold = -1.0
         last_threshold = -1.0
         last_percentage = -1.0
         total = float(self.data.shape[0])
-        
+
         for i in index_sort_means:
             gaussian_index = i[0]
             gaussian_data = np.take(self.data, axis=0, indices=np.where(labels == gaussian_index))
@@ -160,7 +160,7 @@ class GmmFense:
                 outlier_count = (self.data < threshold).sum()
 
             percentage = float(outlier_count) / total
-            
+
             if percentage > self.thresh:
                 if last_threshold != -1:
                     if np.abs(last_percentage - self.thresh) < np.abs(percentage - self.thresh):
@@ -169,6 +169,5 @@ class GmmFense:
             else:
                 last_threshold = threshold
                 last_percentage = percentage
-
 
         return threshold

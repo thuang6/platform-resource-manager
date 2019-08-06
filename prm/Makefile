@@ -10,7 +10,7 @@ venv:
 
 flake8: 
 	@echo Checking code quality.
-	pipenv run flake8 wca tests example workloads
+	pipenv run flake8 wca tests example workloads prm
 
 package: 
 	@echo Building wca pex file.

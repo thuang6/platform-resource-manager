@@ -16,12 +16,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from enum import Enum
 import numpy as np
 from scipy import stats
-from prm.model_distribution.metric import GroupInfo, Metric
+from prm.model_distribution.metric import Metric
 from prm.analyze.gmmfense import GmmFense
-from typing import Optional, List, Union
+from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +30,8 @@ class DistriModel(object):
     Arguments:
         span: how many sigma span for normal fense
             (default to 4)
-        strict: if true, pick less aggressive value from 3_std_threshold or extreme gaussian value),If False, always 3_std_threshold
+        strict: if true, pick less aggressive value from 3_std_threshold or
+                extreme gaussian value),If False, always 3_std_threshold
             (default to true)
         use_origin: using origin or not
             (default to false)
@@ -136,11 +136,11 @@ class DistriModel(object):
                     'mb': np.float64(mb_thresh).item()
                 }
                 mspki = jdataf[Metric.MSPKI]
-                mspki_thresh = self._get_fense(mspki, True, strict,span, use_origin)
+                mspki_thresh = self._get_fense(mspki, True, strict, span, use_origin)
                 thresh['mspki'] = np.float64(mspki_thresh).item()
                 thresholds.append(thresh)
 
-            except Exception as e:
+            except Exception:
                 if verbose:
                     log.exception('error in build threshold util= (%r)', util)
         return thresholds
@@ -151,4 +151,3 @@ class DistriModel(object):
             cpu_number, dataframe, self.span, self.strict, self.use_origin, self.verbose)
 
         return tdp_thresh, thresholds
-

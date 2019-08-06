@@ -25,6 +25,7 @@ class GroupInfo(str, Enum):
     APPLICATION = "application"
     APPLICATION_VERSION_NAME = "application_version_name"
 
+
 class Metric(str, Enum):
 
     CYC = 'cycle'
@@ -49,7 +50,6 @@ class Metric(str, Enum):
     CPU_MODEL = 'cpu_model'
     VCPU_COUNT = 'vcpu_count'
 
+
 GroupLabel = namedtuple(
     'GroupLabel', ["cpu_model", "application", "initial_task_cpu_assignment"])
-
-
