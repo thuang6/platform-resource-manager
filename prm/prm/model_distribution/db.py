@@ -16,17 +16,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from wca.databases import LocalDatabase, ZookeeperDatabase, EtcdDatabase
-import datetime
-from typing import List, Union, Optional
-from wca.config import IpPort
+from typing import Union, Optional
 from wca.security import SSL
 import json
 import logging
+import os
 import string
 
 log = logging.getLogger(__name__)
 
 _VALID_KEY_CHARACTERS = "-_.%s%s" % (string.ascii_letters, string.digits)
+
 
 def correct_key_characters(key: str):
     for c in key:
@@ -34,14 +34,17 @@ def correct_key_characters(key: str):
             key = key.replace(c, '_')
     return key
 
+
 def _format_host_for_etcd(host: str):
     if 'http' not in host:
         return 'http://'+host
     else:
         return host
 
+
 class DatabaseError(Exception):
     """Error raised when communcation with the database"""
+
 
 class ImproperDatabaseTypeError(Exception):
     """Error raised for any of improper dbtype. """
@@ -57,6 +60,7 @@ class ImproperHostError(Exception):
     """Error raised for any of improper host. """
     pass
 
+
 class ModelDatabase(object):
     """Model storage database, get/set api is provided
     Arguments:
@@ -70,21 +74,21 @@ class ModelDatabase(object):
         directory: required for local database
         ssl_verify: for etcd
             (default to true)
-        api_path: for etcd, '/v3alpha' for 3.2.x etcd version, '/v3beta' or '/v3' for 3.3.x etcd version
+        api_path: for etcd, '/v3alpha' for 3.2.x etcd version,
+                  '/v3beta' or '/v3' for 3.3.x etcd version
         timeout: for etcd, default 5.0 seconds
         client_cert_path: for ectd
         client_key_path: for etcd
     """
     def __init__(
-        self,
-        db_type: str,
-        host: Union[str, list, None],
-        namespace: Optional[str] = 'model_distribution',
-        directory: Optional[str] = None,
-        api_path: Optional[str] = '/v3alpha',
-        timeout: Union[float, int, None] = 5.0,
-        ssl: Optional[SSL] = None
-        ):
+            self,
+            db_type: str,
+            host: Union[str, list, None],
+            namespace: Optional[str] = 'model_distribution',
+            directory: Optional[str] = None,
+            api_path: Optional[str] = '/v3alpha',
+            timeout: Union[float, int, None] = 5.0,
+            ssl: Optional[SSL] = None):
 
         self.db_type = db_type
         self.directory = directory
@@ -134,5 +138,3 @@ class ModelDatabase(object):
         key = bytes(key, 'ascii')
         value = self.instance.get(key)
         return value.decode('ascii') if value else '{}'
-
-

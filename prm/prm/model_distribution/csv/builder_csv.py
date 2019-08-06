@@ -16,12 +16,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import time
 
 from os.path import splitext
 from collections import defaultdict
-from typing import List, Union, Optional
-from datetime import datetime, timedelta
 from wca.runners import Runner
 from prm.model_distribution.metric import Metric
 from prm.model_distribution.model import DistriModel
@@ -32,16 +29,21 @@ import pandas as pd
 
 log = logging.getLogger(__name__)
 
+
 class ImproperCSVFilePath(Exception):
     """
     Improper CSV file path
     """
     pass
+
+
 class ImproperCSVFileColumns(Exception):
     """
     Improper CSV file columns
     """
     pass
+
+
 class BuildRunnerCSV(Runner):
     """
     Using CSV data to build model thresholds and store them in zookeeper.
@@ -61,7 +63,10 @@ class BuildRunnerCSV(Runner):
         self._database = database
         self._finish = False
 
-        self.default_columns = {Metric.NAME, Metric.CPU_MODEL, Metric.VCPU_COUNT, Metric.MB, Metric.CPI, Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI}
+        self.default_columns = {Metric.NAME, Metric.CPU_MODEL,
+                                Metric.VCPU_COUNT, Metric.MB,
+                                Metric.CPI, Metric.L3MPKI,
+                                Metric.NF, Metric.UTIL, Metric.MSPKI}
 
     def _initialize(self):
         """Three-level nested dict example:
@@ -74,9 +79,9 @@ class BuildRunnerCSV(Runner):
                 }
         }
         """
-        if splitext(self._file_path)[1] !='.csv':
+        if splitext(self._file_path)[1] != '.csv':
             raise ImproperCSVFilePath("Please provide a csv file path.")
-        
+
         # initialize a three-level nested dict
         self.target = defaultdict(lambda: defaultdict(dict))
 
@@ -84,7 +89,7 @@ class BuildRunnerCSV(Runner):
         log.info('model-distribution runner is started!')
 
         self._initialize()
-        
+
         while True:
             self._iterate()
 
@@ -96,16 +101,21 @@ class BuildRunnerCSV(Runner):
 
         df = pd.read_csv(self._file_path)
         if not self.default_columns.issubset(set(df.columns)):
-            raise ImproperCSVFileColumns("The csv's columns {} and default columns {} do not match".format(set(df.columns), self.default_columns))
+            raise ImproperCSVFileColumns("The csv's columns {} and default "
+                                         "columns {} do not match".format(
+                                            set(df.columns),
+                                            self.default_columns))
 
         model_keys = df.groupby([Metric.CPU_MODEL, Metric.NAME, Metric.VCPU_COUNT]).groups.keys()
-        
+
         for model_key in model_keys:
             # filter dataframe by cpu_model, application, cpu_assignment
             if any(str(v) == 'nan' for v in model_key):
                 continue
-            dataframe = df[(df[Metric.CPU_MODEL] == model_key[0]) & (df[Metric.NAME] == model_key[1]) & (df[Metric.VCPU_COUNT] == model_key[2])]
-            
+            dataframe = df[(df[Metric.CPU_MODEL] == model_key[0]) &
+                           (df[Metric.NAME] == model_key[1]) &
+                           (df[Metric.VCPU_COUNT] == model_key[2])]
+
             cpu_number = model_key[2]
             tdp_thresh, thresholds = self._model.build_model(dataframe, cpu_number)
 
