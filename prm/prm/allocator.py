@@ -175,13 +175,15 @@ class ResourceAllocator(Allocator):
         """
         Maps container id to a string key identifying statistical model instance.
         """
-        if 'application' in tasks_labels[cid] and\
-           'application_version_name' in tasks_labels[cid]:
-            return tasks_labels[cid]['application'] + '.' +\
-                    tasks_labels[cid]['application_version_name']
+        if 'application' in tasks_labels[cid]:
+            app = tasks_labels[cid]['application']
+            if 'application_version_name' in tasks_labels[cid]:
+                return app + '.' + tasks_labels[cid]['application_version_name']
+            else:
+                return app
         else:
-            log.debug('no label "application" or "application_version_name" '
-                      'passed to detect function by wca for container: {}'.format(cid))
+            log.warn('no label "application" '
+                     'passed to detect function by wca for container: {}'.format(cid))
 
         return None
 
@@ -332,17 +334,15 @@ class ResourceAllocator(Allocator):
             if self.agg:
                 metrics = container.get_metrics()
                 log.debug('cid=%r container metrics=%r', cid, metrics)
-                if metrics:
+                if metrics and app:
                     vcpus = self.workload_meta[app]['cpus']
                     wca_metrics = container.get_wca_metrics(app, vcpus)
                     metric_list.extend(wca_metrics)
-                    app = self._cid_to_app(cid, tasks_labels)
-                    if app:
-                        # always try to init header column considering log rotate
-                        self._init_data_file(self.metric_file, self.mcols)
-                        self._record_metrics(timestamp, cid, app,
-                                             correct_key_characters(cpu_model),
-                                             vcpus, metrics)
+                    # always try to init header column considering log rotate
+                    self._init_data_file(self.metric_file, self.mcols)
+                    self._record_metrics(timestamp, cid, app,
+                                         correct_key_characters(cpu_model),
+                                         vcpus, metrics)
 
         metric_list.extend(self._get_headroom_metrics(assigned_cpus, lcutil, sysutil))
         if self.enable_control and self.bes:
