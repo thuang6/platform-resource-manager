@@ -123,13 +123,16 @@ different configuration options for different job scheduler. For detail, please 
 [Kubernetes Integration](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/kubernetes.rst)
 
 
-Also there are some required labels when you schedule workloads:
+Also there are some required task labels passed by WCA agent to PRM plugin:
 
 * `application`
 * `application_version_name`
 
-The second label is required because multiple instances of the same application may exist and they may have 
-different intial resource assignment, which requires separate statistical models.
+Please read WCA guide on [Generating additional labels for tasks](https://github.com/intel/workload-collocation-agent/blob/1.0.x/docs/detection.rst#id13) 
+to understand how configure WCA to set those labels to indented values.
+
+The label `applicaiton_version_name` is required because multiple instances of the same application may exist and 
+they may have different initial resource assignment, which requires separate statistical models.
 
 For example, two instances of `twemcache` with different allocated vCPU count
 needs separate models. Therefore, the label `application_version_name` must be
@@ -139,6 +142,3 @@ Also if you need to support dynamic resource allocation, following label is requ
 to label the task as best-efforts workload by setting label value to 'best_efforts'
 
  * `type`
-
-
-
