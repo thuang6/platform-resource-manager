@@ -177,7 +177,8 @@ class ResourceAllocator(Allocator):
         """
         if 'application' in tasks_labels[cid]:
             app = tasks_labels[cid]['application']
-            if 'application_version_name' in tasks_labels[cid]:
+            if 'application_version_name' in tasks_labels[cid] and\
+               tasks_labels[cid]['application_version_name']:
                 return app + '.' + tasks_labels[cid]['application_version_name']
             else:
                 return app
