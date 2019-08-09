@@ -28,6 +28,7 @@ import pandas as pd
 from .gmmfense import GmmFense
 log = logging.getLogger(__name__)
 
+
 class ThreshType(str, Enum):
     METRICS = 'metrics_threshold'
     TDP = 'tdp_threshold'

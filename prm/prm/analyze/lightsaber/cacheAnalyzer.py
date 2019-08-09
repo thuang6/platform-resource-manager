@@ -15,12 +15,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-""" This module implements the meta-learning process to find out the MPKI anomaly threshold in a noisy history """
+""" This module implements the meta-learning process to
+find out the MPKI anomaly threshold in a noisy history """
 
-import math
 import numpy as np
-import scipy
-from sklearn import mixture
 import configConstants
 import scoring
 import gmmWrapper

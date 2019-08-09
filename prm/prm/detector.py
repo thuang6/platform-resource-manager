@@ -28,7 +28,7 @@ from wca.metrics import Metric as WCAMetric
 
 from prm.container import Container
 from prm.analyze.analyzer import Metric, Analyzer, ThreshType
-from prm.model_distribution.db import ModelDatabase, correct_key_characters 
+from prm.model_distribution.db import ModelDatabase, correct_key_characters
 
 log = logging.getLogger(__name__)
 
@@ -37,10 +37,10 @@ class ContentionDetector(detectors.AnomalyDetector):
     WL_META_FILE = 'workload.json'
 
     def __init__(
-        self, 
+        self,
         database: ModelDatabase,
-        action_delay: float, 
-        agg_period: float = 20, 
+        action_delay: float,
+        agg_period: float = 20,
         model_pull_cycle: float = 180,
         metric_file: str = Analyzer.METRIC_FILE
     ):
@@ -72,7 +72,7 @@ class ContentionDetector(detectors.AnomalyDetector):
             with open(data_file, 'r') as dtf:
                 headline = dtf.readline()
         except Exception:
-                log.debug('cannot open %r for reading - ignore', data_file)
+            log.debug('cannot open %r for reading - ignore', data_file)
         if headline != ','.join(cols) + '\n':
             with open(data_file, 'w') as dtf:
                 dtf.write(','.join(cols) + '\n')
@@ -162,13 +162,15 @@ class ContentionDetector(detectors.AnomalyDetector):
         """
         Maps container id to a string key identifying statistical model instance.
         """
-        if 'application' in tasks_labels[cid] and\
-           'application_version_name' in tasks_labels[cid]:
-            return tasks_labels[cid]['application'] + '.' +\
-                    tasks_labels[cid]['application_version_name']
+        if 'application' in tasks_labels[cid]:
+            app = tasks_labels[cid]['application']
+            if 'application_version_name' in tasks_labels[cid]:
+                return app + '.' + tasks_labels[cid]['application_version_name']
+            else:
+                return app
         else:
-            log.debug('no label "application" or "application_version_name" '
-                      'passed to detect function by wca for container: {}'.format(cid))
+            log.warn('no label "application" '
+                     'passed to detect function by wca for container: {}'.format(cid))
 
         return None
 
@@ -294,17 +296,15 @@ class ContentionDetector(detectors.AnomalyDetector):
             if self.agg:
                 metrics = container.get_metrics()
                 log.debug('cid=%r container metrics=%r', cid, metrics)
-                if metrics:
+                if metrics and app:
                     vcpus = self.workload_meta[app]['cpus']
                     wca_metrics = container.get_wca_metrics(app, vcpus)
                     metric_list.extend(wca_metrics)
-                    app = self._cid_to_app(cid, tasks_labels)
-                    if app:
-                        # always try to init header column considering log rotate
-                        self._init_data_file(self.metric_file, self.mcols)
-                        self._record_metrics(timestamp, cid, app, 
-                                             correct_key_characters(cpu_model),
-                                             vcpus, metrics)
+                    # always try to init header column considering log rotate
+                    self._init_data_file(self.metric_file, self.mcols)
+                    self._record_metrics(timestamp, cid, app,
+                                         correct_key_characters(cpu_model),
+                                         vcpus, metrics)
 
         metric_list.extend(self._get_headroom_metrics(assigned_cpus, lcutil, sysutil))
 
@@ -337,9 +337,9 @@ class ContentionDetector(detectors.AnomalyDetector):
                     threshs = self.database.get(platform.cpu_model)
                     self.threshs = json.loads(threshs)
                     if self.threshs:
-                       log.debug('pulled model thresholds=%r', self.threshs)
+                        log.debug('pulled model thresholds=%r', self.threshs)
                     else:
-                       log.warn('No model is pulled from model database!')
+                        log.warn('No model is pulled from model database!')
                 except Exception:
                     log.exception('error in pulling model from database')
             self.cycle += 1

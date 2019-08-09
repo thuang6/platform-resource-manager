@@ -18,25 +18,28 @@
 import logging
 import numpy as np
 import pandas as pd
-from enum import Enum
 from prm.model_distribution.metric import GroupInfo, Metric, GroupLabel
 from prm.model_distribution.prometheus.query import PromHttp
 
 log = logging.getLogger(__name__)
 
+
 class NotExistInPrometheus(Exception):
     pass
 
+
 class PromProcessor(object):
-    """ Processing data from promentheus, aggregrating metrics by cpu_model, application and cpu_assignment.
+    """ Processing data from promentheus, aggregrating metrics by cpu_model,
+    application and cpu_assignment.
     """
     def __init__(self, url, timeout):
         self.prom_http = PromHttp(url, timeout)
         self.metric_names = self.prom_http.get_all_metrics_value_names()
 
     def non_exsist_hint(self, metric_name):
-        raise NotExistInPrometheus("Can not query {} in prometheus,all avaliable metrics in prometheus: {} \n".format(
-            metric_name, self.metric_names))
+        raise NotExistInPrometheus("Can not query {} in prometheus,all "
+                                   "avaliable metrics in prometheus: {} "
+                                   "\n".format(metric_name, self.metric_names))
 
     def _transfer_models_to_nested(self, models):
         """
@@ -46,17 +49,19 @@ class PromProcessor(object):
 
         nested_models = {}
         for model in models:
-            if nested_models.get(model.cpu_model) == None:
+            if nested_models.get(model.cpu_model) is None:
                 nested_models[model.cpu_model] = {
                     model.application: {
                         model.initial_task_cpu_assignment: True}
                 }
-            elif nested_models.get(model.cpu_model).get(model.application) == None:
+            elif nested_models.get(model.cpu_model).get(model.application) \
+                    is None:
                 temp = nested_models[model.cpu_model]
                 temp[model.application] = {
                     model.initial_task_cpu_assignment: True}
                 nested_models[model.cpu_model] = temp
-            elif nested_models.get(model.cpu_model).get(model.application).get(model.initial_task_cpu_assignment) == None:
+            elif nested_models.get(model.cpu_model).get(model.application).get(
+                    model.initial_task_cpu_assignment) is None:
                 temp = nested_models.get(
                     model.cpu_model).get(model.application)
                 temp[model.initial_task_cpu_assignment] = True
@@ -67,17 +72,21 @@ class PromProcessor(object):
         # query all series in the timerange
         series = []
         for start_end in starts_ends:
-            serie = self.prom_http.get_series_with_label(Metric.UTIL, start_end[0], start_end[1], {})
+            serie = self.prom_http.get_series_with_label(
+                Metric.UTIL, start_end[0], start_end[1], {})
             series = series + serie
 
         # make unique group labels
         models = {}
         for s in series:
-            if GroupInfo.CPU_MODEL not in s or GroupInfo.APPLICATION not in s or GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT not in s:
+            if GroupInfo.CPU_MODEL not in s or \
+                    GroupInfo.APPLICATION not in s or \
+                    GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT not in s:
                 continue
             temp_model = GroupLabel(
-                s[GroupInfo.CPU_MODEL], s[GroupInfo.APPLICATION], s[GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT])
-            if models.get(temp_model) == None:
+                s[GroupInfo.CPU_MODEL], s[GroupInfo.APPLICATION],
+                s[GroupInfo.INITIAL_TASK_CPU_ASSIGNMENT])
+            if models.get(temp_model) is None:
                 models[temp_model] = True
 
         if len(models) == 0:
@@ -87,7 +96,8 @@ class PromProcessor(object):
         # transfer models to nested dict
         return list(models), self._transfer_models_to_nested(list(models))
 
-    def aggregrate_metric_by_application_and_label(self, metric_name, group_label, start, end, step):
+    def aggregrate_metric_by_application_and_label(
+            self, metric_name, group_label, start, end, step):
         """prometheus db data format
         "data": {
             "resultType": "matrix",
@@ -145,7 +155,8 @@ class PromProcessor(object):
     def generate_new_metric_dataframes(self, metric_name_list, group_label, starts_ends, step):
         frames = []
         for start_end in starts_ends:
-            frame = self.generate_new_metric_dataframe(metric_name_list, group_label, start_end[0], start_end[1], step)
+            frame = self.generate_new_metric_dataframe(
+                metric_name_list, group_label, start_end[0], start_end[1], step)
             frames.append(frame)
         return pd.concat(frames)
 
@@ -154,8 +165,9 @@ class PromProcessor(object):
         metric_data = {}
 
         for metric_name in metric_name_list:
-            metric_length, metric_data[metric_name] = self.aggregrate_metric_by_application_and_label(
-                metric_name, group_label, start, end, step)
+            metric_length, metric_data[metric_name] = \
+                self.aggregrate_metric_by_application_and_label(
+                    metric_name, group_label, start, end, step)
             metric_lengths.append(metric_length)
 
         # align timestamp between differnt metrics
@@ -166,5 +178,3 @@ class PromProcessor(object):
                 metric_data[key] = value[:final_length]
 
         return pd.DataFrame.from_dict(metric_data)
-
-

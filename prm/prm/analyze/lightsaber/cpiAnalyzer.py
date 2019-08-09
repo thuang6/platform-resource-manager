@@ -17,10 +17,7 @@
 
 """ This module implements the process to learn the CPI anomaly threshold in a noisy history """
 
-import math
 import numpy as np
-from sklearn import mixture
-import scipy
 import configConstants
 import scoring
 import gmmWrapper
@@ -33,7 +30,7 @@ class CPIAnalyzer(object):
         self.cpi = cpi
         self.contention = contention
         self.gmm = None
-  
+
     def analyze(self):
         self.fit_gmm()
         return self.discriminate()

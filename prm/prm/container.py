@@ -121,7 +121,7 @@ class Container:
         self.cpu_usage = measurements[MetricName.CPU_USAGE_PER_TASK]
         self.usg_tt = timestamp
 
-        if measurements[MetricName.LLC_OCCUPANCY] > 0:
+        if measurements.get(MetricName.LLC_OCCUPANCY, 0) > 0:
             self.total_llc_occu += measurements[MetricName.LLC_OCCUPANCY]
             self.llc_cnt += 1
         if self.measurements and agg:
@@ -154,9 +154,10 @@ class Container:
             metrics[Metric.UTIL] = (measurements[MetricName.CPU_USAGE_PER_TASK]
                                     - self.measurements[MetricName.CPU_USAGE_PER_TASK])\
                 * 100 / (delta_t * 1e9)
-            metrics[Metric.MB] = (measurements[MetricName.MEM_BW] -
-                                  self.measurements[MetricName.MEM_BW]) /\
-                1024 / 1024 / delta_t
+            if measurements.get(MetricName.MEM_BW, 0) > 0:
+                metrics[Metric.MB] = (measurements[MetricName.MEM_BW] -
+                                      self.measurements.get(MetricName.MEM_BW, 0)) /\
+                    1024 / 1024 / delta_t
             if metrics[Metric.UTIL] == 0:
                 metrics[Metric.NF] = 0
             else:
