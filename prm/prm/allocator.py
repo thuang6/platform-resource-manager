@@ -385,6 +385,15 @@ class ResourceAllocator(Allocator):
         self.lcs.clear()
         assigned_cpus = self._get_task_resources(tasks_resources, tasks_labels)
 
+        if platform.rdt_information is None:
+            log.error('ERROR: RDT is required for PRM plugin to work! Exiting.')
+            exit(1)
+        elif not platform.rdt_information.rdt_cache_monitoring_enabled or \
+                not platform.rdt_information.rdt_mb_monitoring_enabled:
+            log.error('ERROR: RDT cache monitoring and memory bandwitdth '
+                      'monitoring is required for PRM plugin to work! Exiting.')
+            exit(1)
+
         allocs: TasksAllocations = dict()
         if self.enable_control:
             self.cpuc.update_allocs(tasks_allocs, allocs, platform.cpus)
