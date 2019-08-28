@@ -1,3 +1,5 @@
+#! /usr/bin/python3.6
+
 # Copyright (C) 2018 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,48 +24,7 @@ from __future__ import division
 
 import argparse
 import pandas as pd
-from container import Container, Contention
-from eris import remove_finished_containers, detect_contender
-from analyze.analyzer import Analyzer, ThreshType
-
-
-def process_offline_data(args, analyzer):
-    """
-    General procedure of offline analysis
-        args - arguments from command line input
-    """
-    metric_cons = dict()
-
-    mdf = pd.read_csv(args.metric_file)
-    key = 'cid' if args.key_cid else 'name'
-    times = mdf['time'].unique()
-    for time in times:
-        pdata = mdf[mdf['time'] == time]
-        cids = pdata[key].unique()
-        remove_finished_containers(cids, metric_cons)
-        for cid in cids:
-            jdata = pdata[pdata[key] == cid]
-            thresh = analyzer.get_thresh(cid, ThreshType.METRICS)
-            tdp_thresh = analyzer.get_thresh(cid, ThreshType.TDP)
-            if cid in metric_cons:
-                con = metric_cons[cid]
-            else:
-                con = Container('cgroupfs', '', cid, [], args.verbose, thresh,
-                                tdp_thresh)
-                metric_cons[cid] = con
-            for row_tuple in jdata.iterrows():
-                con.update_metrics(row_tuple)
-
-        for cid in cids:
-            con = metric_cons[cid]
-            contend_res = con.contention_detect()
-            tdp_contend = con.tdp_contention_detect()
-            if tdp_contend:
-                contend_res.append(tdp_contend)
-            for contend in contend_res:
-                if contend != Contention.UNKN:
-                    detect_contender(metric_cons, contend, con)
-
+from analyze.analyzer import Analyzer
 
 def process(args):
     """
@@ -71,12 +32,9 @@ def process(args):
         args - arguments from command line input
     """
     analyzer = Analyzer(args.workload_conf_file)
-    if args.offline:
-        process_offline_data(args, analyzer)
-    else:
-        strict = True if args.fense_type == 'gmm-strict' else False
-        use_origin = True if args.fense_method == 'gmm-origin' else False
-        analyzer.build_model(args.util_file, args.metric_file,
+    strict = True if args.fense_type == 'gmm-strict' else False
+    use_origin = True if args.fense_method == 'gmm-origin' else False
+    analyzer.build_model(args.util_file, args.metric_file,
                              args.thresh, strict, use_origin, args.verbose)
 
 
@@ -107,8 +65,6 @@ def main():
     parser.add_argument('-u', '--util-file', help='Utilization file collected\
                         from eris agent', type=argparse.FileType('rt'),
                         default=Analyzer.UTIL_FILE)
-    parser.add_argument('-o', '--offline', help='do offline analysis based on\
-                        given metrics file', action='store_true')
     parser.add_argument('-i', '--key-cid', help='use container id in workload\
                         configuration file as key id', action='store_true')
 
