@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"runtime"
 	"time"
+	"strings"
 )
 
 var eventIndex = map[string]int{}
@@ -31,7 +32,7 @@ type Metric struct {
 	L3MissRequests         uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
 	L3MissCycles           uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
 	L3MissCyclesPerRequest float64 `header:"l3_miss_per_request" gauge:"cma_l3miss_cycles_per_request" gauge_help:"l3 miss cycles per request"`
-	PMMInstruction         uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
+	//PMMInstruction         uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
 }
 
 func init() {
@@ -46,10 +47,38 @@ func init() {
 	}
 }
 
-func startCollectMetrics() {
+var containers = map[string]*Container{}
 
-	containers := map[string]*Container{}
+func updateContainers() {
+	cons, err := getContainers()
+	if err != nil {
+		log.Println(err)
+	} else {
+		for id, container := range containers {
+			// remove all finished containers
+			if _, ok := cons[id]; err == nil && !ok {
+				container.finalize()
+				delete(containers, id)
+			}
+		}
+		
+		for id, name := range cons {
+			// initialize new containers
+			if _, ok := containers[id]; !ok {
+				cgroup, err := newContainer(id, strings.TrimLeft(name, "/") )
+				if err != nil {
+					//							log.Println(err)
+				} else {
+					containers[id] = cgroup
+				}
+			}
+		}
+	}
+}
+
+func startCollectMetrics() {
 	ticker := newDelayedTicker(0, time.Duration(*metricInterval)*time.Second)
+	utilTicker := newDelayedTicker(0, time.Duration(*utilInterval)*time.Second)
 	pqosUpdate := time.NewTicker(time.Duration(1 * time.Second))
 	for {
 		select {
@@ -67,15 +96,33 @@ func startCollectMetrics() {
 				}
 
 			}
-		case <-ticker.C:
+		case <-utilTicker.C:
+			updateContainers()
 			ts := uint64(time.Now().Unix())
-			cons, err := getContainers()
-			if err != nil {
-				log.Println(err)
-			}
+			var utils []Utilization
 			for id, container := range containers {
-				m := Metric{Time: ts, Cid: id, Name: container.name}
+				u := Utilization{Time: ts, Cid: id, Name: container.name}
+				cpuData := container.pollCPUUsage(false)
+				if cpuData != nil && cpuData[1] != 0 {
+					u.CPUUtilization = float64(cpuData[0]) / float64(cpuData[1]) * float64(runtime.NumCPU()) * 100.0
+					utils = append(utils, u)
+				}
+			}
+			if len(utils) > 0 {
+				utilizationChannel <- utils
+			}
+		case <-ticker.C:
+			updateContainers()
+			ts := uint64(time.Now().Unix())
+			var metrics []Metric
+			for id, container := range containers {
+				if !container.monitorStarted {
+					container.start()
+					container.monitorStarted = true
+					continue
+				}
 
+				m := Metric{Time: ts, Cid: id, Name: container.name}
 				// read perf data
 				perfData := container.pollPerf()
 				if perfData != nil {
@@ -84,7 +131,7 @@ func startCollectMetrics() {
 					}
 				}
 				// read cpu utilization data
-				cpuData := container.pollCPUUsage()
+				cpuData := container.pollCPUUsage(true)
 				if cpuData != nil && cpuData[1] != 0 {
 					m.CPUUtilization = float64(cpuData[0]) / float64(cpuData[1]) * float64(runtime.NumCPU()) * 100.0
 				}
@@ -99,25 +146,11 @@ func startCollectMetrics() {
 
 				m.calculate()
 				if perfData != nil && cpuData != nil && pqosData != nil {
-					metricChannel <- &m
-				}
-				if _, ok := cons[id]; err == nil && !ok {
-					container.finalize()
-					delete(containers, id)
+					metrics = append(metrics, m)
 				}
 			}
-			if err == nil {
-				for id, name := range cons {
-					if _, ok := containers[id]; !ok {
-						cgroup, err := newContainer(id, name)
-						if err != nil {
-							//							log.Println(err)
-						} else {
-							containers[id] = cgroup
-							cgroup.start()
-						}
-					}
-				}
+			if len(metrics) > 0 {
+				metricChannel <- metrics
 			}
 		}
 	}
