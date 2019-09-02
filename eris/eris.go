@@ -60,8 +60,7 @@ func main() {
 	newDockerClient()
 	readCgroupDriver()
 	initWorkload()
-	//	initSystemUtilization()
-	//
+	
 	if *detect {
 		initThreshold()
 	}

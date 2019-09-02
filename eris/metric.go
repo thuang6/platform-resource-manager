@@ -31,7 +31,7 @@ type Metric struct {
 	//	StallsMemoryLoadPerKiloInstructions float64 `header:"stalls_memory_load_per_kilo_instruction" gauge:"cma_stalls_mem_per_instruction" gauge_help:"Stalls memory load per instruction of a container"`
 	L3MissRequests         uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
 	L3MissCycles           uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
-	L3MissCyclesPerRequest float64 `header:"l3_miss_per_request" gauge:"cma_l3miss_cycles_per_request" gauge_help:"l3 miss cycles per request"`
+	CyclesPerL3Miss float64 `header:"cycles_per_l3_miss" gauge:"cma_cycles_per_l3_miss" gauge_help:"cycles per l3 miss"`
 	//PMMInstruction         uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
 }
 
@@ -176,7 +176,7 @@ func (m *Metric) calculate() {
 		m.NormalizedFrequency = uint64(float64(m.Cycle) / float64(*metricInterval) / 10000.0 / m.CPUUtilization)
 	}
 	if m.L3MissRequests != 0 {
-		m.L3MissCyclesPerRequest = float64(m.L3MissCycles) / float64(m.L3MissRequests)
+		m.CyclesPerL3Miss= float64(m.L3MissCycles) / float64(m.L3MissRequests)
 	}
 	m.MemoryBandwidthTotal = m.MemoryBandwidthLocal + m.MemoryBandwidthRemote
 }

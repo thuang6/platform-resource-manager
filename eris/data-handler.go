@@ -56,12 +56,15 @@ func handleData() {
 					beUtils += u.CPUUtilization
 				}
 			}
-			ulc := Utilization{Time: ts, Cid: "", Name: "lcs", CPUUtilization: lcUtils}
 			if *recordUtil {
+				ulc := Utilization{Time: ts, Cid: "", Name: "lcs", CPUUtilization: lcUtils}
 				utilCsvWriter.Write(getEntry(ulc))
 				if count++; count%20 == 0 {
 					utilCsvWriter.Flush()
 				}
+			}
+			if lcUtils > thresholds.LcUtilMax {
+				updateLcUtilMax(lcUtils)
 			}
 		case metrics := <-metricChannel:
 			for _, m := range metrics {
