@@ -83,11 +83,11 @@ class ModelDatabase(object):
     def __init__(
             self,
             db_type: str,
-            host: Union[str, list, None],
+            host: Optional[Union[str, list]] = None,
             namespace: Optional[str] = 'model_distribution',
             directory: Optional[str] = None,
             api_path: Optional[str] = '/v3alpha',
-            timeout: Union[float, int, None] = 5.0,
+            timeout: Optional[Union[float, int]] = None,
             ssl: Optional[SSL] = None):
 
         self.db_type = db_type
@@ -105,9 +105,6 @@ class ModelDatabase(object):
             if self.directory is None or self.directory == '':
                 raise ImproperDirectoryError(
                     "Please set a directory for local database")
-            elif os.path.isdir(self.directory):
-                raise ImproperDirectoryError(
-                    "Please specify a non-existing directory for local database")
             return LocalDatabase(self.directory)
 
         elif self.db_type == 'zookeeper':
