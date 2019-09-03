@@ -4,15 +4,18 @@ from prm.resource import Resource, RDTResource
 from prm.llcoccup import LlcOccup
 from wca.allocators import AllocationType
 
+
 @pytest.fixture(scope="module")
 def llc_occup():
     res = LlcOccup(False)
     return res
 
+
 @pytest.fixture(scope="module")
 def llc_occup_excl():
     res = LlcOccup(True)
     return res
+
 
 def test_llcoccup_budgeting(llc_occup):
     allocs = dict()
@@ -26,6 +29,7 @@ def test_llcoccup_budgeting(llc_occup):
     assert '2' in allocs
     assert AllocationType.RDT in allocs['2']
     assert getattr(allocs['2'][AllocationType.RDT], RDTResource.L3) == 'L3:0=0xfffff'
+
 
 def test_llcoccup_excl_budgeting(llc_occup_excl):
     allocs = dict()
@@ -45,4 +49,3 @@ def test_llcoccup_excl_budgeting(llc_occup_excl):
     assert '4' in allocs
     assert AllocationType.RDT in allocs['4']
     assert getattr(allocs['4'][AllocationType.RDT], RDTResource.L3) == 'L3:0=0x1f;1=0x1f'
-

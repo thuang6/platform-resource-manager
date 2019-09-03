@@ -1,6 +1,6 @@
 import pytest
 
-from prm.resource import Resource, RDTResource
+from prm.resource import Resource
 from prm.cpucycle import CpuCycle
 from wca.allocators import AllocationType
 
@@ -9,6 +9,7 @@ from wca.allocators import AllocationType
 def cpu_cycle():
     res = CpuCycle(1600, 0.5, False)
     return res
+
 
 def test_cpucycle_budgeting(cpu_cycle):
     allocs = dict()
@@ -30,6 +31,7 @@ def test_cpucycle_budgeting(cpu_cycle):
     assert '3' in allocs
     assert AllocationType.QUOTA in allocs['3']
     assert allocs['3'][AllocationType.QUOTA] == CpuCycle.CPU_QUOTA_DEFAULT / len(bes)
+
 
 def test_cpucycle_set_share(cpu_cycle):
     allocs = dict()
