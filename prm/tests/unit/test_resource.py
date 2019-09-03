@@ -3,10 +3,12 @@ import pytest
 from prm.resource import Resource, RDTResource
 from wca.allocators import AllocationType
 
+
 @pytest.fixture(scope="module")
 def resource():
     res = Resource()
     return res
+
 
 @pytest.mark.parametrize(
     'tid, atype, alloc, rdt_res, name', [
@@ -26,6 +28,7 @@ def test_set_alloc_empty(resource, tid, atype, alloc, rdt_res, name):
         val = resource.new_allocs[tid][atype]
     assert val == alloc
 
+
 @pytest.mark.parametrize(
     'tid, atype, alloc, rdt_res, name', [
         (1, AllocationType.SHARES, 0.5, None, None),
@@ -44,6 +47,7 @@ def test_set_alloc_update(resource, tid, atype, alloc, rdt_res, name):
         val = resource.new_allocs[tid][atype]
     assert val == alloc
 
+
 @pytest.mark.parametrize(
     'tid, atype, alloc, rdt_res, name', [
         (1, AllocationType.RDT, 'MB:0=50', RDTResource.MB, 'BE_Group'),
@@ -61,6 +65,7 @@ def test_set_alloc_different(resource, tid, atype, alloc, rdt_res, name):
     else:
         val = resource.new_allocs[tid][atype]
     assert val == alloc
+
 
 def test_set_alloc_check_final(resource):
     assert 1 in resource.new_allocs

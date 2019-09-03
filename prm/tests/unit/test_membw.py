@@ -4,10 +4,12 @@ from prm.resource import Resource, RDTResource
 from prm.membw import MemoryBw
 from wca.allocators import AllocationType
 
+
 @pytest.fixture(scope="module")
 def membw():
     res = MemoryBw()
     return res
+
 
 def test_membw_budgeting(membw):
     allocs = dict()
@@ -20,4 +22,4 @@ def test_membw_budgeting(membw):
     assert getattr(allocs['1'][AllocationType.RDT], RDTResource.MB) == 'MB:0=10;1=10'
     assert '2' in allocs
     assert AllocationType.RDT in allocs['2']
-    assert getattr(allocs['2'][AllocationType.RDT], RDTResource.MB) == 'MB:0=100;1=100' 
+    assert getattr(allocs['2'][AllocationType.RDT], RDTResource.MB) == 'MB:0=100;1=100'
