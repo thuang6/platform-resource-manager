@@ -20,7 +20,6 @@ from typing import Union, Optional
 from wca.security import SSL
 import json
 import logging
-import os
 import string
 
 log = logging.getLogger(__name__)
@@ -72,22 +71,20 @@ class ModelDatabase(object):
         namspace: required for zookeeper, if none, using default
             (default to 'model_distribution')
         directory: required for local database
-        ssl_verify: for etcd
             (default to true)
         api_path: for etcd, '/v3alpha' for 3.2.x etcd version,
                   '/v3beta' or '/v3' for 3.3.x etcd version
         timeout: for etcd, default 5.0 seconds
-        client_cert_path: for ectd
-        client_key_path: for etcd
+        ssl: server_verify, client_cert_path, client_key_path
     """
     def __init__(
             self,
             db_type: str,
-            host: Union[str, list, None],
+            host: Optional[Union[str, list]] = None,
             namespace: Optional[str] = 'model_distribution',
             directory: Optional[str] = None,
             api_path: Optional[str] = '/v3alpha',
-            timeout: Union[float, int, None] = 5.0,
+            timeout: Optional[Union[float, int]] = None,
             ssl: Optional[SSL] = None):
 
         self.db_type = db_type
@@ -105,9 +102,6 @@ class ModelDatabase(object):
             if self.directory is None or self.directory == '':
                 raise ImproperDirectoryError(
                     "Please set a directory for local database")
-            elif os.path.isdir(self.directory):
-                raise ImproperDirectoryError(
-                    "Please specify a non-existing directory for local database")
             return LocalDatabase(self.directory)
 
         elif self.db_type == 'zookeeper':
