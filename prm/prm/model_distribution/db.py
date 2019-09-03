@@ -20,7 +20,6 @@ from typing import Union, Optional
 from wca.security import SSL
 import json
 import logging
-import os
 import string
 
 log = logging.getLogger(__name__)
