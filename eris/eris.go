@@ -60,7 +60,7 @@ func main() {
 	newDockerClient()
 	readCgroupDriver()
 	initWorkload()
-	
+
 	if *detect {
 		initThreshold()
 	}
@@ -73,7 +73,7 @@ func main() {
 
 	go handleData()
 	go startCollectMetrics()
-	
+
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c

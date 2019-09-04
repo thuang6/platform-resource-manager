@@ -4,8 +4,8 @@ import (
 	"log"
 	"reflect"
 	"runtime"
-	"time"
 	"strings"
+	"time"
 )
 
 var eventIndex = map[string]int{}
@@ -29,8 +29,8 @@ type Metric struct {
 	//	StallsMemoryLoad                    uint64  `header:"stalls_mem_load" event:"CYCLE_ACTIVITY.STALLS_MEM_ANY"`
 	//	StallsL2MissPerKiloInstructions     float64 `header:"stalls_l2miss_per_kilo_instruction"`
 	//	StallsMemoryLoadPerKiloInstructions float64 `header:"stalls_memory_load_per_kilo_instruction" gauge:"cma_stalls_mem_per_instruction" gauge_help:"Stalls memory load per instruction of a container"`
-	L3MissRequests         uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
-	L3MissCycles           uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
+	L3MissRequests  uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
+	L3MissCycles    uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
 	CyclesPerL3Miss float64 `header:"cycles_per_l3_miss" gauge:"cma_cycles_per_l3_miss" gauge_help:"cycles per l3 miss"`
 	//PMMInstruction         uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
 }
@@ -61,11 +61,11 @@ func updateContainers() {
 				delete(containers, id)
 			}
 		}
-		
+
 		for id, name := range cons {
 			// initialize new containers
 			if _, ok := containers[id]; !ok {
-				cgroup, err := newContainer(id, strings.TrimLeft(name, "/") )
+				cgroup, err := newContainer(id, strings.TrimLeft(name, "/"))
 				if err != nil {
 					//							log.Println(err)
 				} else {
@@ -114,7 +114,7 @@ func startCollectMetrics() {
 		case <-ticker.C:
 			updateContainers()
 			ts := uint64(time.Now().Unix())
-			var metrics []Metric
+			metrics := map[string]Metric{}
 			for id, container := range containers {
 				if !container.monitorStarted {
 					container.start()
@@ -146,7 +146,7 @@ func startCollectMetrics() {
 
 				m.calculate()
 				if perfData != nil && cpuData != nil && pqosData != nil {
-					metrics = append(metrics, m)
+					metrics[container.name] = m
 				}
 			}
 			if len(metrics) > 0 {
@@ -176,7 +176,7 @@ func (m *Metric) calculate() {
 		m.NormalizedFrequency = uint64(float64(m.Cycle) / float64(*metricInterval) / 10000.0 / m.CPUUtilization)
 	}
 	if m.L3MissRequests != 0 {
-		m.CyclesPerL3Miss= float64(m.L3MissCycles) / float64(m.L3MissRequests)
+		m.CyclesPerL3Miss = float64(m.L3MissCycles) / float64(m.L3MissRequests)
 	}
 	m.MemoryBandwidthTotal = m.MemoryBandwidthLocal + m.MemoryBandwidthRemote
 }

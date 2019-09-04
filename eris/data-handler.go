@@ -2,11 +2,10 @@ package main
 
 import (
 	"encoding/csv"
-	"log"
 	"os"
 )
 
-var metricChannel = make(chan []Metric, 1000)
+var metricChannel = make(chan map[string]Metric, 2)
 var utilizationChannel = make(chan []Utilization, 1000)
 
 func initCsvHeader(csvFile string, v interface{}) *csv.Writer {
@@ -67,6 +66,7 @@ func handleData() {
 				updateLcUtilMax(lcUtils)
 			}
 		case metrics := <-metricChannel:
+			contends := map[int]bool{llcContention: false, mbwContention: false, tdpContention: false}
 			for _, m := range metrics {
 				if *prometheusPort != 0 {
 					updateMetrics(m, m.Cid, m.Name)
@@ -75,19 +75,8 @@ func handleData() {
 					metricCsvWriter.Write(getEntry(m))
 				}
 				if *detect {
-					c := detectContention(m)
-					tdpc := detectTDPContention(m)
-					c = append(c, tdpc)
-					for i := 0; i < len(c); i++ {
-						switch c[i] {
-						case tdpContention:
-							log.Printf("TDP Contention! NF: %+v", m.NormalizedFrequency)
-						case llcContention:
-							log.Printf("LLC Contention! NF: %+v", m.CacheMissPerKiloInstructions)
-						case mbwContention:
-							//						log.Printf("MBW Contention! MSPKI: %+v", m.StallsMemoryLoadPerKiloInstructions)
-						}
-					}
+					detectContention(metrics, m, contends)
+					detectTDPContention(m, contends)
 				}
 			}
 			if *recordMetric {
