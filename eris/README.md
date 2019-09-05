@@ -8,7 +8,7 @@ go get -d github.com/intel/platform-resource-manager/eris
 cd ~/go/src/github.com/intel/platform-resource-manager/eris # if $GOPATH is not set
 cd $GOPATH/src/github.com/intel/platform-resource-manager/eris # if $GOPATH is set
 make
-sudo ./eris -collect-metrics -metric-file metric.csv
+sudo ./eris -record-metric -record-util -prometheus-port 8080 -detect workload.json
 ```
 ## Troubleshooting
 
@@ -16,5 +16,5 @@ sudo ./eris -collect-metrics -metric-file metric.csv
 
 Run eris with env DOCKER_API_VERSION
 ```
-sudo DOCKER_API_VERSION=1.38 ./eris -collect-metrics
+sudo DOCKER_API_VERSION=1.38 ./eris -record-metric -record-util -prometheus-port 8080 -detect workload.json
 ```
