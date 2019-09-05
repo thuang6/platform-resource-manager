@@ -4,6 +4,7 @@ import (
 	"log"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -28,10 +29,10 @@ type Metric struct {
 	//	StallsMemoryLoad                    uint64  `header:"stalls_mem_load" event:"CYCLE_ACTIVITY.STALLS_MEM_ANY"`
 	//	StallsL2MissPerKiloInstructions     float64 `header:"stalls_l2miss_per_kilo_instruction"`
 	//	StallsMemoryLoadPerKiloInstructions float64 `header:"stalls_memory_load_per_kilo_instruction" gauge:"cma_stalls_mem_per_instruction" gauge_help:"Stalls memory load per instruction of a container"`
-	L3MissRequests         uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
-	L3MissCycles           uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
-	L3MissCyclesPerRequest float64 `header:"l3_miss_per_request" gauge:"cma_l3miss_cycles_per_request" gauge_help:"l3 miss cycles per request"`
-	PMMInstruction         uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
+	L3MissRequests  uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
+	L3MissCycles    uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
+	CyclesPerL3Miss float64 `header:"cycles_per_l3_miss" gauge:"cma_cycles_per_l3_miss" gauge_help:"cycles per l3 miss"`
+	//PMMInstruction         uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
 }
 
 func init() {
@@ -46,10 +47,38 @@ func init() {
 	}
 }
 
-func startCollectMetrics() {
+var containers = map[string]*Container{}
 
-	containers := map[string]*Container{}
+func updateContainers() {
+	cons, err := getContainers()
+	if err != nil {
+		log.Println(err)
+	} else {
+		for id, container := range containers {
+			// remove all finished containers
+			if _, ok := cons[id]; err == nil && !ok {
+				container.finalize()
+				delete(containers, id)
+			}
+		}
+
+		for id, name := range cons {
+			// initialize new containers
+			if _, ok := containers[id]; !ok {
+				cgroup, err := newContainer(id, strings.TrimLeft(name, "/"))
+				if err != nil {
+					//							log.Println(err)
+				} else {
+					containers[id] = cgroup
+				}
+			}
+		}
+	}
+}
+
+func startCollectMetrics() {
 	ticker := newDelayedTicker(0, time.Duration(*metricInterval)*time.Second)
+	utilTicker := newDelayedTicker(0, time.Duration(*utilInterval)*time.Second)
 	pqosUpdate := time.NewTicker(time.Duration(1 * time.Second))
 	for {
 		select {
@@ -67,15 +96,33 @@ func startCollectMetrics() {
 				}
 
 			}
-		case <-ticker.C:
+		case <-utilTicker.C:
+			updateContainers()
 			ts := uint64(time.Now().Unix())
-			cons, err := getContainers()
-			if err != nil {
-				log.Println(err)
-			}
+			var utils []Utilization
 			for id, container := range containers {
-				m := Metric{Time: ts, Cid: id, Name: container.name}
+				u := Utilization{Time: ts, Cid: id, Name: container.name}
+				cpuData := container.pollCPUUsage(false)
+				if cpuData != nil && cpuData[1] != 0 {
+					u.CPUUtilization = float64(cpuData[0]) / float64(cpuData[1]) * float64(runtime.NumCPU()) * 100.0
+					utils = append(utils, u)
+				}
+			}
+			if len(utils) > 0 {
+				utilizationChannel <- utils
+			}
+		case <-ticker.C:
+			updateContainers()
+			ts := uint64(time.Now().Unix())
+			metrics := map[string]Metric{}
+			for id, container := range containers {
+				if !container.monitorStarted {
+					container.start()
+					container.monitorStarted = true
+					continue
+				}
 
+				m := Metric{Time: ts, Cid: id, Name: container.name}
 				// read perf data
 				perfData := container.pollPerf()
 				if perfData != nil {
@@ -84,7 +131,7 @@ func startCollectMetrics() {
 					}
 				}
 				// read cpu utilization data
-				cpuData := container.pollCPUUsage()
+				cpuData := container.pollCPUUsage(true)
 				if cpuData != nil && cpuData[1] != 0 {
 					m.CPUUtilization = float64(cpuData[0]) / float64(cpuData[1]) * float64(runtime.NumCPU()) * 100.0
 				}
@@ -99,25 +146,11 @@ func startCollectMetrics() {
 
 				m.calculate()
 				if perfData != nil && cpuData != nil && pqosData != nil {
-					metricChannel <- &m
-				}
-				if _, ok := cons[id]; err == nil && !ok {
-					container.finalize()
-					delete(containers, id)
+					metrics[container.name] = m
 				}
 			}
-			if err == nil {
-				for id, name := range cons {
-					if _, ok := containers[id]; !ok {
-						cgroup, err := newContainer(id, name)
-						if err != nil {
-							//							log.Println(err)
-						} else {
-							containers[id] = cgroup
-							cgroup.start()
-						}
-					}
-				}
+			if len(metrics) > 0 {
+				metricChannel <- metrics
 			}
 		}
 	}
@@ -143,7 +176,7 @@ func (m *Metric) calculate() {
 		m.NormalizedFrequency = uint64(float64(m.Cycle) / float64(*metricInterval) / 10000.0 / m.CPUUtilization)
 	}
 	if m.L3MissRequests != 0 {
-		m.L3MissCyclesPerRequest = float64(m.L3MissCycles) / float64(m.L3MissRequests)
+		m.CyclesPerL3Miss = float64(m.L3MissCycles) / float64(m.L3MissRequests)
 	}
 	m.MemoryBandwidthTotal = m.MemoryBandwidthLocal + m.MemoryBandwidthRemote
 }

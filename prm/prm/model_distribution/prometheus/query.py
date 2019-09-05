@@ -18,16 +18,18 @@
 import requests
 import logging
 from enum import Enum
-from prm.model_distribution.metric import GroupInfo, Metric
 
 log = logging.getLogger(__name__)
+
 
 class PromResponseStatus(str, Enum):
     SUCCESS = 'success'
     ERROR = 'error'
 
+
 class PromResponseError(Exception):
     pass
+
 
 def _prom_format_label_dict(label_dict):
     labels = ''
@@ -35,11 +37,13 @@ def _prom_format_label_dict(label_dict):
         labels += key+'="'+value+'",'
     return '{' + labels + '}'
 
+
 def _http_format_url(url):
     if 'http' not in url:
         return 'http://' + url
     else:
         return url
+
 
 class PromHttp(object):
     """ The current stable HTTP API is reachable under /api/v1 on a Prometheus server
@@ -116,5 +120,3 @@ class PromHttp(object):
                 log.info(PromResponseError.RESPONSE_UNKNOWN)
         else:
             res.raise_for_status()
-
-

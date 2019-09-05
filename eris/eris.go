@@ -36,10 +36,10 @@ import (
 
 var workloadConfFile = flag.String("workload_conf_file", "workload.json", "workload configuration file describes each task name, type, id, request cpu count")
 var verbose = flag.Bool("verbose", false, "increase output verbosity")
-var collectMetrics = flag.Bool("collect-metrics", false, "collect platform performance metrics (CPI, MPKI, etc..)'")
 var detect = flag.Bool("detect", false, "detect resource contention between containers")
 var control = flag.Bool("control", false, "regulate best-efforts task resource usages")
-var record = flag.Bool("record", false, "record container CPU utilizaton and platform metrics in csv file")
+var recordMetric = flag.Bool("record-metric", false, "record container platform metrics in csv file")
+var recordUtil = flag.Bool("record-util", false, "record container CPU utilizaton in csv file")
 var keyCid = flag.Bool("key-cid", false, "use container id in workload configuration file as key id")
 var enableHold = flag.Bool("enable-hold", false, "keep container resource usage in current level while the usage is close but not exceed throttle threshold")
 var disableCat = flag.Bool("disable-cat", false, "disable CAT control while in resource regulation")
@@ -59,26 +59,21 @@ func main() {
 	initPerf()
 	newDockerClient()
 	readCgroupDriver()
-	//	initWorkload()
-	//	initSystemUtilization()
-	//
+	initWorkload()
+
 	if *detect {
 		initThreshold()
 	}
 	if *prometheusPort != 0 {
-		go prometheusStart()
+		go prometheusStart([]interface{}{Metric{}, Utilization{}})
 	}
 	//	if *control {
 	//		// TODO
 	//	}
-	//	if *record {
-	//		// TODO
-	//	}
 
-	if *collectMetrics {
-		go handleData()
-		go startCollectMetrics()
-	}
+	go handleData()
+	go startCollectMetrics()
+
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c

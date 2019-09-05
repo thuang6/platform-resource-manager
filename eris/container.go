@@ -24,14 +24,16 @@ type Container struct {
 	perfLastEnabled []uint64
 	perfLastRunning []uint64
 	lastCPUUsage    []uint64 // {cpu usage, system usage}
+	lastCPUUsage1   []uint64 // {cpu usage, system usage}
 	pqosLastValue   []uint64
 	pqosMonitorData *C.struct_pqos_mon_data
 	pqosPidsMap     map[C.pid_t]bool
+	monitorStarted  bool
 }
 
 func newContainer(id, name string) (*Container, error) {
 	path, cpuPath := getCgroupPath(id), getCgroupCPUPath(id)
-	ret := Container{name: name, id: id}
+	ret := Container{name: name, id: id, monitorStarted: false}
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -136,7 +138,7 @@ func (c *Container) pollPerf() []uint64 {
 	return res
 }
 
-func (c *Container) pollCPUUsage() []uint64 {
+func (c *Container) pollCPUUsage(isMetrics bool) []uint64 {
 	cpuf, err := os.Open("/proc/stat")
 	if err != nil {
 		panic(err)
@@ -160,12 +162,18 @@ func (c *Container) pollCPUUsage() []uint64 {
 
 	c.cpuFile.Seek(0, 0)
 	fmt.Fscanf(c.cpuFile, "%d", &usage)
-	if c.lastCPUUsage == nil {
-		c.lastCPUUsage = []uint64{usage, sys}
+	lastCPUUsage := &c.lastCPUUsage1
+	if isMetrics {
+		lastCPUUsage = &c.lastCPUUsage
+	}
+
+	if *lastCPUUsage == nil {
+		*lastCPUUsage = []uint64{usage, sys}
 		return nil
 	}
-	ret := []uint64{usage - c.lastCPUUsage[0], sys - c.lastCPUUsage[1]}
-	c.lastCPUUsage = []uint64{usage, sys}
+	ret := []uint64{usage - (*lastCPUUsage)[0], sys - (*lastCPUUsage)[1]}
+	(*lastCPUUsage)[0] = usage
+	(*lastCPUUsage)[1] = sys
 	return ret
 }
 

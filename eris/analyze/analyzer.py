@@ -50,6 +50,7 @@ class Metric(str, Enum):
     MEMSTALL = 'stalls_mem_load'
     L2SPKI = 'stalls_l2miss_per_kilo_instruction'
     MSPKI = 'stalls_memory_load_per_kilo_instruction'
+    CPL3M = 'cycles_per_l3_miss'
     LCCAPACITY = 'latency_critical_utilization_capacity'
     LCMAX = 'latency_critical_utilization_max'
     SYSUTIL = 'system_utilization'
@@ -109,7 +110,7 @@ class Analyzer:
             fbar = mean - 3 * std
             if min_freq < fbar:
                 fbar = min_freq
-            self.threshold[job][ThreshType.TDP.value] = {
+            self.threshold['workloads'][job][ThreshType.TDP.value] = {
                 'util': utilization_threshold,
                 'mean': mean.item(),
                 'std': std.item(),
@@ -168,17 +169,17 @@ class Analyzer:
                     'mpki': np.float64(mpki_thresh).item(),
                     'mb': np.float64(mb_thresh).item()
                 }
-                if Metric.L2SPKI in jdataf.columns:
-                    l2spki = jdataf[Metric.L2SPKI]
-                    l2spki_thresh = self._get_fense(l2spki, True, strict,
+                if Metric.CPL3M in jdataf.columns:
+                    cpl3m = jdataf[Metric.CPL3M]
+                    cpl3m_thresh = self._get_fense(cpl3m, True, strict,
                                                     span, use_origin)
-                    thresh['l2spki'] = np.float64(l2spki_thresh).item()
+                    thresh['cpl3m'] = np.float64(cpl3m_thresh).item()
                 if Metric.MSPKI in jdataf.columns:
                     mspki = jdataf[Metric.MSPKI]
                     mspki_thresh = self._get_fense(mspki, True, strict,
                                                    span, use_origin)
                     thresh['mspki'] = np.float64(mspki_thresh).item()
-                self.threshold[job][ThreshType.METRICS.value].append(thresh)
+                self.threshold['workloads'][job][ThreshType.METRICS.value].append(thresh)
             except Exception as e:
                 print(str(e))
                 if verbose:
@@ -205,19 +206,19 @@ class Analyzer:
             threshf.write(json.dumps(self.threshold))
 
     def get_thresh(self, job, thresh_type):
-        return self.threshold[job][thresh_type] if job in self.threshold else {}
+        return self.threshold['workloads'][job][thresh_type] if job in self.threshold['workloads'] else {}
 
     def build_model(self, util_file=UTIL_FILE, metric_file=METRIC_FILE,
                     span=4, strict=True, use_origin=False, verbose=False):
         if self.threshold:
             return
 
-        # TODO
-        #self._process_lc_max(util_file)
+        self._process_lc_max(util_file)
+        self.threshold['workloads'] = {}
         mdf = pd.read_csv(metric_file)
         cnames = mdf['name'].unique()
         for cname in cnames:
-            self.threshold[cname] = {ThreshType.TDP.value: {}, ThreshType.METRICS.value: []}
+            self.threshold['workloads'][cname] = {ThreshType.TDP.value: {}, ThreshType.METRICS.value: []}
             jdata = mdf[mdf['name'] == cname]
             self._build_tdp_thresh(jdata)
             self._build_thresh(jdata, span, strict, use_origin, verbose)

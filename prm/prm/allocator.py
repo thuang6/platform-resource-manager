@@ -41,10 +41,10 @@ class ResourceAllocator(Allocator):
     WL_META_FILE = 'workload.json'
 
     def __init__(
-        self, 
+        self,
         database: ModelDatabase,
         action_delay: float,
-        agg_period: float = 20, 
+        agg_period: float = 20,
         model_pull_cycle: float = 180,
         metric_file: str = Analyzer.METRIC_FILE,
         enable_control: bool = True,
@@ -64,7 +64,7 @@ class ResourceAllocator(Allocator):
         self.bes = set()
         self.lcs = set()
         self.ucols = ['time', 'cid', 'name', Metric.UTIL]
-        self.mcols = ['time', 'cid', 'name', 'cpu_model', 'vcpu_count', 
+        self.mcols = ['time', 'cid', 'name', 'cpu_model', 'vcpu_count',
                       Metric.CYC, Metric.INST,
                       Metric.L3MISS, Metric.L3OCC, Metric.MB, Metric.CPI,
                       Metric.L3MPKI, Metric.NF, Metric.UTIL, Metric.MSPKI]
@@ -75,7 +75,7 @@ class ResourceAllocator(Allocator):
             self.model_pull_cycle = model_pull_cycle
             self.threshs = {}
             self.cycle = 0
-        if enable_control: 
+        if enable_control:
             self.cpuc = CpuCycle(self.analyzer.get_lcutilmax(), 0.5, False)
             self.l3c = LlcOccup(self.exclusive_cat)
             self.mbc_enabled = True
@@ -93,7 +93,7 @@ class ResourceAllocator(Allocator):
             with open(data_file, 'r') as dtf:
                 headline = dtf.readline()
         except Exception:
-                log.debug('cannot open %r for reading - ignore', data_file)
+            log.debug('cannot open %r for reading - ignore', data_file)
         if headline != ','.join(cols) + '\n':
             with open(data_file, 'w') as dtf:
                 dtf.write(','.join(cols) + '\n')
@@ -175,13 +175,16 @@ class ResourceAllocator(Allocator):
         """
         Maps container id to a string key identifying statistical model instance.
         """
-        if 'application' in tasks_labels[cid] and\
-           'application_version_name' in tasks_labels[cid]:
-            return tasks_labels[cid]['application'] + '.' +\
-                    tasks_labels[cid]['application_version_name']
+        if 'application' in tasks_labels[cid]:
+            app = tasks_labels[cid]['application']
+            if 'application_version_name' in tasks_labels[cid] and\
+               tasks_labels[cid]['application_version_name']:
+                return app + '.' + tasks_labels[cid]['application_version_name']
+            else:
+                return app
         else:
-            log.debug('no label "application" or "application_version_name" '
-                      'passed to detect function by wca for container: {}'.format(cid))
+            log.warn('no label "application" '
+                     'passed to detect function by wca for container: {}'.format(cid))
 
         return None
 
@@ -293,7 +296,7 @@ class ResourceAllocator(Allocator):
         return assigned_cpus
 
     def _process_measurements(
-        self, 
+        self,
         tasks_measurements: TasksMeasurements,
         tasks_labels: TasksLabels,
         metric_list: List[WCAMetric],
@@ -332,17 +335,15 @@ class ResourceAllocator(Allocator):
             if self.agg:
                 metrics = container.get_metrics()
                 log.debug('cid=%r container metrics=%r', cid, metrics)
-                if metrics:
+                if metrics and app:
                     vcpus = self.workload_meta[app]['cpus']
                     wca_metrics = container.get_wca_metrics(app, vcpus)
                     metric_list.extend(wca_metrics)
-                    app = self._cid_to_app(cid, tasks_labels)
-                    if app:
-                        # always try to init header column cosidering log rotate
-                        self._init_data_file(self.metric_file, self.mcols)
-                        self._record_metrics(timestamp, cid, app,
-                                             correct_key_characters(cpu_model),
-                                             vcpus, metrics)
+                    # always try to init header column considering log rotate
+                    self._init_data_file(self.metric_file, self.mcols)
+                    self._record_metrics(timestamp, cid, app,
+                                         correct_key_characters(cpu_model),
+                                         vcpus, metrics)
 
         metric_list.extend(self._get_headroom_metrics(assigned_cpus, lcutil, sysutil))
         if self.enable_control and self.bes:
@@ -385,19 +386,33 @@ class ResourceAllocator(Allocator):
         self.lcs.clear()
         assigned_cpus = self._get_task_resources(tasks_resources, tasks_labels)
 
+        if platform.rdt_information is None:
+            log.error('ERROR: RDT is required for PRM plugin to work! Exiting.')
+            exit(1)
+        elif not platform.rdt_information.rdt_cache_monitoring_enabled or \
+                not platform.rdt_information.rdt_mb_monitoring_enabled:
+            log.error('ERROR: RDT cache monitoring and memory bandwitdth '
+                      'monitoring is required for PRM plugin to work! Exiting.')
+            exit(1)
+
         allocs: TasksAllocations = dict()
         if self.enable_control:
             self.cpuc.update_allocs(tasks_allocs, allocs, platform.cpus)
-            self.l3c.update_allocs(tasks_allocs, allocs, platform.rdt_information.cbm_mask, platform.sockets)
+            self.l3c.update_allocs(
+                tasks_allocs, allocs, platform.rdt_information.cbm_mask,
+                platform.sockets)
 
             if platform.rdt_information.rdt_mb_control_enabled:
                 self.mbc_enabled = True
-                self.mbc.update_allocs(tasks_allocs, allocs, platform.rdt_information.mb_min_bandwidth,
-                                   	platform.rdt_information.mb_bandwidth_gran, platform.sockets)
+                self.mbc.update_allocs(
+                    tasks_allocs, allocs,
+                    platform.rdt_information.mb_min_bandwidth,
+                    platform.rdt_information.mb_bandwidth_gran, platform.sockets)
             else:
                 self.mbc_enabled = False
-                self.controllers[ContendedResource.MEMORY_BW] = self.controllers[ContendedResource.CPUS]
-                
+                self.controllers[ContendedResource.MEMORY_BW] = \
+                    self.controllers[ContendedResource.CPUS]
+
         metric_list = []
         metric_list.extend(self._get_threshold_metrics())
         self._process_measurements(tasks_measurements, tasks_labels, metric_list,
