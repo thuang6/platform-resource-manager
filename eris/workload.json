@@ -26,5 +26,9 @@
     "tensorflow_training": {
 	"cpus": 1,
 	"type": "best_efforts"
+    },
+    "tensor_benchmark_prediction": {
+	"cpus": 6,
+	"type": "best_efforts"
     }
 }

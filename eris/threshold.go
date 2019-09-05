@@ -70,7 +70,7 @@ func detectTDPContention(m Metric, cm map[int]bool) {
 	if t, ok := thresholds.Workloads[m.Name]; ok && t.TdpThreshold != nil {
 		if m.CPUUtilization >= t.TdpThreshold.Util && float64(m.NormalizedFrequency) < t.TdpThreshold.Bar {
 			cm[tdpContention] = true
-			log.Println("TDP Contention ! CPU Usage: %+v, Frequency: %+v, Thresh: %+v, Bar: %+v",
+			log.Printf("TDP Contention ! CPU Usage: %+v, Frequency: %+v, Thresh: %+v, Bar: %+v\n",
 				m.CPUUtilization, m.NormalizedFrequency, t.TdpThreshold.Util, t.TdpThreshold.Bar)
 		}
 	}
@@ -93,7 +93,7 @@ func detectContender(metrics map[string]Metric, id string, ct int) {
 			}
 		}
 	}
-	log.Println("Suspect Contender: %s", suspect)
+	log.Printf("Suspect Contender: %s\n", suspect)
 }
 
 func detectInBin(bt BinThreshold, m Metric, metrics map[string]Metric, cm map[int]bool) {
@@ -102,21 +102,21 @@ func detectInBin(bt BinThreshold, m Metric, metrics map[string]Metric, cm map[in
 		if m.CacheMissPerKiloInstructions > bt.Mpki {
 			cm[llcContention] = true
 			unknown = false
-			log.Println("LLC Contention ! CPU Usage: %+v, CPI: %+v, Thresh: %+v, MPKI: %+v, Thresh: %+v",
+			log.Printf("LLC Contention ! CPU Usage: %+v, CPI: %+v, Thresh: %+v, MPKI: %+v, Thresh: %+v\n",
 				m.CPUUtilization, m.CyclesPerInstruction, bt.Cpi, m.CacheMissPerKiloInstructions, bt.Mpki)
 			detectContender(metrics, m.Name, llcContention)
 		}
 		if m.CyclesPerL3Miss > bt.Cpl3m {
 			cm[mbwContention] = true
 			unknown = false
-			log.Println("MB Contention ! CPU Usage: %+v, CPI: %+v, Thresh: %+v, CPL3M: %+v, Thresh: %+v",
+			log.Printf("MB Contention ! CPU Usage: %+v, CPI: %+v, Thresh: %+v, CPL3M: %+v, Thresh: %+v\n",
 				m.CPUUtilization, m.CyclesPerInstruction, bt.Cpi, m.CyclesPerL3Miss, bt.Cpl3m)
 			detectContender(metrics, m.Name, mbwContention)
 		}
 
 		if unknown {
-			log.Println("Unknown Contention ! CPU Usage: %+v, CPI: %+v, Thresh: %+v",
-				m.CPUUtilization, m.CyclesPerInstruction, bt.Cpi, m.CyclesPerL3Miss, bt.Cpl3m)
+			log.Printf("Unknown Contention ! CPU Usage: %+v, CPI: %+v, Thresh: %+v\n",
+				m.CPUUtilization, m.CyclesPerInstruction, bt.Cpi)
 		}
 	}
 }
