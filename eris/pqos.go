@@ -22,15 +22,9 @@ var pqosEnabled bool
 var pqosGroups = map[string]*C.struct_pqos_mon_data{}
 
 func init() {
-	// pqosLog, err := os.OpenFile("/tmp/pqos.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return
-	// }
 	config := C.struct_pqos_config{
-		//fd_log:     C.int(pqosLog.Fd()),
 		fd_log:     2,
-		verbose:    2,
+		verbose:    -1,
 		_interface: C.PQOS_INTER_OS,
 	}
 	ec := C.pqos_init(&config)
