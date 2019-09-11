@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"reflect"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -136,7 +135,7 @@ func startCollectMetrics() {
 				u := Utilization{Time: ts, Cid: id, Name: container.name}
 				cpuData := container.pollCPUUsage(false)
 				if cpuData != nil && cpuData[1] != 0 {
-					u.CPUUtilization = float64(cpuData[0]) / float64(cpuData[1]) * float64(runtime.NumCPU()) * 100.0
+					u.CPUUtilization = float64(cpuData[0]) / float64(cpuData[1]) * float64(numCPU) * 100.0
 					utils = append(utils, u)
 				}
 			}
@@ -165,7 +164,7 @@ func startCollectMetrics() {
 				// read cpu utilization data
 				cpuData := container.pollCPUUsage(true)
 				if cpuData != nil && cpuData[1] != 0 {
-					m.CPUUtilization = float64(cpuData[0]) / float64(cpuData[1]) * float64(runtime.NumCPU()) * 100.0
+					m.CPUUtilization = float64(cpuData[0]) / float64(cpuData[1]) * float64(numCPU) * 100.0
 				}
 
 				// read pqos rdt data

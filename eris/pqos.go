@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"unsafe"
 )
 
@@ -54,12 +53,12 @@ func newPqosGroup(id string, mapPids map[C.pid_t]bool) (*C.struct_pqos_mon_data,
 	}
 	pqosData := C.new_pqos_mon_data()
 
-	cpus := runtime.NumCPU()
+	cpus := numCPU
 	cpulist := make([]C.unsigned, cpus)
 	for i := 0; i < cpus; i++ {
 		cpulist[i] = C.unsigned(i)
 	}
-	ec := C.pqos_mon_start(C.unsigned(runtime.NumCPU()), (*C.unsigned)(unsafe.Pointer(&cpulist[0])),
+	ec := C.pqos_mon_start(C.unsigned(numCPU), (*C.unsigned)(unsafe.Pointer(&cpulist[0])),
 		C.PQOS_MON_EVENT_L3_OCCUP|C.PQOS_MON_EVENT_LMEM_BW|C.PQOS_MON_EVENT_RMEM_BW,
 		nil, pqosData)
 	if ec != C.PQOS_RETVAL_OK {
