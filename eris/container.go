@@ -15,20 +15,22 @@ import (
 )
 
 type Container struct {
-	file            *os.File
-	cpuFile         *os.File
-	name            string
-	id              string
-	fds             [][]uintptr
-	perfLastValue   [][]uint64
-	perfLastEnabled []uint64
-	perfLastRunning []uint64
-	lastCPUUsage    []uint64 // {cpu usage, system usage}
-	lastCPUUsage1   []uint64 // {cpu usage, system usage}
-	pqosLastValue   []uint64
-	pqosMonitorData *C.struct_pqos_mon_data
-	pqosPidsMap     map[C.pid_t]bool
-	monitorStarted  bool
+	file              *os.File
+	cpuFile           *os.File
+	name              string
+	id                string
+	fds               [][]uintptr
+	perfLastValue     [][]uint64
+	perfLastEnabled   []uint64
+	perfLastRunning   []uint64
+	lastCPUUsage      []uint64 // {cpu usage, system usage}
+	lastCPUUsage1     []uint64 // {cpu usage, system usage}
+	pqosLastValue     []uint64
+	pqosMonitorData   *C.struct_pqos_mon_data
+	pqosPidsMap       map[C.pid_t]bool
+	monitorStarted    bool
+	isLatencyCritical bool
+	isBestEffort      bool
 }
 
 func newContainer(id, name string) (*Container, error) {
@@ -72,6 +74,12 @@ func newContainer(id, name string) (*Container, error) {
 			}
 		}
 	}
+	if _, ok := latencyCritical[name]; ok {
+		ret.isLatencyCritical = true
+	}
+	if _, ok := bestEffort[name]; ok {
+		ret.isBestEffort = true
+	}
 	return &ret, nil
 }
 
@@ -92,7 +100,7 @@ func (c *Container) pollPqos() []uint64 {
 		return nil
 	}
 	v := c.pqosMonitorData.values
-	rdtValue := []uint64{uint64(v.llc), uint64(v.mbm_local), uint64(v.mbm_remote)}
+	rdtValue := []uint64{uint64(v.llc), uint64(v.mbm_local), uint64(v.mbm_total - v.mbm_local)}
 	if c.pqosLastValue == nil {
 		c.pqosLastValue = rdtValue
 		return nil
