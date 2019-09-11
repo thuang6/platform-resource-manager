@@ -21,6 +21,10 @@ import (
 var pqosEnabled bool
 var pqosGroups = map[string]*C.struct_pqos_mon_data{}
 
+const bestEffortCOS = 2
+const latencyCriticalCOS = 1
+const genericCOS = 0
+
 func init() {
 	config := C.struct_pqos_config{
 		fd_log:     2,
@@ -78,7 +82,7 @@ func removePqosGroup(id string) {
 	delete(pqosGroups, id)
 }
 
-func updatePqosGroup(data *C.struct_pqos_mon_data, old, new map[C.pid_t]bool) error {
+func updatePqosGroup(data *C.struct_pqos_mon_data, cos uint, old, new map[C.pid_t]bool) error {
 	if !pqosEnabled {
 		return nil
 	}
@@ -93,17 +97,29 @@ func updatePqosGroup(data *C.struct_pqos_mon_data, old, new map[C.pid_t]bool) er
 		if _, ok := old[newPid]; !ok {
 			addPids = append(addPids, newPid)
 		}
+		if cos != genericCOS {
+			ec := C.pqos_alloc_assoc_set_pid(newPid, C.unsigned(cos))
+			if ec != C.PQOS_RETVAL_OK {
+				log.Printf("failed to associate pqos pids to COS #%d, error code %+v", cos, ec)
+			}
+		}
 	}
+
 	if len(removePids) > 0 {
 		ec := C.pqos_mon_remove_pids(C.unsigned(len(removePids)), (*C.pid_t)(unsafe.Pointer(&removePids[0])), data)
 		if ec != C.PQOS_RETVAL_OK {
-			return fmt.Errorf("failed to remove pqos pids, error code %+v", ec)
+			log.Printf("failed to remove pqos pids, error code %+v", ec)
+		}
+		ec = C.pqos_alloc_release_pid((*C.pid_t)(unsafe.Pointer(&removePids[0])), C.unsigned(len(removePids)))
+		if ec != C.PQOS_RETVAL_OK {
+			// ignore error
+			// log.Printf("failed to reassign pqos pids to COS #0, error code %+v", ec)
 		}
 	}
 	if len(addPids) > 0 {
 		ec := C.pqos_mon_add_pids(C.unsigned(len(addPids)), (*C.pid_t)(unsafe.Pointer(&addPids[0])), data)
 		if ec != C.PQOS_RETVAL_OK {
-			return fmt.Errorf("failed to add pqos pids, error code %+v", ec)
+			log.Printf("failed to add pqos pids, error code %+v", ec)
 		}
 	}
 	return nil

@@ -86,9 +86,17 @@ func startCollectMetrics() {
 			for _, c := range containers {
 				pidsMap, err := listTaskPid(c.id)
 				if err != nil {
+					log.Printf("%+v", err)
 					continue
 				} else {
-					err := updatePqosGroup(c.pqosMonitorData, c.pqosPidsMap, pidsMap)
+					var err error
+					if c.isLatencyCritical {
+						err = updatePqosGroup(c.pqosMonitorData, latencyCriticalCOS, c.pqosPidsMap, pidsMap)
+					} else if c.isBestEffort {
+						err = updatePqosGroup(c.pqosMonitorData, bestEffortCOS, c.pqosPidsMap, pidsMap)
+					} else {
+						err = updatePqosGroup(c.pqosMonitorData, genericCOS, c.pqosPidsMap, pidsMap)
+					}
 					if err != nil {
 						log.Println(err)
 					}

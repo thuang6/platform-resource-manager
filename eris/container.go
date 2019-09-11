@@ -15,20 +15,22 @@ import (
 )
 
 type Container struct {
-	file            *os.File
-	cpuFile         *os.File
-	name            string
-	id              string
-	fds             [][]uintptr
-	perfLastValue   [][]uint64
-	perfLastEnabled []uint64
-	perfLastRunning []uint64
-	lastCPUUsage    []uint64 // {cpu usage, system usage}
-	lastCPUUsage1   []uint64 // {cpu usage, system usage}
-	pqosLastValue   []uint64
-	pqosMonitorData *C.struct_pqos_mon_data
-	pqosPidsMap     map[C.pid_t]bool
-	monitorStarted  bool
+	file              *os.File
+	cpuFile           *os.File
+	name              string
+	id                string
+	fds               [][]uintptr
+	perfLastValue     [][]uint64
+	perfLastEnabled   []uint64
+	perfLastRunning   []uint64
+	lastCPUUsage      []uint64 // {cpu usage, system usage}
+	lastCPUUsage1     []uint64 // {cpu usage, system usage}
+	pqosLastValue     []uint64
+	pqosMonitorData   *C.struct_pqos_mon_data
+	pqosPidsMap       map[C.pid_t]bool
+	monitorStarted    bool
+	isLatencyCritical bool
+	isBestEffort      bool
 }
 
 func newContainer(id, name string) (*Container, error) {
@@ -71,6 +73,12 @@ func newContainer(id, name string) (*Container, error) {
 				log.Println(err)
 			}
 		}
+	}
+	if _, ok := latencyCritical[name]; ok {
+		ret.isLatencyCritical = true
+	}
+	if _, ok := bestEffort[name]; ok {
+		ret.isBestEffort = true
 	}
 	return &ret, nil
 }
