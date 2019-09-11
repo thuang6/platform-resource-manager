@@ -61,15 +61,16 @@ func main() {
 	readCgroupDriver()
 	initWorkload()
 
-	if *detect {
-		initThreshold()
-	}
 	if *prometheusPort != 0 {
 		go prometheusStart([]interface{}{Metric{}, Utilization{}})
 	}
-	//	if *control {
-	//		// TODO
-	//	}
+
+	if *detect {
+		initThreshold()
+	}
+	if *control {
+		initController()
+	}
 
 	go handleData()
 	go startCollectMetrics()

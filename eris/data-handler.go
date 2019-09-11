@@ -40,6 +40,8 @@ func handleData() {
 		select {
 		case utils := <-utilizationChannel:
 			var lcUtils, beUtils float64
+			bes := []*Container{}
+			lcs := []*Container{}
 			ts := utils[0].Time
 			for _, u := range utils {
 				if *prometheusPort != 0 {
@@ -48,11 +50,18 @@ func handleData() {
 				if *recordUtil {
 					utilCsvWriter.Write(getEntry(u))
 				}
-				if _, ok := latencyCritical[u.Name]; ok {
-					lcUtils += u.CPUUtilization
-				}
+
+				con, exist := containers[u.Cid]
 				if _, ok := bestEffort[u.Name]; ok {
 					beUtils += u.CPUUtilization
+					if exist {
+						bes = append(bes, con)
+					}
+				} else {
+					lcUtils += u.CPUUtilization
+					if exist {
+						lcs = append(lcs, con)
+					}
 				}
 			}
 			if *recordUtil {
@@ -64,6 +73,13 @@ func handleData() {
 			}
 			if lcUtils > thresholds.LcUtilMax {
 				updateLcUtilMax(lcUtils)
+			}
+			if *control && len(bes) > 0 {
+				exceed, hold := cpuq.detectMarginExceed(lcUtils, beUtils)
+				if !*enableHold {
+					hold = false
+				}
+				controllers[cycleContention].update(bes, lcs, exceed, hold)
 			}
 		case metrics := <-metricChannel:
 			contends := map[int]bool{llcContention: false, mbwContention: false, tdpContention: false}

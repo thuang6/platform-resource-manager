@@ -62,16 +62,40 @@ func updateContainers() {
 			}
 		}
 
+		newbe := false
+		bes := []*Container{}
+		lcs := []*Container{}
 		for id, name := range cons {
-			// initialize new containers
-			if _, ok := containers[id]; !ok {
-				cgroup, err := newContainer(id, strings.TrimLeft(name, "/"))
-				if err != nil {
-					//							log.Println(err)
-				} else {
+			name = strings.TrimLeft(name, "/")
+			con, ok := containers[id]
+			if !ok {
+				// initialize new containter
+				cgroup, err := newContainer(id, name)
+				if err == nil {
 					containers[id] = cgroup
+					if *control {
+						if _, ok := bestEffort[name]; ok {
+							newbe = true
+							bes = append(bes, cgroup)
+							setShare(cgroup, shareBe)
+						} else {
+							lcs = append(lcs, cgroup)
+							setShare(cgroup, shareLc)
+						}
+					}
+				}
+			} else {
+				if *control {
+					if _, ok := bestEffort[name]; ok {
+						bes = append(bes, con)
+					} else {
+						lcs = append(lcs, con)
+					}
 				}
 			}
+		}
+		if *control && newbe {
+			cpuq.budgeting(bes, lcs)
 		}
 	}
 }
