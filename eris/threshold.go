@@ -35,20 +35,18 @@ type Threshold struct {
 var thresholds = Threshold{}
 
 func initThreshold() {
-	if *detect {
-		f, err := os.OpenFile(*threshFile, os.O_RDONLY, os.ModePerm)
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-		bs, err := ioutil.ReadAll(f)
-		if err != nil {
-			panic(err)
-		}
-		err = json.Unmarshal(bs, &thresholds)
-		if err != nil {
-			panic(err)
-		}
+	f, err := os.OpenFile(*threshFile, os.O_RDONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	bs, err := ioutil.ReadAll(f)
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(bs, &thresholds)
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -59,10 +57,13 @@ func updateLcUtilMax(lcmax float64) {
 		if err != nil {
 			panic(err)
 		}
-		err = ioutil.WriteFile(*threshFile, thresh, os.ModePerm)
+		err = ioutil.WriteFile(*threshFile, thresh, 0644)
 		if err != nil {
 			panic(err)
 		}
+	}
+	if *control {
+		cpuq.updateSysMaxUtil(lcmax)
 	}
 }
 

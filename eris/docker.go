@@ -51,13 +51,29 @@ func getCgroupPath(id string) string {
 	}
 }
 
-func getCgroupCPUPath(id string) string {
+func getCgroupCPUBase(id string) string {
 	switch cgroupDriver {
 	case "cgroupfs":
-		return "/sys/fs/cgroup/cpu/docker/" + id + "/cpuacct.usage"
+		return "/sys/fs/cgroup/cpu/docker/" + id
 	case "systemd":
-		return "/sys/fs/cgroup/cpu/system.slice/docker-" + id + ".scope/cpuacct.usage"
+		return "/sys/fs/cgroup/cpu/system.slice/docker-" + id + ".scope"
 	default:
 		return ""
 	}
+}
+
+func getCgroupCPUPath(id string) string {
+	return getCgroupCPUBase(id) + "/cpuacct.usage"
+}
+
+func getCgroupCfsPeriodPath(id string) string {
+	return getCgroupCPUBase(id) + "/cpu.cfs_period_us"
+}
+
+func getCgroupCfsQuotaPath(id string) string {
+	return getCgroupCPUBase(id) + "/cpu.cfs_quota_us"
+}
+
+func getCgroupSharePath(id string) string {
+	return getCgroupCPUBase(id) + "/cpu.shares"
 }
