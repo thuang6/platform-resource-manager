@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -58,9 +57,8 @@ func newContainer(id, name string) (*Container, error) {
 			log.Println(err)
 		}
 	}
-	cpus := runtime.NumCPU()
-	ret.fds = make([][]uintptr, cpus)
-	for i := 0; i < cpus; i++ {
+	ret.fds = make([][]uintptr, numCPU)
+	for i := 0; i < numCPU; i++ {
 		ret.fds[i] = make([]uintptr, len(peCounters))
 		ret.fds[i][0], err = openPerfLeader(ret.file.Fd(), uintptr(i), peCounters[0])
 		if err != nil {
@@ -84,8 +82,7 @@ func newContainer(id, name string) (*Container, error) {
 }
 
 func (c *Container) start() {
-	cpus := runtime.NumCPU()
-	for i := 0; i < cpus; i++ {
+	for i := 0; i < numCPU; i++ {
 		for j := 0; j < len(peCounters); j++ {
 			err := startPerf(c.fds[i][j])
 			if err != nil {
@@ -115,11 +112,10 @@ func (c *Container) pollPqos() []uint64 {
 }
 
 func (c *Container) pollPerf() []uint64 {
-	cpus := runtime.NumCPU()
-	newData := make([][]uint64, cpus)
-	enabled := make([]uint64, cpus)
-	running := make([]uint64, cpus)
-	for i := 0; i < cpus; i++ {
+	newData := make([][]uint64, numCPU)
+	enabled := make([]uint64, numCPU)
+	running := make([]uint64, numCPU)
+	for i := 0; i < numCPU; i++ {
 		var err error
 		newData[i], enabled[i], running[i], err = readPerf(c.fds[i][0])
 		if err != nil {
@@ -130,7 +126,7 @@ func (c *Container) pollPerf() []uint64 {
 	var res []uint64
 	if c.perfLastValue != nil {
 		res = make([]uint64, len(peCounters))
-		for i := 0; i < cpus; i++ {
+		for i := 0; i < numCPU; i++ {
 			for j := 0; j < len(peCounters); j++ {
 				if enabled[i]-c.perfLastEnabled[i] != 0 {
 					res[j] += uint64(float64(newData[i][j]-c.perfLastValue[i][j]) / float64(enabled[i]-c.perfLastEnabled[i]) * float64(running[i]-c.perfLastRunning[i]))
@@ -186,8 +182,7 @@ func (c *Container) pollCPUUsage(isMetrics bool) []uint64 {
 }
 
 func (c *Container) finalize() {
-	cpus := runtime.NumCPU()
-	for i := 0; i < cpus; i++ {
+	for i := 0; i < numCPU; i++ {
 		for j := 0; j < len(peCounters); j++ {
 			syscall.Close(int(c.fds[i][j]))
 		}

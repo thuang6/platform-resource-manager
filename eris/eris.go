@@ -25,6 +25,7 @@ package main
 // #cgo LDFLAGS: -Wl,-z,noexecstack
 // #cgo LDFLAGS: -Wl,-z,relro
 // #cgo LDFLAGS: -Wl,-z,now
+// #include <sys/sysinfo.h>
 import "C"
 
 import (
@@ -53,6 +54,12 @@ var marginRatio = flag.Float64("margin-ratio", 0.5, "margin ratio related to one
 var threshFile = flag.String("thresh-file", "threshold.json", "threshold model file build from analyze.py tool")
 var metricFile = flag.String("metric-file", "metric.csv", "file to store collected metrics")
 var utilFile = flag.String("util-file", "util.csv", "file to store collected utilization")
+
+var numCPU int
+
+func init() {
+	numCPU = int(C.get_nprocs())
+}
 
 func main() {
 	flag.Parse()
