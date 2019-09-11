@@ -100,7 +100,7 @@ func (c *Container) pollPqos() []uint64 {
 		return nil
 	}
 	v := c.pqosMonitorData.values
-	rdtValue := []uint64{uint64(v.llc), uint64(v.mbm_local), uint64(v.mbm_remote)}
+	rdtValue := []uint64{uint64(v.llc), uint64(v.mbm_local), uint64(v.mbm_total - v.mbm_local)}
 	if c.pqosLastValue == nil {
 		c.pqosLastValue = rdtValue
 		return nil
