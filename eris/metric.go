@@ -20,7 +20,7 @@ type Metric struct {
 	CacheMiss                    uint64  `header:"cache_miss" event:"LONGEST_LAT_CACHE.MISS" gauge:"cma_llc_miss" gauge_help:"Cache misses of a container"`
 	NormalizedFrequency          uint64  `header:"normalized_frequency" gauge:"cma_average_frequency" gauge_help:"Normalized Frequency of a container"`
 	CPUUtilization               float64 `header:"cpu_utilization" gauge:"cma_cpu_usage_percentage" gauge_help:"CPU usage percentage of a container"`
-	CacheOccupancy               uint64  `header:"cache_occupancy" gauge:"cma_llc_occupancy" gauge_help:"Last level cache occupancy of a container"`
+	CacheOccupancy               float64 `header:"cache_occupancy" gauge:"cma_llc_occupancy" gauge_help:"Last level cache occupancy of a container"`
 	MemoryBandwidthLocal         float64 `header:"memory_bandwidth_local"`
 	MemoryBandwidthRemote        float64 `header:"memory_bandwidth_remote"`
 	MemoryBandwidthTotal         float64 `gauge:"cma_memory_bandwidth" gauge_help:"Total memory bandwidth of a container"`
@@ -103,8 +103,19 @@ func startCollectMetrics() {
 	ticker := newDelayedTicker(0, time.Duration(*metricInterval)*time.Second)
 	utilTicker := newDelayedTicker(0, time.Duration(*utilInterval)*time.Second)
 	pqosUpdate := time.NewTicker(time.Duration(1 * time.Second))
+	cacheOccupancySample := newDelayedTicker(2, 500*time.Millisecond)
 	for {
 		select {
+		case <-cacheOccupancySample.C:
+			for _, c := range containers {
+				if c.monitorStarted {
+					// read pqos cache occupancy data
+					if llc, err := c.pollCacheOccupancy(); err == nil {
+						c.cacheOccupancyCount++
+						c.cacheOccupancySum += llc
+					}
+				}
+			}
 		case <-pqosUpdate.C:
 			for _, c := range containers {
 				pidsMap, err := listTaskPid(c.id)
@@ -167,16 +178,22 @@ func startCollectMetrics() {
 					m.CPUUtilization = float64(cpuData[0]) / float64(cpuData[1]) * float64(numCPU) * 100.0
 				}
 
-				// read pqos rdt data
-				pqosData := container.pollPqos()
-				if pqosData != nil {
-					m.CacheOccupancy = pqosData[0] / 1024
-					m.MemoryBandwidthLocal = float64(pqosData[1]) / 1024.0 / 1024.0 / float64(*metricInterval)
-					m.MemoryBandwidthRemote = float64(pqosData[2]) / 1024.0 / 1024.0 / float64(*metricInterval)
+				// read pqos memory bandwidth data
+				memoryBandwidthData := container.pollMemoryBandwidth()
+				if memoryBandwidthData != nil {
+					m.MemoryBandwidthLocal = float64(memoryBandwidthData[0]) / 1024.0 / 1024.0 / float64(*metricInterval)
+					m.MemoryBandwidthRemote = float64(memoryBandwidthData[1]) / 1024.0 / 1024.0 / float64(*metricInterval)
+				}
+
+				var llcValid bool
+				if container.cacheOccupancyCount > 0 {
+					llcValid = true
+					m.CacheOccupancy = float64(container.cacheOccupancySum) / float64(container.cacheOccupancyCount)
+					container.cacheOccupancySum, container.cacheOccupancyCount = 0, 0
 				}
 
 				m.calculate()
-				if perfData != nil && cpuData != nil && pqosData != nil {
+				if perfData != nil && cpuData != nil && memoryBandwidthData != nil && llcValid {
 					metrics[container.name] = m
 				}
 			}

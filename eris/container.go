@@ -14,22 +14,24 @@ import (
 )
 
 type Container struct {
-	file              *os.File
-	cpuFile           *os.File
-	name              string
-	id                string
-	fds               [][]uintptr
-	perfLastValue     [][]uint64
-	perfLastEnabled   []uint64
-	perfLastRunning   []uint64
-	lastCPUUsage      []uint64 // {cpu usage, system usage}
-	lastCPUUsage1     []uint64 // {cpu usage, system usage}
-	pqosLastValue     []uint64
-	pqosMonitorData   *C.struct_pqos_mon_data
-	pqosPidsMap       map[C.pid_t]bool
-	monitorStarted    bool
-	isLatencyCritical bool
-	isBestEffort      bool
+	file                *os.File
+	cpuFile             *os.File
+	name                string
+	id                  string
+	fds                 [][]uintptr
+	perfLastValue       [][]uint64
+	perfLastEnabled     []uint64
+	perfLastRunning     []uint64
+	lastCPUUsage        []uint64 // {cpu usage, system usage}
+	lastCPUUsage1       []uint64 // {cpu usage, system usage}
+	cacheOccupancySum   uint64
+	cacheOccupancyCount uint64
+	pqosLastValue       []uint64
+	pqosMonitorData     *C.struct_pqos_mon_data
+	pqosPidsMap         map[C.pid_t]bool
+	monitorStarted      bool
+	isLatencyCritical   bool
+	isBestEffort        bool
 }
 
 func newContainer(id, name string) (*Container, error) {
@@ -92,22 +94,29 @@ func (c *Container) start() {
 	}
 }
 
-func (c *Container) pollPqos() []uint64 {
+func (c *Container) pollCacheOccupancy() (uint64, error) {
+	if pollPqos(c.pqosMonitorData) != nil {
+		return 0, fmt.Errorf("fail to poll cache occupancy")
+	}
+	return uint64(c.pqosMonitorData.values.llc / 1024), nil
+}
+
+func (c *Container) pollMemoryBandwidth() []uint64 {
 	if pollPqos(c.pqosMonitorData) != nil {
 		return nil
 	}
 	v := c.pqosMonitorData.values
-	rdtValue := []uint64{uint64(v.llc), uint64(v.mbm_local), uint64(v.mbm_total - v.mbm_local)}
+	mbmValue := []uint64{uint64(v.mbm_local), uint64(v.mbm_total - v.mbm_local)}
 	if c.pqosLastValue == nil {
-		c.pqosLastValue = rdtValue
+		c.pqosLastValue = mbmValue
 		return nil
 	}
 	// last level cache is an instant value and no need to calculate delta
-	ret := []uint64{uint64(v.llc)}
-	for i := 1; i < len(c.pqosLastValue); i++ {
-		ret = append(ret, rdtValue[i]-c.pqosLastValue[i])
+	ret := []uint64{}
+	for i := 0; i < len(c.pqosLastValue); i++ {
+		ret = append(ret, mbmValue[i]-c.pqosLastValue[i])
 	}
-	c.pqosLastValue = rdtValue
+	c.pqosLastValue = mbmValue
 	return ret
 }
 
