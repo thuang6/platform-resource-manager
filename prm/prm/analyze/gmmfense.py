@@ -114,12 +114,12 @@ class GmmFense:
             if normal > strict:
                 return normal
             return strict
-    
+
     def get_gaussian_round_fense(self, is_upper, is_strict, span=3):
         """
         Get threshold by looing into each gaussian
             is_upper - If True, upper fense is returned
-            is_strict - If True, pick less aggressive value from 
+            is_strict - If True, pick less aggressive value from
                         ( 3_std_threshold,
                         if is_upper is True: max point of the gaussian
                         if is_upper is False: min point of the gaussian )
