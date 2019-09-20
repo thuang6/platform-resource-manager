@@ -24,6 +24,7 @@ from sklearn import mixture
 
 log = logging.getLogger(__name__)
 
+
 class GmmFense:
     """ This class implements GMM fense build and related retrieve methods """
 
