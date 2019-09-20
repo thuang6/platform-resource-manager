@@ -24,7 +24,6 @@ from sklearn import mixture
 
 log = logging.getLogger(__name__)
 
-
 class GmmFense:
     """ This class implements GMM fense build and related retrieve methods """
 
@@ -115,12 +114,12 @@ class GmmFense:
             if normal > strict:
                 return normal
             return strict
-
+    
     def get_gaussian_round_fense(self, is_upper, is_strict, span=3):
         """
         Get threshold by looing into each gaussian
             is_upper - If True, upper fense is returned
-            is_strict - If True, pick less aggressive value from
+            is_strict - If True, pick less aggressive value from 
                         ( 3_std_threshold,
                         if is_upper is True: max point of the gaussian
                         if is_upper is False: min point of the gaussian )
@@ -129,17 +128,20 @@ class GmmFense:
         """
         index_sort_means = np.argsort(self.gmm.means_, axis=0)
         labels = self.gmm.predict(self.data)
-
         if is_upper is True:
-            index_sort_means = np.flipud(index_sort_means)
+                index_sort_means = np.flipud(index_sort_means)
 
         threshold = -1.0
-        last_threshold = -1.0
-        last_percentage = -1.0
+        percentage = 0.0
+        
         total = float(self.data.shape[0])
+        threshold_candidates = []
+        threshold_percentages = []
 
-        for i in index_sort_means:
-            gaussian_index = i[0]
+        n_component = self.gmm.means_.shape[0]
+
+        for i in range(0, n_component):
+            gaussian_index = i
             gaussian_data = np.take(self.data, axis=0, indices=np.where(labels == gaussian_index))
             mean = self.gmm.means_[gaussian_index][0]
             std = math.sqrt(self.gmm.covariances_[gaussian_index][0])
@@ -150,24 +152,42 @@ class GmmFense:
                 threshold = n_std_bar
                 if is_strict is True:
                     threshold = n_std_bar if n_std_bar < data_bar else data_bar
-                outlier_count = (self.data > threshold).sum()
+                percentage = (self.data > threshold).sum() / total
             else:
                 data_bar = np.amin(gaussian_data)
                 n_std_bar = mean - span * std
                 threshold = n_std_bar
                 if is_strict is True:
                     threshold = n_std_bar if n_std_bar > data_bar else data_bar
-                outlier_count = (self.data < threshold).sum()
+                percentage = (self.data < threshold).sum() / total
 
-            percentage = float(outlier_count) / total
+            threshold_candidates.append(threshold)
+            threshold_percentages.append(percentage)
+        
+        log.debug("threshold candidates:", threshold_candidates)
+        log.debug("threshold outiler percentages:", threshold_percentages)
 
-            if percentage > self.thresh:
-                if last_threshold != -1:
-                    if np.abs(last_percentage - self.thresh) < np.abs(percentage - self.thresh):
-                        threshold = last_threshold
+        percentages = np.array(threshold_percentages)
+        percentages_sorted = np.argsort(percentages)
+
+        last_index = -1
+        threshold = -1
+
+        """
+        scan outlier percentage of each threshold ascendingly
+        select the threshold whose outlier percentage is closest to self.thresh (also less than)
+        if none of the threshold's outlier pecentage is less than self.thresh, return the threshold
+        smallest outlier percentage
+        """
+        for percentage_index in percentages_sorted:
+            if percentages[percentage_index] > self.thresh:
+                if last_index != -1:
+                    threshold = threshold_candidates[last_index]
+                else:
+                    threshold = threshold_candidates[percentage_index]
                 break
             else:
-                last_threshold = threshold
-                last_percentage = percentage
-
+                threshold = threshold_candidates[percentage_index]
+                last_index = percentage_index
+        
         return threshold
