@@ -172,8 +172,8 @@ class GmmFense:
         """
         scan outlier percentage of each threshold ascendingly
         select the threshold whose outlier percentage is closest to self.thresh (also less than)
-        if none of the thresholds' outlier pecentage is less than self.thresh, return the threshold
-        with the smallest outlier percentage
+        if none of the threshold's outlier pecentage is less than self.thresh, return the threshold
+        smallest outlier percentage
         """
         for percentage_index in percentages_sorted:
             if percentages[percentage_index] > self.thresh:
