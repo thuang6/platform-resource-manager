@@ -127,14 +127,19 @@ class GmmFense:
                         If False, always 3_std_threshold
             span - how many sigma span for normal fense
         """
+        index_sort_means = np.argsort(self.gmm.means_, axis=0)
+        labels = self.gmm.predict(self.data)
+        if is_upper is True:
+                index_sort_means = np.flipud(index_sort_means)
+
         threshold = -1.0
         percentage = 0.0
+        
+        total = float(self.data.shape[0])
         threshold_candidates = []
         threshold_percentages = []
 
-        total = float(self.data.shape[0])
         n_component = self.gmm.means_.shape[0]
-        labels = self.gmm.predict(self.data)
 
         for i in range(0, n_component):
             gaussian_index = i
