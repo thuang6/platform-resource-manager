@@ -7,6 +7,7 @@ for the Workload Collocation Agent (WCA).
 
 - [Introduction](#Introduction)
 - [Get started](#Get-started)
+- [Build from dockerfile](#Build-from-dockerfile)
 - [Security consideration](#Security-consideration)
   - [Run WCA PRM agent with proper privilege](#Run-WCA-PRM-agent-with-proper-privilege)
   - [Protect configuration and model file](#Protect-configuration-and-model-file)
@@ -34,6 +35,18 @@ WCA/PRM agent and how to configure agent to work with differen type of job sched
 [Model Builder Guide](doc/model.md) introduces how to deploy and configure model builder, including
 how to configure model builder to aggregate platform metrics cross nodes and how to configure model
 builder to store the models. 
+
+## Build from dockerfile
+The Intel® PRM plugin for WCA support build from Dockerfile. To build the project, Please run the command below.
+```
+// Need Proxy
+docker build -t prm:latest --build-arg="http_proxy=$http_proxy" --build-arg="https_proxy=$https_proxy" .
+// No Proxy
+sed -i s/--proxy=\\\$https_proxy//g Dockerfile
+docker build -t prm:latest .
+
+```
+The binary file will be placed at /platform-resource-manager/prm/dist/wca-prm.pex in the image. Do not try deploy WCA/PRM in the container since it is not verified.
 
 ## Security consideration 
 
