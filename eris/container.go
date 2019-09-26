@@ -106,7 +106,12 @@ func (c *Container) pollMemoryBandwidth() []uint64 {
 		return nil
 	}
 	v := c.pqosMonitorData.values
-	mbmValue := []uint64{uint64(v.mbm_local), uint64(v.mbm_total - v.mbm_local)}
+	var mbmValue []uint64
+	if v.mbm_total > v.mbm_local {
+		mbmValue = []uint64{uint64(v.mbm_local), uint64(v.mbm_total - v.mbm_local)}
+	} else {
+		mbmValue = []uint64{uint64(v.mbm_local), 0}
+	}
 	if c.pqosLastValue == nil {
 		c.pqosLastValue = mbmValue
 		return nil
