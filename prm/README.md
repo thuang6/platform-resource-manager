@@ -40,13 +40,13 @@ builder to store the models.
 The Intel® PRM plugin for WCA support build from Dockerfile. To build the project, Please run the command below.
 ```
 // Need Proxy
-docker build -t prm:latest --build-arg="http_proxy=$http_proxy" --build-arg="all_proxy=$all_proxy" --build-arg="https_proxy=$https_proxy" .
+docker build -t prm:latest --build-arg="http_proxy=$http_proxy" --build-arg="https_proxy=$https_proxy" .
 // No Proxy
 sed -i s/--proxy=\\\$https_proxy//g Dockerfile
 docker build -t prm:latest .
 
 ```
-The binary file will be placed at /platform-resource-manager/prm/dist/wca-prm.pex in the image.
+The binary file will be placed at /platform-resource-manager/prm/dist/wca-prm.pex in the image. Do not try deploy WCA/PRM in the container since it is not verified.
 
 ## Security consideration 
 
