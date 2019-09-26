@@ -115,6 +115,11 @@ class Container:
         """
         update measurements in current cycle and calculate metrics
         """
+
+        def delta(name):
+            dlt = measurements[name] - self.measurements[name]
+            return dlt if dlt > 0 else 0
+
         if self.cpu_usage != 0:
             self.util = (measurements[MetricName.CPU_USAGE_PER_TASK] -
                          self.cpu_usage) * 100 / ((timestamp - self.usg_tt) * 1e9)
@@ -127,14 +132,10 @@ class Container:
         if self.measurements and agg:
             metrics = self.metrics
             delta_t = timestamp - self.timestamp
-            metrics[Metric.CYC] = measurements[MetricName.CYCLES] -\
-                self.measurements[MetricName.CYCLES]
-            metrics[Metric.INST] = measurements[MetricName.INSTRUCTIONS] -\
-                self.measurements[MetricName.INSTRUCTIONS]
-            metrics[Metric.L3MISS] = measurements[MetricName.CACHE_MISSES] -\
-                self.measurements[MetricName.CACHE_MISSES]
-            metrics[Metric.MEMSTALL] = measurements[MetricName.MEMSTALL] -\
-                self.measurements[MetricName.MEMSTALL]
+            metrics[Metric.CYC] = delta(MetricName.CYCLES)
+            metrics[Metric.INST] = delta(MetricName.INSTRUCTIONS)
+            metrics[Metric.L3MISS] = delta(MetricName.CACHE_MISSES)
+            metrics[Metric.MEMSTALL] = delta(MetricName.MEMSTALL)
             if self.llc_cnt == 0:
                 metrics[Metric.L3OCC] = 0
             else:
@@ -151,9 +152,7 @@ class Container:
                     metrics[Metric.INST]
                 metrics[Metric.MSPKI] = metrics[Metric.MEMSTALL] * 1000 /\
                     metrics[Metric.INST]
-            metrics[Metric.UTIL] = (measurements[MetricName.CPU_USAGE_PER_TASK]
-                                    - self.measurements[MetricName.CPU_USAGE_PER_TASK])\
-                * 100 / (delta_t * 1e9)
+            metrics[Metric.UTIL] = delta(MetricName.CPU_USAGE_PER_TASK) * 100 / (delta_t * 1e9)
             if measurements.get(MetricName.MEM_BW, 0) > 0:
                 metrics[Metric.MB] = (measurements[MetricName.MEM_BW] -
                                       self.measurements.get(MetricName.MEM_BW, 0)) /\
