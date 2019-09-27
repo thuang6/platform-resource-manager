@@ -25,9 +25,10 @@ func initCsvHeader(csvFile string, v interface{}) *csv.Writer {
 	return csvWriter
 }
 
+var metricCsvWriter, utilCsvWriter *csv.Writer
+
 func handleData() {
 
-	var metricCsvWriter, utilCsvWriter *csv.Writer
 	if *recordMetric {
 		metricCsvWriter = initCsvHeader(*metricFile, Metric{})
 	}

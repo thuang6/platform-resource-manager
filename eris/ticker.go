@@ -8,7 +8,7 @@ type delayedTicker struct {
 
 func newDelayedTicker(delay, period time.Duration) *delayedTicker {
 	ret := &delayedTicker{C: make(chan bool, 1)}
-	ret.C <- true
+	time.Sleep(delay)
 	go func() {
 		tick := time.NewTicker(period)
 		for ; ; <-tick.C {

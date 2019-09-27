@@ -39,6 +39,12 @@ func init() {
 	return
 }
 
+func pqosFin() {
+	if C.pqos_fini() != C.PQOS_RETVAL_OK {
+		log.Printf("pqos fini error")
+	}
+}
+
 func freePqosGroup(id string) {
 	C.free_pqos_mon_data(pqosGroups[id])
 }
@@ -134,7 +140,7 @@ func pollPqos(data *C.struct_pqos_mon_data) error {
 }
 
 func listTaskPid(id string) (map[C.pid_t]bool, error) {
-	f, err := os.OpenFile(getCgroupPath(id)+"/tasks", os.O_RDONLY, os.ModePerm)
+	f, err := os.OpenFile(getCgroupPath(id)+"/cgroup.procs", os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}

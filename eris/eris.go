@@ -30,6 +30,7 @@ import "C"
 
 import (
 	"flag"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -85,4 +86,12 @@ func main() {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
+	log.Printf("exiting...\n")
+	if metricCsvWriter != nil {
+		metricCsvWriter.Flush()
+	}
+	if utilCsvWriter != nil {
+		utilCsvWriter.Flush()
+	}
+	pqosFin()
 }
