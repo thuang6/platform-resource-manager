@@ -139,8 +139,8 @@ func startCollectMetrics() {
 
 			}
 		case <-utilTicker.C:
-			updateContainers()
 			ts := uint64(time.Now().Unix())
+			updateContainers()
 			var utils []Utilization
 			for id, container := range containers {
 				u := Utilization{Time: ts, Cid: id, Name: container.name}
@@ -154,8 +154,8 @@ func startCollectMetrics() {
 				utilizationChannel <- utils
 			}
 		case <-ticker.C:
-			updateContainers()
 			ts := uint64(time.Now().Unix())
+			updateContainers()
 			metrics := map[string]Metric{}
 			for id, container := range containers {
 				if !container.monitorStarted {
