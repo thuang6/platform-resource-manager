@@ -107,11 +107,8 @@ func (c *Container) pollMemoryBandwidth() []uint64 {
 	}
 	v := c.pqosMonitorData.values
 	var mbmValue []uint64
-	if v.mbm_total > v.mbm_local {
-		mbmValue = []uint64{uint64(v.mbm_local), uint64(v.mbm_total - v.mbm_local)}
-	} else {
-		mbmValue = []uint64{uint64(v.mbm_local), 0}
-	}
+	mbmValue = []uint64{uint64(v.mbm_total), uint64(v.mbm_local)}
+
 	if c.pqosLastValue == nil {
 		c.pqosLastValue = mbmValue
 		return nil
@@ -120,6 +117,11 @@ func (c *Container) pollMemoryBandwidth() []uint64 {
 	ret := []uint64{}
 	for i := 0; i < len(c.pqosLastValue); i++ {
 		ret = append(ret, mbmValue[i]-c.pqosLastValue[i])
+	}
+	if ret[0] > ret[1] {
+		ret = append(ret, ret[0]-ret[1])
+	} else {
+		ret = append(ret, 0)
 	}
 	c.pqosLastValue = mbmValue
 	return ret

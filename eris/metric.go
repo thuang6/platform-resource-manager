@@ -181,8 +181,8 @@ func startCollectMetrics() {
 				// read pqos memory bandwidth data
 				memoryBandwidthData := container.pollMemoryBandwidth()
 				if memoryBandwidthData != nil {
-					m.MemoryBandwidthLocal = float64(memoryBandwidthData[0]) / 1024.0 / 1024.0 / float64(*metricInterval)
-					m.MemoryBandwidthRemote = float64(memoryBandwidthData[1]) / 1024.0 / 1024.0 / float64(*metricInterval)
+					m.MemoryBandwidthLocal = float64(memoryBandwidthData[1]) / 1024.0 / 1024.0 / float64(*metricInterval)
+					m.MemoryBandwidthRemote = float64(memoryBandwidthData[2]) / 1024.0 / 1024.0 / float64(*metricInterval)
 				}
 
 				var llcValid bool
