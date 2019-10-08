@@ -87,11 +87,15 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
 	log.Printf("exiting...\n")
-	if metricCsvWriter != nil {
+	if metricCsvWriter != nil && metricCsvFile != nil {
 		metricCsvWriter.Flush()
+		metricCsvFile.Sync()
+		metricCsvFile.Close()
 	}
-	if utilCsvWriter != nil {
+	if utilCsvWriter != nil && utilCsvFile != nil {
 		utilCsvWriter.Flush()
+		utilCsvFile.Sync()
+		utilCsvFile.Close()
 	}
 	pqosFin()
 }

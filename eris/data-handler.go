@@ -8,7 +8,7 @@ import (
 var metricChannel = make(chan map[string]Metric, 2)
 var utilizationChannel = make(chan []Utilization, 1000)
 
-func initCsvHeader(csvFile string, v interface{}) *csv.Writer {
+func initCsvHeader(csvFile string, v interface{}) (*csv.Writer, *os.File) {
 	var csvWriter *csv.Writer
 	f, err := os.OpenFile(csvFile, os.O_APPEND|os.O_WRONLY, os.ModePerm)
 	if err != nil {
@@ -22,18 +22,19 @@ func initCsvHeader(csvFile string, v interface{}) *csv.Writer {
 	} else {
 		csvWriter = csv.NewWriter(f)
 	}
-	return csvWriter
+	return csvWriter, f
 }
 
 var metricCsvWriter, utilCsvWriter *csv.Writer
+var metricCsvFile, utilCsvFile *os.File
 
 func handleData() {
 
 	if *recordMetric {
-		metricCsvWriter = initCsvHeader(*metricFile, Metric{})
+		metricCsvWriter, metricCsvFile = initCsvHeader(*metricFile, Metric{})
 	}
 	if *recordUtil {
-		utilCsvWriter = initCsvHeader(*utilFile, Utilization{})
+		utilCsvWriter, utilCsvFile = initCsvHeader(*utilFile, Utilization{})
 	}
 
 	count := 0
