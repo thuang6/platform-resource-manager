@@ -28,7 +28,7 @@ func init() {
 	config := C.struct_pqos_config{
 		fd_log:     2,
 		verbose:    -1,
-		_interface: C.PQOS_INTER_OS,
+		_interface: C.PQOS_INTER_OS_RESCTRL_MON,
 	}
 	ec := C.pqos_init(&config)
 	if ec != C.PQOS_RETVAL_OK {
@@ -64,16 +64,10 @@ func newPqosGroup(id string, mapPids map[C.pid_t]bool) (*C.struct_pqos_mon_data,
 	for i := 0; i < cpus; i++ {
 		cpulist[i] = C.unsigned(i)
 	}
-	ec := C.pqos_mon_start(C.unsigned(numCPU), (*C.unsigned)(unsafe.Pointer(&cpulist[0])),
-		C.PQOS_MON_EVENT_L3_OCCUP|C.PQOS_MON_EVENT_LMEM_BW|C.PQOS_MON_EVENT_RMEM_BW,
-		nil, pqosData)
-	if ec != C.PQOS_RETVAL_OK {
-		return nil, fmt.Errorf("failed to start monitor pqos, error code %+v", ec)
-	}
 
-	ec = C.pqos_mon_add_pids(C.unsigned(len(pids)), (*C.pid_t)(unsafe.Pointer(&pids[0])), pqosData)
+	ec := C.pqos_mon_start_pids(C.unsigned(len(pids)), (*C.pid_t)(unsafe.Pointer(&pids[0])), C.PQOS_MON_EVENT_L3_OCCUP|C.PQOS_MON_EVENT_LMEM_BW|C.PQOS_MON_EVENT_RMEM_BW, nil, pqosData)
 	if ec != C.PQOS_RETVAL_OK {
-		return nil, fmt.Errorf("failed to add pqos pids, error code %+v", ec)
+		return nil, fmt.Errorf("failed to start pqos pids, error code %+v", ec)
 	}
 	pqosGroups[id] = pqosData
 	return pqosData, nil
