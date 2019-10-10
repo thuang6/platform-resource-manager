@@ -55,7 +55,7 @@ class GmmFense:
         log.debug('best gmm components number: %d, bic %f ', components, lowest_bic)
         self.gmm = best_gmm
 
-    def _is_greater_than(self, value, threshold):
+    def __is_greater_than(self, value, threshold):
         return Decimal(value) > Decimal(threshold)
 
     def __get_fense(self, is_upper, span=3):
@@ -180,7 +180,7 @@ class GmmFense:
         with the smallest outlier percentage
         """
         for percentage_index in percentages_sorted:
-            if self._is_greater_than(percentages[percentage_index], self.thresh):
+            if self.__is_greater_than(percentages[percentage_index], self.thresh):
                 if last_index != -1:
                     threshold = threshold_candidates[last_index]
                 else:
