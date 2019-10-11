@@ -97,7 +97,6 @@ func handleData() {
 					detectTDPContention(m, contends)
 				}
 			}
-			printHeatmap()
 			if *recordMetric {
 				metricCsvWriter.Flush()
 			}
