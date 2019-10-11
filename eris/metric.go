@@ -31,7 +31,9 @@ type Metric struct {
 	L3MissRequests  uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
 	L3MissCycles    uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
 	CyclesPerL3Miss float64 `header:"cycles_per_l3_miss" gauge:"cma_cycles_per_l3_miss" gauge_help:"cycles per l3 miss"`
-	//PMMInstruction         uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
+	PMMInstruction         uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
+        PMMInstTotal uint64 `header:"pmm_inst_local_total" gauge:"pmm_inst_retired_local_total" gauge_help:"memory local instruction retired on local pmm total"`
+        PMMInstPercentage float64 `header:"pmm_inst_retired_local_percentage" gauge:"pmm_inst_retired_local_percentage" gauge_help:"percentage of pmm inst retired local"`
 }
 
 func init() {
@@ -157,6 +159,7 @@ func startCollectMetrics() {
 			ts := uint64(time.Now().Unix())
 			updateContainers()
 			metrics := map[string]Metric{}
+                        var pmmRetiredInstTotalData uint64 = 0
 			for id, container := range containers {
 				if !container.monitorStarted {
 					container.start()
@@ -196,9 +199,22 @@ func startCollectMetrics() {
 				if perfData != nil && cpuData != nil && memoryBandwidthData != nil && llcValid {
 					metrics[container.name] = m
 				}
+
+                                pmmRetiredInstTotalData += m.PMMInstruction
 			}
+
 			if len(metrics) > 0 {
-				metricChannel <- metrics
+                                metricsFinal := map[string]Metric{}        
+                                for k, v := range metrics {
+                                    v.PMMInstTotal = pmmRetiredInstTotalData
+                                    if pmmRetiredInstTotalData != 0 {
+                                        v.PMMInstPercentage = float64(v.PMMInstruction) / float64(v.PMMInstTotal) * 100
+                                    } else {
+                                        v.PMMInstPercentage = 0.0
+                                    }
+                                    metricsFinal[k] = v
+                                }
+				metricChannel <- metricsFinal
 			}
 		}
 	}

@@ -6,5 +6,6 @@ const (
 	llcContention
 	mbwContention
 	tdpContention
+        pmmContention
 	unknownContention
 )
