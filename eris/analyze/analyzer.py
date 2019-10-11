@@ -54,7 +54,7 @@ class Metric(str, Enum):
     LCCAPACITY = 'latency_critical_utilization_capacity'
     LCMAX = 'latency_critical_utilization_max'
     SYSUTIL = 'system_utilization'
-
+    PMMPERCENTAGE = 'pmm_inst_retired_local_percentage'
 
 class Analyzer:
     UTIL_FILE = 'util.csv'
@@ -140,7 +140,6 @@ class Analyzer:
             cpu_no, Analyzer.UTIL_BIN_STEP)
         length = len(utilization_partition)
 
-        print(utilization_partition)
         for index, util in enumerate(utilization_partition):
             lower_bound = util
             if index != length - 1:
@@ -156,12 +155,14 @@ class Analyzer:
                 mpki = jdataf[Metric.L3MPKI]
                 mpki_thresh = self._get_fense(mpki, True, strict,
                                               span, use_origin)
+
                 if Metric.MB in jdataf.columns:
                     memb = jdataf[Metric.MB]
                 else:
                     memb = jdataf[Metric.MBL] + jdataf[Metric.MBR]
                 mb_thresh = self._get_fense(memb, False, strict,
-                                            span, use_origin)
+                                          span, use_origin)
+
                 thresh = {
                     'util_start': lower_bound.item(),
                     'util_end': higher_bound.item(),
@@ -179,9 +180,15 @@ class Analyzer:
                     mspki_thresh = self._get_fense(mspki, True, strict,
                                                    span, use_origin)
                     thresh['mspki'] = np.float64(mspki_thresh).item()
+
+                if Metric.PMMPERCENTAGE in jdataf.columns:
+                    pmm_percentage = jdataf[Metric.PMMPERCENTAGE]
+                    pmm_thresh = self._get_fense(pmm_percentage, False, strict,
+                                                   span, use_origin)
+                    thresh['pmm'] = np.float64(pmm_thresh).item()
+               
                 self.threshold['workloads'][job][ThreshType.METRICS.value].append(thresh)
             except Exception as e:
-                print(str(e))
                 if verbose:
                     log.exception('error in build threshold util=%r (%r)',
                                   job, util)
