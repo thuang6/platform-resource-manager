@@ -193,6 +193,10 @@ class Analyzer:
         self.threshold['lcutilmax'] = maxulc
         log.debug('max LC utilization: %f', maxulc)
 
+    def _write_threshold_file(self):
+        with open(self.thresh_file, 'w') as threshf:
+            json.dump(self.threshold, threshf, indent=4)
+
     def get_lcutilmax(self):
         return self.threshold.get('lcutilmax', 0)
 
@@ -201,8 +205,7 @@ class Analyzer:
 
     def update_lcutilmax(self, lc_utils):
         self.threshold['lcutilmax'] = lc_utils
-        with open(self.thresh_file, 'w') as threshf:
-            threshf.write(json.dumps(self.threshold))
+        self._write_threshold_file()
 
     def get_thresh(self, job, thresh_type):
         return self.threshold[job][thresh_type] if job in self.threshold else {}
@@ -224,7 +227,6 @@ class Analyzer:
         if self.threshold:
             if verbose:
                 log.warn(self.threshold)
-            with open(self.thresh_file, 'w') as threshf:
-                threshf.write(json.dumps(self.threshold))
+            self._write_threshold_file()
         else:
             log.warn('Fail to build local model, no enough data were collected!')
