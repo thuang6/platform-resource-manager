@@ -20,6 +20,7 @@
 import logging
 import math
 import numpy as np
+from decimal import Decimal
 from sklearn import mixture
 
 log = logging.getLogger(__name__)
@@ -53,6 +54,9 @@ class GmmFense:
                 components = n_components
         log.debug('best gmm components number: %d, bic %f ', components, lowest_bic)
         self.gmm = best_gmm
+
+    def __is_greater_than(self, value, threshold):
+        return Decimal(value) > Decimal(threshold)
 
     def __get_fense(self, is_upper, span=3):
         """
@@ -159,9 +163,9 @@ class GmmFense:
 
             threshold_candidates.append(threshold)
             threshold_percentages.append(percentage)
-        
-        log.debug("threshold candidates:", threshold_candidates)
-        log.debug("threshold outiler percentages:", threshold_percentages)
+
+        log.debug("threshold candidates: %s", str(threshold_candidates))
+        log.debug("threshold outiler percentages: %s", str(threshold_percentages))
 
         percentages = np.array(threshold_percentages)
         percentages_sorted = np.argsort(percentages)
@@ -176,7 +180,7 @@ class GmmFense:
         with the smallest outlier percentage
         """
         for percentage_index in percentages_sorted:
-            if percentages[percentage_index] > self.thresh:
+            if self.__is_greater_than(percentages[percentage_index], self.thresh):
                 if last_index != -1:
                     threshold = threshold_candidates[last_index]
                 else:
@@ -185,5 +189,5 @@ class GmmFense:
             else:
                 threshold = threshold_candidates[percentage_index]
                 last_index = percentage_index
-        
+
         return threshold
