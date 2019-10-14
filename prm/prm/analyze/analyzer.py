@@ -19,6 +19,7 @@
 
 from __future__ import print_function
 import logging
+from collections import defaultdict
 from enum import Enum
 import json
 from scipy import stats
@@ -26,6 +27,7 @@ import numpy as np
 import pandas as pd
 
 from .gmmfense import GmmFense
+from .model import DistriModel
 log = logging.getLogger(__name__)
 
 
@@ -78,7 +80,7 @@ class Analyzer:
         except Exception:
             self.threshold = {}
 
-    def partition_utilization(self, cpu_number, step=UTIL_BIN_STEP):
+    def partition_utilization(self, cpu_number, step=UTIL_BIN_STEP, ratio=0.3):
         """
         Partition utilizaton bins based on requested CPU number and step count
             cpu_number - processor count assigned to workload
@@ -116,29 +118,29 @@ class Analyzer:
                 'std': std.item(),
                 'bar': np.float64(fbar).item()}
 
-    def _get_fense_origin(self, mdf, is_upper, strict, span):
-        gmm_fense = GmmFense(mdf.values.reshape(-1, 1))
+    def _get_fense_origin(self, mdf, is_upper, strict, span, prob):
+        gmm_fense = GmmFense(mdf.values.reshape(-1, 1), prob)
         if strict:
             return gmm_fense.get_strict_fense(is_upper, span)
 
         return gmm_fense.get_normal_fense(is_upper, span)
 
-    def _get_fense(self, mdf, is_upper, strict, span, use_origin):
+    def _get_fense(self, mdf, is_upper, strict, span, prob, use_origin):
         if use_origin is True:
-            return self._get_fense_origin(mdf, is_upper, strict, span)
+            return self._get_fense_origin(mdf, is_upper, strict, span, prob)
 
-        gmm_fense = GmmFense(mdf.values.reshape(-1, 1))
+        gmm_fense = GmmFense(mdf.values.reshape(-1, 1), prob)
 
         return gmm_fense.get_gaussian_round_fense(is_upper, strict, span)
 
-    def _build_thresh(self, jdata, span, strict, use_origin, verbose):
+    def _build_thresh(self, jdata, ratio, span, prob, strict, use_origin, verbose):
         job = jdata['name'].values[0]
         if job not in self.workload_meta:
             return
         cpu_no = self.workload_meta[job]['cpus']
         utilization_partition = self.partition_utilization(
             cpu_no, Analyzer.UTIL_BIN_STEP)
-        length = len(utilization_partition)
+        length = len(utilization_partition, ratio)
 
         for index, util in enumerate(utilization_partition):
             lower_bound = util
@@ -151,16 +153,16 @@ class Analyzer:
                                (jdata[Metric.UTIL] <= higher_bound)]
                 cpi = jdataf[Metric.CPI]
                 cpi_thresh = self._get_fense(cpi, True, strict,
-                                             span, use_origin)
+                                             span, prob, use_origin)
                 mpki = jdataf[Metric.L3MPKI]
                 mpki_thresh = self._get_fense(mpki, True, strict,
-                                              span, use_origin)
+                                              span, prob, use_origin)
                 if Metric.MB in jdataf.columns:
                     memb = jdataf[Metric.MB]
                 else:
                     memb = jdataf[Metric.MBL] + jdataf[Metric.MBR]
                 mb_thresh = self._get_fense(memb, False, strict,
-                                            span, use_origin)
+                                            span, prob, use_origin)
                 thresh = {
                     'util_start': lower_bound.item(),
                     'util_end': higher_bound.item(),
@@ -171,19 +173,16 @@ class Analyzer:
                 if Metric.L2SPKI in jdataf.columns:
                     l2spki = jdataf[Metric.L2SPKI]
                     l2spki_thresh = self._get_fense(l2spki, True, strict,
-                                                    span, use_origin)
+                                                    span, prob, use_origin)
                     thresh['l2spki'] = np.float64(l2spki_thresh).item()
                 if Metric.MSPKI in jdataf.columns:
                     mspki = jdataf[Metric.MSPKI]
                     mspki_thresh = self._get_fense(mspki, True, strict,
-                                                   span, use_origin)
+                                                   span, prob, use_origin)
                     thresh['mspki'] = np.float64(mspki_thresh).item()
                 self.threshold[job][ThreshType.METRICS.value].append(thresh)
             except Exception as e:
                 print(str(e))
-                if verbose:
-                    log.exception('error in build threshold util=%r (%r)',
-                                  job, util)
 
     def _process_lc_max(self, util_file):
         udf = pd.read_csv(util_file)
@@ -207,26 +206,38 @@ class Analyzer:
         self.threshold['lcutilmax'] = lc_utils
         self._write_threshold_file()
 
-    def get_thresh(self, job, thresh_type):
-        return self.threshold[job][thresh_type] if job in self.threshold else {}
+    def get_thresh(self, cpu_model, ncpu, job, thresh_type):
+        return self.threshold[cpu_model][job][ncpu][thresh_type] if cpu_model in self.threshold and\
+            job in self.threshold[cpu_model] and ncpu in self.threshold[cpu_model][job] else {}
 
-    def build_model(self, util_file=UTIL_FILE, metric_file=METRIC_FILE,
-                    span=4, strict=True, use_origin=False, verbose=False):
+    def build_model(self, util_file=UTIL_FILE, metric_file=METRIC_FILE, ratio=0.5,
+                    span=3, prob=0.05, strict=True, use_origin=False, verbose=False):
         if self.threshold:
             return
+        
+        # initialize a three-level nested dict
+        self.threshold = defaultdict(lambda: defaultdict(dict))
 
-        self._process_lc_max(util_file)
+        model_builder = DistriModel(ratio, span, prob, strict, use_origin, verbose)
+        #self._process_lc_max(util_file)
         mdf = pd.read_csv(metric_file)
-        cnames = mdf['name'].unique()
-        for cname in cnames:
-            self.threshold[cname] = {ThreshType.TDP.value: {}, ThreshType.METRICS.value: []}
-            jdata = mdf[mdf['name'] == cname]
-            self._build_tdp_thresh(jdata)
-            self._build_thresh(jdata, span, strict, use_origin, verbose)
+        model_keys = mdf.groupby(['cpu_model', 'name', 'vcpu_count']).groups.keys()
+        for model_key in model_keys:
+            # filter dataframe by cpu_model, application, cpu_assignment
+            if any(str(v) == 'nan' for v in model_key):
+                continue
+            jdata = mdf[(mdf['cpu_model'] == model_key[0]) &
+                           (mdf['name'] == model_key[1]) &
+                           (mdf['vcpu_count'] == model_key[2])]
+            cpu_number = model_key[2]
+            tdp_thresh, thresholds = model_builder.build_model(jdata, cpu_number)
+
+            value = {ThreshType.TDP.value: tdp_thresh, ThreshType.METRICS.value: thresholds}
+            self.threshold[model_key[0]][model_key[1]][model_key[2]] = value
 
         if self.threshold:
             if verbose:
                 log.warn(self.threshold)
             self._write_threshold_file()
         else:
-            log.warn('Fail to build local model, no enough data were collected!')
+            log.warn('Fail to build model, no enough data were collected!')

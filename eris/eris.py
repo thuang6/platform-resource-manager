@@ -100,10 +100,17 @@ def detect_contender(metric_cons, contention_type, container_contended):
 
         if delta > 0 and delta > resource_delta_max:
             resource_delta_max = delta
-            suspect = container.name
+            suspect = container.cid
+
+    con = container_contended
+    metrics = con.metrics 
+    with open('contention.csv', 'a') as contf:
+        contf.write(metrics['time'] + ',' + con.node + ',' + con.cid + ',' + con.name + ','
+        + str(contention_type) + ',' + suspect + ',' + str(con.utils) + ',' + str(metrics[Metric.CPI]) + ','
+        + str(metrics[Metric.L3MPKI]) + ',' + str(metrics[Metric.MSPKI]) + ',' + str(metrics[Metric.MB]) + ',' + str(metrics[Metric.NF]) + '\n')
 
     print('Contention %s for container %s: Suspect is %s' %
-          (contention_type, container_contended.name, suspect))
+          (contention_type, container_contended.cid, suspect))
 
 
 def set_metrics(ctx, timestamp, data):
@@ -447,13 +454,13 @@ def parse_arguments():
         print(args)
     return args
 
-def init_data_file(ctx, data_file, cols):
+def init_data_file(data_file, cols, verbose):
     headline = None
     try:
         with open(data_file, 'r') as dtf:
             headline = dtf.readline()
     except Exception:
-        if ctx.args.verbose:
+        if verbose:
             traceback.print_exc(file=sys.stdout)
     if headline != ','.join(cols) + '\n':
         with open(data_file, 'w') as dtf:
@@ -486,7 +493,7 @@ def main():
                                Contention.LLC: llc_controller}
     if ctx.args.record:
         cols = ['time', 'cid', 'name', Metric.UTIL]
-        init_data_file(ctx, Analyzer.UTIL_FILE, cols)
+        init_data_file(Analyzer.UTIL_FILE, cols, ctx.args.verbose)
     threads = [Thread(target=monitor, args=(mon_util_cycle,
                                             ctx, ctx.args.util_interval))]
 
@@ -497,7 +504,7 @@ def main():
                     Metric.UTIL, Metric.L3OCC, Metric.MBL, Metric.MBR,
                     Metric.L2STALL, Metric.MEMSTALL, Metric.L2SPKI,
                     Metric.MSPKI]
-            init_data_file(ctx, Analyzer.METRIC_FILE, cols)
+            init_data_file(Analyzer.METRIC_FILE, cols, ctx.args.verbose)
         ctx.pgos = Pgos(cpu_count(), ctx.args.metric_interval * 1000 - 1500)
         ret = ctx.pgos.init_pgos()
         if ret != 0:

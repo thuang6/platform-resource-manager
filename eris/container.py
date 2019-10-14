@@ -98,13 +98,13 @@ class Container(object):
         key_mappings = [('time', str), (Metric.INST, int), (Metric.CYC, int),
                         (Metric.CPI, float), (Metric.L3MPKI, float),
                         (Metric.L3MISS, int), (Metric.NF, float),
-                        (Metric.L3OCC, int), (Metric.MBL, float),
-                        (Metric.MBR, float), (Metric.L2STALL, int),
-                        (Metric.MEMSTALL, int), (Metric.L2SPKI, float),
+                        (Metric.L3OCC, int), (Metric.MB, float),
                         (Metric.MSPKI, float)]
         for key, converter in key_mappings:
             self.metrics[key] = converter(row_tuple[1][key])
         self.utils = float(row_tuple[1][Metric.UTIL])
+        self.cid = str(row_tuple[1]['cid'])
+        self.node = str(row_tuple[1]['machine'])
         self.update_metrics_history()
 
     def get_history_delta_by_type(self, column_name):
@@ -126,10 +126,7 @@ class Container(object):
         return self.get_history_delta_by_type(Metric.NF)
 
     def get_latest_mbt(self):
-        mbl = self.metrics.get(Metric.MBL, 0)
-        mbr = self.metrics.get(Metric.MBR, 0)
-
-        return mbl + mbr
+        return self.metrics.get(Metric.MB, 0)
 
     def get_full_metrics(self, timestamp, interval):
         """ retrieve container platform metrics """
@@ -212,31 +209,30 @@ class Container(object):
         if metrics[Metric.CPI] > thresh['cpi']:
             unk_res = True
             if metrics[Metric.L3MPKI] > thresh['mpki']:
-                print('Last Level Cache contention is detected at %s' %
-                      metrics['time'])
-                print('Latency critical container %s, CPI = %f, threshold =\
-%f, MPKI = %f, threshold = %f, L2SPKI = %f, threshold = %f' %
-                      (self.name, metrics[Metric.CPI], thresh['cpi'],
-                       metrics[Metric.L3MPKI], thresh['mpki'],
-                       metrics[Metric.L2SPKI], thresh['l2spki']))
+                print('Last Level Cache contention is detected in node %s at %s' %
+                      (self.node, metrics['time']))
+                print('Latency critical container %s, CPUtil = %f, CPI = %f, threshold =\
+%f, MPKI = %f, threshold = %f' %
+                      (self.cid, self.utils, metrics[Metric.CPI], thresh['cpi'],
+                       metrics[Metric.L3MPKI], thresh['mpki']))
                 unk_res = False
                 contend_res.append(Contention.LLC)
-            if metrics[Metric.MBL] + metrics[Metric.MBR] < thresh['mb'] or\
+            if metrics[Metric.MB] < thresh['mb'] or\
                metrics[Metric.MSPKI] > thresh['mspki']:
-                print('Memory Bandwidth contention detected at %s' %
-                      metrics['time'])
-                print('Latency critical container %s, CPI = %f, threshold =\
-%f, MBL = %f, MBR = %f, threshold = %f, MSPKI = %f, threshold = %f' %
-                      (self.name, metrics[Metric.CPI], thresh['cpi'],
-                       metrics[Metric.MBL], metrics[Metric.MBR], thresh['mb'],
+                print('Memory Bandwidth contention detected in node %s at %s' %
+                      (self.node, metrics['time']))
+                print('Latency critical container %s, CPUtil = %f, CPI = %f, threshold =\
+%f, MB = %f, threshold = %f, MSPKI = %f, threshold = %f' %
+                      (self.cid, self.utils, metrics[Metric.CPI], thresh['cpi'],
+                       metrics[Metric.MB], thresh['mb'],
                        metrics[Metric.MSPKI], thresh['mspki']))
                 unk_res = False
                 contend_res.append(Contention.MEM_BW)
             if unk_res:
-                print('Performance is impacted at %s' %
-                      metrics['time'])
-                print('Latency critical container %s, CPI = %f, threshold =\
-%f' % (self.name, metrics[Metric.CPI], thresh['cpi']))
+                print('Performance is impacted in node %s at %s' %
+                      (self.node, metrics['time']))
+                print('Latency critical container %s, CPUtil = %f, CPI = %f, threshold =\
+%f' % (self.cid, self.utils, metrics[Metric.CPI], thresh['cpi']))
                 contend_res.append(Contention.UNKN)
 
         return contend_res
