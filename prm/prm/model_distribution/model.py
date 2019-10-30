@@ -118,6 +118,7 @@ class DistriModel(object):
         return gmm_fense.get_gaussian_round_fense(is_upper, self.strict, self.span)
 
     def _build_thresh(self, cpu_number, jdata):
+        log.debug('build thresholds for %s', jdata[Metric.NAME].values[0])
         utilization_partition = self.partition_utilization(
             cpu_number, jdata[Metric.UTIL].max(), self.UTIL_BIN_STEP)
 
@@ -132,12 +133,16 @@ class DistriModel(object):
             try:
                 jdataf = jdata[(jdata[Metric.UTIL] >= lower_bound) &
                                (jdata[Metric.UTIL] <= higher_bound)]
+                log.debug('CPU utilization bin: start: %f, end: %f', lower_bound, higher_bound)
                 if len(jdataf) < self.MIN_SAMPLED_NUM_IN_BIN:
                     continue
+                log.debug('Build CPI threshold:')
                 cpi = jdataf[Metric.CPI]
                 cpi_thresh = self._get_fense(cpi, True)
+                log.debug('Build MPKI threshold:')
                 mpki = jdataf[Metric.L3MPKI]
                 mpki_thresh = self._get_fense(mpki, True)
+                log.debug('Build MB threshold:')
                 memb = jdataf[Metric.MB]
                 mb_thresh = self._get_fense(memb, False)
                 thresh = {
@@ -147,6 +152,7 @@ class DistriModel(object):
                     'mpki': np.float64(mpki_thresh).item(),
                     'mb': np.float64(mb_thresh).item()
                 }
+                log.debug('Build MSPKI threshold:')
                 mspki = jdataf[Metric.MSPKI]
                 mspki_thresh = self._get_fense(mspki, True)
                 thresh['mspki'] = np.float64(mspki_thresh).item()
