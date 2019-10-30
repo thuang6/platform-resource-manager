@@ -10,7 +10,9 @@ runner: !BuildRunnerCSV
       client_cert_path: ~
       client_key_path: ~
   model: !DistriModel
+    ratio: 0.3
     span: 3
+    prob: 0.05
     strict: false
     use_origin: false
     verbose: false
