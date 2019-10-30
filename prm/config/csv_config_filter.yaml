@@ -1,0 +1,21 @@
+runner: !BuildRunnerCSV
+  file_path: "data/file.csv"
+  database: !ModelDatabase
+    db_type: zookeeper    # 1) local 2)zookeeper 3)etcd
+    host: "10.239.157.129:2181"     # required for zookeeper and etcd
+    namespace: ~     # for zookeeper, if none, using default model_distribution
+    timeout: 5.0
+    ssl: !SSL
+      server_verify: false
+      client_cert_path: ~
+      client_key_path: ~
+  model: !DistriModel
+    ratio: 0.3
+    span: 3
+    prob: 0.05
+    strict: false
+    use_origin: false
+    verbose: false
+  wl_filter: !WorkloadFilter
+    name_pattern: '(^.*\/prod\/.*$)|(^.*ads.*\/.*\/.*$)'   # build model for workload whose name follows given pattern
+    cpu_quota: 6.0  # build model for workload whose assigned CPU quota is no less than given value 
