@@ -5,6 +5,7 @@
 - [Introduction](#Introduction)
 - [Train model from data in Prometheus database](#Train-model-from-data-in-Prometheus-database)
 - [Train model from csv data](#Train-model-from-csv-data)
+  - [Filter workloads for model building](#Filter-workloads-for-model-building)
 - [Key-value store of model thresholds](#Key-value-store-of-model-thresholds)
 
 ## Introduction
@@ -85,7 +86,7 @@ runner: !BuildRunnerCSV
     verbose: false
 ```
 
-## Filter workloads for model building
+### Filter workloads for model building
 
 When you train model from csv data, you may filter some of workloads for model building by using a filter object. 
 You may filter workload by name regex pattern or by assigned CPU quota number or by both. 
