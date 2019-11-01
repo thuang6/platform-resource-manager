@@ -32,7 +32,7 @@ class DistriModel(object):
                is lowest utilization bin starts
             (default to 0.5)
         span: how many sigma span for normal fense
-            (default to 4)
+            (default to 3)
         prob:  probility threshold for outlier detection
             (default to 0.05)
         strict: if true, pick less aggressive value from 3_std_threshold or
