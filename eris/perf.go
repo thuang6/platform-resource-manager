@@ -24,7 +24,7 @@ func initPerf() {
 	switch platform {
 	case "BDX":
 		handlePerfEventConfig(bdxJSON)
-	case "SLX":
+	case "SKX":
 		handlePerfEventConfig(skxJSON)
 	case "CLX":
 		handlePerfEventConfig(clxJSON)

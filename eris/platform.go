@@ -77,7 +77,7 @@ func init() {
 	case C.BROADWELL:
 		platform = "BDX"
 	case C.SKYLAKE:
-		platform = "SLX"
+		platform = "SKX"
 	case C.CASCADELAKE:
 		platform = "CLX"
 	default:

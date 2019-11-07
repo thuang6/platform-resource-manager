@@ -226,6 +226,7 @@ func setCAT(cos uint, mask uint64) {
 	}
 }
 
+// return MBA real policy value
 func setMBA(cos uint, percentage uint) uint {
 	if !mbaSupported {
 		return 0

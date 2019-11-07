@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 func getHeaders(v interface{}) []string {
@@ -11,7 +12,8 @@ func getHeaders(v interface{}) []string {
 	for i := 0; i < vType.NumField(); i++ {
 		tags := vType.Field(i).Tag
 		h := tags.Get("header")
-		if h != "" {
+		pf := tags.Get("platform")
+		if h != "" && (pf == "" || strings.Index(pf, platform) != -1) {
 			headers = append(headers, h)
 		}
 	}
@@ -25,7 +27,8 @@ func getEntry(v interface{}) []string {
 	for i := 0; i < vType.NumField(); i++ {
 		tags := vType.Field(i).Tag
 		h := tags.Get("header")
-		if h != "" {
+		pf := tags.Get("platform")
+		if h != "" && (pf == "" || strings.Index(pf, platform) != -1) {
 			s := fmt.Sprintf("%v", vValue.Field(i).Interface())
 			result = append(result, s)
 		}
