@@ -5,6 +5,23 @@ package main
 // enum pqos_cdp_config l3cdp_default = PQOS_REQUIRE_CDP_ANY;
 // enum pqos_cdp_config l2cdp_default = PQOS_REQUIRE_CDP_ANY;
 // enum pqos_cdp_config mba_default = PQOS_MBA_ANY;
+// int get_l3cat_cap(const struct pqos_cap *cap, int *l3way) {
+// 		const struct pqos_capability *cap_item;
+// 		int ec = pqos_cap_get_type(cap, PQOS_CAP_TYPE_L3CA, &cap_item);
+// 		if (ec == PQOS_RETVAL_OK) {
+// 			*l3way = cap_item->u.l3ca->num_ways;
+// 		}
+//		return ec;
+// }
+// int get_mba_cap(const struct pqos_cap *cap, int *bandwidth_gran, int *min_bandwidth) {
+// 		const struct pqos_capability *cap_item;
+// 		int ec = pqos_cap_get_type(cap, PQOS_CAP_TYPE_MBA, &cap_item);
+// 		if (ec == PQOS_RETVAL_OK) {
+//			*bandwidth_gran = cap_item->u.mba->throttle_step;
+//			*min_bandwidth = 100 - cap_item->u.mba->throttle_max;
+// 		}
+//		return ec;
+// }
 // struct pqos_mon_data* new_pqos_mon_data() {
 // 		return malloc(sizeof(struct pqos_mon_data));
 // }
@@ -55,6 +72,7 @@ const latencyCriticalCOS = 1
 const genericCOS = 0
 
 var catSupported, mbaSupported bool
+var l3way, bandwidthGranularity, minBandwidth int
 
 func init() {
 	config := C.struct_pqos_config{
@@ -76,12 +94,22 @@ func init() {
 
 	var supported, enabled C.int
 	if ec := C.pqos_l3ca_cdp_enabled(C.cpu_cap, &supported, &enabled); ec == C.PQOS_RETVAL_OK && supported != 0 {
-		catSupported = true
+		ec := C.get_l3cat_cap(C.cpu_cap, (*C.int)(unsafe.Pointer(&l3way)))
+		if ec != C.PQOS_RETVAL_OK {
+			log.Printf("pqos not support CAT")
+		} else {
+			catSupported = true
+		}
 	} else {
 		log.Printf("pqos not support CAT")
 	}
 	if ec := C.pqos_mba_ctrl_enabled(C.cpu_cap, &supported, &enabled); ec == C.PQOS_RETVAL_OK && supported != 0 {
-		mbaSupported = true
+		ec := C.get_mba_cap(C.cpu_cap, (*C.int)(unsafe.Pointer(&bandwidthGranularity)), (*C.int)(unsafe.Pointer(&minBandwidth)))
+		if ec != C.PQOS_RETVAL_OK {
+			log.Printf("pqos not support MBA")
+		} else {
+			mbaSupported = true
+		}
 	} else {
 		log.Printf("pqos not support MBA")
 	}
