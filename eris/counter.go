@@ -72,5 +72,4 @@ func handlePerfEventConfig(conf []byte) {
 			log.Printf("%s event not exist", event)
 		}
 	}
-
 }

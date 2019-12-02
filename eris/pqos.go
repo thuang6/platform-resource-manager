@@ -2,11 +2,58 @@ package main
 
 // #include <pqos.h>
 // #include <stdlib.h>
+// enum pqos_cdp_config l3cdp_default = PQOS_REQUIRE_CDP_ANY;
+// enum pqos_cdp_config l2cdp_default = PQOS_REQUIRE_CDP_ANY;
+// enum pqos_cdp_config mba_default = PQOS_MBA_ANY;
+// int get_l3cat_cap(const struct pqos_cap *cap, int *l3way) {
+// 		const struct pqos_capability *cap_item;
+// 		int ec = pqos_cap_get_type(cap, PQOS_CAP_TYPE_L3CA, &cap_item);
+// 		if (ec == PQOS_RETVAL_OK) {
+// 			*l3way = cap_item->u.l3ca->num_ways;
+// 		}
+//		return ec;
+// }
+// int get_mba_cap(const struct pqos_cap *cap, int *bandwidth_gran, int *min_bandwidth) {
+// 		const struct pqos_capability *cap_item;
+// 		int ec = pqos_cap_get_type(cap, PQOS_CAP_TYPE_MBA, &cap_item);
+// 		if (ec == PQOS_RETVAL_OK) {
+//			*bandwidth_gran = cap_item->u.mba->throttle_step;
+//			*min_bandwidth = 100 - cap_item->u.mba->throttle_max;
+// 		}
+//		return ec;
+// }
 // struct pqos_mon_data* new_pqos_mon_data() {
 // 		return malloc(sizeof(struct pqos_mon_data));
 // }
 // void free_pqos_mon_data(struct pqos_mon_data* data) {
 // 		free(data);
+// }
+//
+// void set_l3ca_mask(struct pqos_l3ca *cat, uint64_t mask) {
+// 		cat->u.ways_mask = mask;
+// }
+//
+// unsigned arr_index(unsigned* arr, uint index) {
+// 		return arr[index];
+// }
+//
+// struct pqos_cpuinfo *cpu_info = NULL;
+// struct pqos_cap *cpu_cap = NULL;
+// unsigned *mba_ids = NULL, *cat_ids = NULL;
+// unsigned cat_id_count, mba_id_count;
+// void fin_free() {
+//		if (cpu_info != NULL) {
+//			free(cpu_info);
+//		}
+//		if (cpu_cap != NULL) {
+//			free(cpu_cap);
+//		}
+//		if (mba_ids != NULL) {
+//			free(mba_ids);
+//		}
+//		if (cat_ids != NULL) {
+//			free(cat_ids);
+//		}
 // }
 import "C"
 
@@ -24,15 +71,57 @@ const bestEffortCOS = 2
 const latencyCriticalCOS = 1
 const genericCOS = 0
 
+var catSupported, mbaSupported bool
+var l3way, bandwidthGranularity, minBandwidth int
+
 func init() {
 	config := C.struct_pqos_config{
 		fd_log:     2,
 		verbose:    -1,
-		_interface: C.PQOS_INTER_OS_RESCTRL_MON,
+		_interface: C.PQOS_INTER_OS,
 	}
 	ec := C.pqos_init(&config)
 	if ec != C.PQOS_RETVAL_OK {
 		log.Printf("pqos init error code: %d\n", ec)
+		return
+	}
+
+	ec = C.pqos_cap_get(&C.cpu_cap, &C.cpu_info)
+	if ec != C.PQOS_RETVAL_OK {
+		log.Printf("pqos get capability error code: %d\n", ec)
+		return
+	}
+
+	var supported, enabled C.int
+	if ec := C.pqos_l3ca_cdp_enabled(C.cpu_cap, &supported, &enabled); ec == C.PQOS_RETVAL_OK && supported != 0 {
+		ec := C.get_l3cat_cap(C.cpu_cap, (*C.int)(unsafe.Pointer(&l3way)))
+		if ec != C.PQOS_RETVAL_OK {
+			log.Printf("pqos not support CAT")
+		} else {
+			catSupported = true
+		}
+	} else {
+		log.Printf("pqos not support CAT")
+	}
+	if ec := C.pqos_mba_ctrl_enabled(C.cpu_cap, &supported, &enabled); ec == C.PQOS_RETVAL_OK && supported != 0 {
+		ec := C.get_mba_cap(C.cpu_cap, (*C.int)(unsafe.Pointer(&bandwidthGranularity)), (*C.int)(unsafe.Pointer(&minBandwidth)))
+		if ec != C.PQOS_RETVAL_OK {
+			log.Printf("pqos not support MBA")
+		} else {
+			mbaSupported = true
+		}
+	} else {
+		log.Printf("pqos not support MBA")
+	}
+
+	C.cat_ids = C.pqos_cpu_get_l3cat_ids(C.cpu_info, &C.cat_id_count)
+	if C.cat_ids == nil {
+		log.Printf("pqos get l3cat id failed\n")
+		return
+	}
+	C.mba_ids = C.pqos_cpu_get_mba_ids(C.cpu_info, &C.mba_id_count)
+	if C.mba_ids == nil {
+		log.Printf("pqos get mba id failed\n")
 		return
 	}
 	pqosEnabled = true
@@ -40,8 +129,12 @@ func init() {
 }
 
 func pqosFin() {
-	if C.pqos_fini() != C.PQOS_RETVAL_OK {
-		log.Printf("pqos fini error")
+	//	C.fin_free()
+	if ec := C.pqos_alloc_reset(C.l3cdp_default, C.l2cdp_default, C.mba_default); ec != C.PQOS_RETVAL_OK {
+		log.Printf("pqos reset configuration error %d", ec)
+	}
+	if ec := C.pqos_fini(); ec != C.PQOS_RETVAL_OK {
+		log.Printf("pqos fini error %d", ec)
 	}
 }
 
@@ -143,4 +236,39 @@ func listTaskPid(id string) (map[C.pid_t]bool, error) {
 		mapPids[C.pid_t(pid)] = true
 	}
 	return mapPids, nil
+}
+
+func setCAT(cos uint, mask uint64) {
+	if !catSupported {
+		return
+	}
+	cat := C.struct_pqos_l3ca{
+		class_id: C.unsigned(cos),
+		cdp:      0,
+	}
+	C.set_l3ca_mask(&cat, C.uint64_t(mask))
+	for i := C.uint(0); i < C.cat_id_count; i++ {
+		if ec := C.pqos_l3ca_set(C.arr_index(C.cat_ids, i), 1, &cat); ec != C.PQOS_RETVAL_OK {
+			log.Printf("pqos set cat error code %d", ec)
+		}
+	}
+}
+
+// return MBA real policy value
+func setMBA(cos uint, percentage uint) uint {
+	if !mbaSupported {
+		return 0
+	}
+	mba := C.struct_pqos_mba{
+		class_id: C.unsigned(cos),
+		mb_max:   C.unsigned(percentage),
+		ctrl:     0,
+	}
+	var mbaResult C.struct_pqos_mba
+	for i := C.uint(0); i < C.mba_id_count; i++ {
+		if ec := C.pqos_mba_set(C.arr_index(C.mba_ids, i), 1, &mba, &mbaResult); ec != C.PQOS_RETVAL_OK {
+			log.Printf("pqos set mba error code %d", ec)
+		}
+	}
+	return uint(mbaResult.mb_max)
 }

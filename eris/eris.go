@@ -64,6 +64,7 @@ func init() {
 
 func main() {
 	flag.Parse()
+	initMetric()
 	initPerf()
 	newDockerClient()
 	readCgroupDriver()

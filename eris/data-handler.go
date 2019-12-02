@@ -10,9 +10,9 @@ var utilizationChannel = make(chan []Utilization, 1000)
 
 func initCsvHeader(csvFile string, v interface{}) (*csv.Writer, *os.File) {
 	var csvWriter *csv.Writer
-	f, err := os.OpenFile(csvFile, os.O_APPEND|os.O_WRONLY, os.ModePerm)
+	f, err := os.OpenFile(csvFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		f, err = os.OpenFile(csvFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModePerm)
+		f, err = os.OpenFile(csvFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 		if err != nil {
 			panic(err)
 		}

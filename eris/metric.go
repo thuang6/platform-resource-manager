@@ -28,21 +28,25 @@ type Metric struct {
 	//	StallsMemoryLoad                    uint64  `header:"stalls_mem_load" event:"CYCLE_ACTIVITY.STALLS_MEM_ANY"`
 	//	StallsL2MissPerKiloInstructions     float64 `header:"stalls_l2miss_per_kilo_instruction"`
 	//	StallsMemoryLoadPerKiloInstructions float64 `header:"stalls_memory_load_per_kilo_instruction" gauge:"cma_stalls_mem_per_instruction" gauge_help:"Stalls memory load per instruction of a container"`
-	L3MissRequests    uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
-	L3MissCycles      uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
-	CyclesPerL3Miss   float64 `header:"cycles_per_l3_miss" gauge:"cma_cycles_per_l3_miss" gauge_help:"cycles per l3 miss"`
-	PMMInstruction    uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
-	PMMInstTotal      uint64  `header:"pmm_inst_local_total" gauge:"pmm_inst_retired_local_total" gauge_help:"memory local instruction retired on local pmm total"`
-	PMMInstPercentage float64 `header:"pmm_inst_retired_local_percentage" gauge:"pmm_inst_retired_local_percentage" gauge_help:"percentage of pmm inst retired local"`
+
+	L3MissRequests  uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
+	L3MissCycles    uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
+	CyclesPerL3Miss float64 `header:"cycles_per_l3_miss" platform:"SKX,CLX" gauge:"cma_cycles_per_l3_miss" gauge_help:"cycles per l3 miss"`
+
+	PMMInstruction    uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" platform:"CLX" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
+	PMMInstTotal      uint64  `header:"pmm_inst_local_total" platform:"CLX" gauge:"pmm_inst_retired_local_total" gauge_help:"memory local instruction retired on local pmm total"`
+	PMMInstPercentage float64 `header:"pmm_inst_retired_local_percentage" platform:"CLX" gauge:"pmm_inst_retired_local_percentage" gauge_help:"percentage of pmm inst retired local"`
+
 }
 
-func init() {
+func initMetric() {
 	m := Metric{}
 	mType := reflect.TypeOf(m)
 	for i := 0; i < mType.NumField(); i++ {
 		tags := mType.Field(i).Tag
 		e := tags.Get("event")
-		if e != "" {
+		pf := tags.Get("platform")
+		if e != "" && (pf == "" || strings.Index(pf, platform) != -1) {
 			eventIndex[e] = i
 		}
 	}
