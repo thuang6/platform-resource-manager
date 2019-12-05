@@ -25,9 +25,9 @@ type Metric struct {
 	MemoryBandwidthRemote        float64 `header:"memory_bandwidth_remote"`
 	MemoryBandwidthTotal         float64 `gauge:"cma_memory_bandwidth" gauge_help:"Total memory bandwidth of a container"`
 	//	StallsL2Miss                        uint64  `header:"stalls_l2_miss" event:"CYCLE_ACTIVITY.STALLS_L2_MISS"`
-	//	StallsMemoryLoad                    uint64  `header:"stalls_mem_load" event:"CYCLE_ACTIVITY.STALLS_MEM_ANY"`
+	StallsMemoryLoad             uint64  `header:"stalls_mem_load" event:"CYCLE_ACTIVITY.STALLS_MEM_ANY" platform:"BDX,SKX" gauge:"cma_stalls_mem_any" gauge_help:"stalls memory load"`
 	//	StallsL2MissPerKiloInstructions     float64 `header:"stalls_l2miss_per_kilo_instruction"`
-	//	StallsMemoryLoadPerKiloInstructions float64 `header:"stalls_memory_load_per_kilo_instruction" gauge:"cma_stalls_mem_per_instruction" gauge_help:"Stalls memory load per instruction of a container"`
+	StallsMemoryLoadPerKiloInstructions float64 `header:"stalls_memory_load_per_kilo_instruction" platform:"BDX,SKX" gauge:"cma_stalls_mem_per_instruction" gauge_help:"Stalls memory load per instruction of a container"`
 
 	L3MissRequests  uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
 	L3MissCycles    uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
@@ -50,6 +50,7 @@ func initMetric() {
 			eventIndex[e] = i
 		}
 	}
+	log.Printf("%+v\n", eventIndex)
 }
 
 var containers = map[string]*Container{}
@@ -99,7 +100,7 @@ func updateContainers() {
 				}
 			}
 		}
-		if *control && newbe {
+		if *control && !*disableQuota && newbe {
 			cpuq.budgeting(bes, lcs)
 		}
 	}
