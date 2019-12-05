@@ -10,33 +10,41 @@ import (
 var eventIndex = map[string]int{}
 
 type Metric struct {
-	Time                         uint64  `header:"time"`
-	Cid                          string  `header:"cid"`
-	Name                         string  `header:"name"`
-	Instruction                  uint64  `header:"instruction" event:"INST_RETIRED.ANY_P" gauge:"cma_instructions" gauge_help:"Instructions of a container"`
-	Cycle                        uint64  `header:"cycle" event:"CPU_CLK_UNHALTED.THREAD_P" gauge:"cma_unhalted_cycles" gauge_help:"Unhalted cycles of a container"`
-	CyclesPerInstruction         float64 `header:"cycles_per_instruction" gauge:"cma_cycles_per_instruction" gauge_help:" Cycles per instruction of a container"`
-	CacheMissPerKiloInstructions float64 `header:"cache_miss_per_kilo_instruction" gauge:"cma_misses_per_kilo_instruction" gauge_help:"Misses per kilo instruction of a container"`
-	CacheMiss                    uint64  `header:"cache_miss" event:"LONGEST_LAT_CACHE.MISS" gauge:"cma_llc_miss" gauge_help:"Cache misses of a container"`
-	NormalizedFrequency          uint64  `header:"normalized_frequency" gauge:"cma_average_frequency" gauge_help:"Normalized Frequency of a container"`
-	CPUUtilization               float64 `header:"cpu_utilization" gauge:"cma_cpu_usage_percentage" gauge_help:"CPU usage percentage of a container"`
-	CacheOccupancy               float64 `header:"cache_occupancy" gauge:"cma_llc_occupancy" gauge_help:"Last level cache occupancy of a container"`
-	MemoryBandwidthLocal         float64 `header:"memory_bandwidth_local"`
-	MemoryBandwidthRemote        float64 `header:"memory_bandwidth_remote"`
-	MemoryBandwidthTotal         float64 `gauge:"cma_memory_bandwidth" gauge_help:"Total memory bandwidth of a container"`
-	//	StallsL2Miss                        uint64  `header:"stalls_l2_miss" event:"CYCLE_ACTIVITY.STALLS_L2_MISS"`
-	//	StallsMemoryLoad                    uint64  `header:"stalls_mem_load" event:"CYCLE_ACTIVITY.STALLS_MEM_ANY"`
-	//	StallsL2MissPerKiloInstructions     float64 `header:"stalls_l2miss_per_kilo_instruction"`
-	//	StallsMemoryLoadPerKiloInstructions float64 `header:"stalls_memory_load_per_kilo_instruction" gauge:"cma_stalls_mem_per_instruction" gauge_help:"Stalls memory load per instruction of a container"`
+	Time uint64 `header:"time"`
+	Cid  string `header:"cid"`
+	Name string `header:"name"`
 
-	L3MissRequests  uint64  `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
-	L3MissCycles    uint64  `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
-	CyclesPerL3Miss float64 `header:"cycles_per_l3_miss" platform:"SKX,CLX" gauge:"cma_cycles_per_l3_miss" gauge_help:"cycles per l3 miss"`
+	// Fixed Counter
+	Instruction    uint64 `header:"instruction" event:"INST_RETIRED.ANY_P" gauge:"cma_instructions" gauge_help:"Instructions of a container"`
+	Cycle          uint64 `header:"cycle" event:"CPU_CLK_UNHALTED.THREAD_P" gauge:"cma_unhalted_cycles" gauge_help:"Unhalted cycles of a container"`
+	ReferenceCycle uint64 `header:"ref_cycle" event:"CPU_CLK_UNHALTED.REF_TSC" gauge:"cma_ref_unhalted_cycles" gauge_help:"Reference Unhalted cycles of a container"`
 
-	PMMInstruction    uint64  `header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" platform:"CLX" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
-	PMMInstTotal      uint64  `header:"pmm_inst_local_total" platform:"CLX" gauge:"pmm_inst_retired_local_total" gauge_help:"memory local instruction retired on local pmm total"`
-	PMMInstPercentage float64 `header:"pmm_inst_retired_local_percentage" platform:"CLX" gauge:"pmm_inst_retired_local_percentage" gauge_help:"percentage of pmm inst retired local"`
+	// Programmable Counter
+	CacheMiss        uint64 `header:"cache_miss" event:"LONGEST_LAT_CACHE.MISS" gauge:"cma_llc_miss" gauge_help:"Cache misses of a container"`
+	L3MissRequests   uint64 `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
+	L3MissCycles     uint64 `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
+	StallsMemoryLoad uint64 `header:"stalls_memory_load" event:"CYCLE_ACTIVITY.STALLS_MEM_ANY" gauge:"cma_stalls_mem_load" gauge_help:"excution stalls while memory subsystem has an outstanding load"`
+	StallsL2Miss     uint64 `enabled:"false" header:"stalls_l2_miss" event:"CYCLE_ACTIVITY.STALLS_L2_MISS"`
+	PMMInstruction   uint64 `enabled:"false" header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" platform:"CLX" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
 
+	// RDT
+	CacheOccupancy        float64 `header:"cache_occupancy" gauge:"cma_llc_occupancy" gauge_help:"Last level cache occupancy of a container"`
+	MemoryBandwidthLocal  float64 `header:"memory_bandwidth_local"`
+	MemoryBandwidthRemote float64 `header:"memory_bandwidth_remote"`
+	MemoryBandwidthTotal  float64 `gauge:"cma_memory_bandwidth" gauge_help:"Total memory bandwidth of a container"`
+
+	// CPU Utilization
+	CPUUtilization float64 `header:"cpu_utilization" gauge:"cma_cpu_usage_percentage" gauge_help:"CPU usage percentage of a container"`
+
+	// Calculation
+	NormalizedFrequency                 uint64  `header:"normalized_frequency" gauge:"cma_average_frequency" gauge_help:"Normalized Frequency of a container"`
+	CyclesPerInstruction                float64 `header:"cycles_per_instruction" gauge:"cma_cycles_per_instruction" gauge_help:" Cycles per instruction of a container"`
+	CacheMissPerKiloInstructions        float64 `header:"cache_miss_per_kilo_instruction" gauge:"cma_misses_per_kilo_instruction" gauge_help:"Misses per kilo instruction of a container"`
+	StallsL2MissPerKiloInstructions     float64 `header:"stalls_l2miss_per_kilo_instruction"`
+	StallsMemoryLoadPerKiloInstructions float64 `header:"stalls_memory_load_per_kilo_instruction" gauge:"cma_stalls_mem_per_instruction" gauge_help:"Stalls memory load per instruction of a container"`
+	CyclesPerL3Miss                     float64 `header:"cycles_per_l3_miss" platform:"SKX,CLX" gauge:"cma_cycles_per_l3_miss" gauge_help:"cycles per l3 miss"`
+	PMMInstTotal                        uint64  `header:"pmm_inst_local_total" platform:"CLX" gauge:"pmm_inst_retired_local_total" gauge_help:"memory local instruction retired on local pmm total"`
+	PMMInstPercentage                   float64 `header:"pmm_inst_retired_local_percentage" platform:"CLX" gauge:"pmm_inst_retired_local_percentage" gauge_help:"percentage of pmm inst retired local"`
 }
 
 func initMetric() {
@@ -46,7 +54,8 @@ func initMetric() {
 		tags := mType.Field(i).Tag
 		e := tags.Get("event")
 		pf := tags.Get("platform")
-		if e != "" && (pf == "" || strings.Index(pf, platform) != -1) {
+		enabled := tags.Get("enabled")
+		if e != "" && enabled != "false" && (pf == "" || strings.Index(pf, platform) != -1) {
 			eventIndex[e] = i
 		}
 	}
@@ -237,8 +246,8 @@ func (m *Metric) calculate() {
 	if m.Instruction != 0 {
 		m.CyclesPerInstruction = float64(m.Cycle) / float64(m.Instruction)
 		m.CacheMissPerKiloInstructions = float64(m.CacheMiss) / float64(m.Instruction) * 1000.0
-		//		m.StallsL2MissPerKiloInstructions = float64(m.StallsL2Miss) / float64(m.Instruction) * 1000
-		//		m.StallsMemoryLoadPerKiloInstructions = float64(m.StallsMemoryLoad) / float64(m.Instruction) * 1000
+		m.StallsL2MissPerKiloInstructions = float64(m.StallsL2Miss) / float64(m.Instruction) * 1000
+		m.StallsMemoryLoadPerKiloInstructions = float64(m.StallsMemoryLoad) / float64(m.Instruction) * 1000
 	}
 	if m.CPUUtilization != 0 {
 		m.NormalizedFrequency = uint64(float64(m.Cycle) / float64(*metricInterval) / 10000.0 / m.CPUUtilization)
