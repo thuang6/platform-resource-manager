@@ -24,7 +24,6 @@ type Metric struct {
 	L3MissRequests   uint64 `header:"l3_miss_requests" event:"OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_requests" gauge_help:"l3 miss requests count"`
 	L3MissCycles     uint64 `header:"l3_miss_cycles" event:"OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD" platform:"SKX,CLX" gauge:"cma_l3miss_cycles" gauge_help:"l3 miss cycle count"`
 	StallsMemoryLoad uint64 `header:"stalls_memory_load" event:"CYCLE_ACTIVITY.STALLS_MEM_ANY" gauge:"cma_stalls_mem_load" gauge_help:"excution stalls while memory subsystem has an outstanding load"`
-	StallsL2Miss     uint64 `enabled:"false" header:"stalls_l2_miss" event:"CYCLE_ACTIVITY.STALLS_L2_MISS"`
 	PMMInstruction   uint64 `enabled:"false" header:"pmm_instruction" event:"MEM_LOAD_RETIRED.LOCAL_PMM" platform:"CLX" gauge:"cma_pmm_instruction" gauge_help:"instruction retired for pmm"`
 
 	// RDT
@@ -39,8 +38,8 @@ type Metric struct {
 	// Calculation
 	NormalizedFrequency                 uint64  `header:"normalized_frequency" gauge:"cma_average_frequency" gauge_help:"Normalized Frequency of a container"`
 	CyclesPerInstruction                float64 `header:"cycles_per_instruction" gauge:"cma_cycles_per_instruction" gauge_help:" Cycles per instruction of a container"`
+	ReferenceCyclesPerInstruction       float64 `header:"ref_cycles_per_instruction" gauge:"cma_ref_cycles_per_instruction" gauge_help:" Reference Cycles per instruction of a container"`
 	CacheMissPerKiloInstructions        float64 `header:"cache_miss_per_kilo_instruction" gauge:"cma_misses_per_kilo_instruction" gauge_help:"Misses per kilo instruction of a container"`
-	StallsL2MissPerKiloInstructions     float64 `header:"stalls_l2miss_per_kilo_instruction"`
 	StallsMemoryLoadPerKiloInstructions float64 `header:"stalls_memory_load_per_kilo_instruction" gauge:"cma_stalls_mem_per_instruction" gauge_help:"Stalls memory load per instruction of a container"`
 	CyclesPerL3Miss                     float64 `header:"cycles_per_l3_miss" platform:"SKX,CLX" gauge:"cma_cycles_per_l3_miss" gauge_help:"cycles per l3 miss"`
 	PMMInstTotal                        uint64  `header:"pmm_inst_local_total" platform:"CLX" gauge:"pmm_inst_retired_local_total" gauge_help:"memory local instruction retired on local pmm total"`
@@ -245,8 +244,8 @@ func (m *Metric) setEventMetric(event string, value uint64) {
 func (m *Metric) calculate() {
 	if m.Instruction != 0 {
 		m.CyclesPerInstruction = float64(m.Cycle) / float64(m.Instruction)
+		m.ReferenceCyclesPerInstruction = float64(m.ReferenceCycle) / float64(m.Instruction)
 		m.CacheMissPerKiloInstructions = float64(m.CacheMiss) / float64(m.Instruction) * 1000.0
-		m.StallsL2MissPerKiloInstructions = float64(m.StallsL2Miss) / float64(m.Instruction) * 1000
 		m.StallsMemoryLoadPerKiloInstructions = float64(m.StallsMemoryLoad) / float64(m.Instruction) * 1000
 	}
 	if m.CPUUtilization != 0 {
